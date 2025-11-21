@@ -1,0 +1,100 @@
+
+
+namespace TeensyMonitor
+{
+    using PsycSerial;
+
+    public partial class Form1 : Form
+    {
+        readonly SerialHelper SP = Program.serialPort;
+
+        FrameTypes.DebugIO? frame;
+        readonly Mutex mutex = new();
+
+        public Form1()
+        {
+            InitializeComponent();
+
+            SP.DataReceived += DataReceived;
+            SP.ConnectionChanged += SerialPort_ConnectionChanged;
+            SP.ErrorOccurred += SerialPort_ErrorOccurred;
+
+            var ports = SerialHelper.GetPortNames();
+            if (ports.Length == 0)
+            {
+                MessageBox.Show("No serial ports found.");
+                Close();
+                return;
+            }
+            else
+            {
+                cbPorts.Items.AddRange(ports);
+                cbPorts.SelectedIndex = cbPorts.Items.Count - 1;
+            }
+        }
+
+        private void SerialPort_ErrorOccurred(Exception exception)
+        {
+            this.Invoker(delegate
+            {
+                tb.AppendText(exception.Message + Environment.NewLine);
+            });
+        }
+
+        private void SerialPort_ConnectionChanged(bool isOpen)
+        {
+            if (IsHandleCreated == false) return;
+
+            this.Invoker(delegate
+            {
+                tiValueUpdate.Enabled = isOpen;
+                if (isOpen)
+                {
+                    tb.AppendText("Connected " + SP.PortName + Environment.NewLine);
+                }
+                else
+                {
+                    tb.AppendText("Disconnected" + Environment.NewLine);
+                    myPlot.StopAnimation();
+                }
+            });
+        }
+
+        private void DataReceived(ManagedPacket packet)
+        {
+            // convert packet.data to string
+            var data = System.Text.Encoding.UTF8.GetString(packet.Data);
+
+            if (data.StartsWith("Amb:"))
+            {
+                frame = new FrameTypes.DebugIO(packet);
+                myPlot.AddData(frame);
+            }
+
+        }
+
+        private void cbPorts_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (cbPorts.SelectedItem == null) return;
+
+            SP.Open(cbPorts.SelectedItem.ToString());
+        }
+
+        private void tiValueUpdate_Tick(object sender, EventArgs e)
+        {
+            mutex.WaitOne();
+            if (frame != null)
+            {
+                tbIR_value.Text = frame.IR.ToString();
+                tbRed_value.Text = frame.Red.ToString();
+                tbAmbient_value.Text = frame.Ambient.ToString();
+            }
+            mutex.ReleaseMutex();
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            if (SP.IsOpen && tiValueUpdate.Enabled == false) SerialPort_ConnectionChanged(true);
+        }
+    }
+}

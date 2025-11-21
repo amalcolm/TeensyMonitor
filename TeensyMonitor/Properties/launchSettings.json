@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "TeensyMonitor": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}
