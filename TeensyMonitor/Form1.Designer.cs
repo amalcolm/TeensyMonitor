@@ -34,7 +34,6 @@
             labPorts = new Label();
             labIR = new Label();
             tbIR_value = new TextBox();
-            tiValueUpdate = new System.Windows.Forms.Timer(components);
             tbRed_value = new TextBox();
             labRed = new Label();
             labAmbient = new Label();
@@ -85,10 +84,6 @@
             tbIR_value.Size = new Size(100, 23);
             tbIR_value.TabIndex = 6;
             tbIR_value.TextAlign = HorizontalAlignment.Right;
-            // 
-            // tiValueUpdate
-            // 
-            tiValueUpdate.Tick += tiValueUpdate_Tick;
             // 
             // tbRed_value
             // 
@@ -155,7 +150,6 @@
         private Label labPorts;
         private Label labIR;
         private TextBox tbIR_value;
-        private System.Windows.Forms.Timer tiValueUpdate;
         private TextBox tbRed_value;
         private Label labRed;
         private Label labAmbient;

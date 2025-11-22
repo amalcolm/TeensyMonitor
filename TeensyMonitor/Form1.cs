@@ -34,12 +34,9 @@ namespace TeensyMonitor
         }
 
         private void SerialPort_ErrorOccurred(Exception exception)
-        {
-            this.Invoker(delegate
-            {
-                tb.AppendText(exception.Message + Environment.NewLine);
-            });
-        }
+            => this.Invoker(delegate { tb.AppendText(exception.Message + Environment.NewLine); });
+
+        bool stateSet = false;
 
         private void SerialPort_ConnectionChanged(bool isOpen)
         {
@@ -47,15 +44,12 @@ namespace TeensyMonitor
 
             this.Invoker(delegate
             {
-                tiValueUpdate.Enabled = isOpen;
                 if (isOpen)
-                {
                     tb.AppendText("Connected " + SP.PortName + Environment.NewLine);
-                }
                 else
-                {
                     tb.AppendText("Disconnected" + Environment.NewLine);
-                }
+
+                stateSet = true;
             });
         }
 
@@ -82,21 +76,9 @@ namespace TeensyMonitor
             SP.Open(cbPorts.SelectedItem.ToString());
         }
 
-        private void tiValueUpdate_Tick(object sender, EventArgs e)
-        {
-            mutex.WaitOne();
-            if (frame != null)
-            {
-                tbIR_value.Text = frame.IR.ToString();
-                tbRed_value.Text = frame.Red.ToString();
-                tbAmbient_value.Text = frame.Ambient.ToString();
-            }
-            mutex.ReleaseMutex();
-        }
-
         private void Form1_Load(object sender, EventArgs e)
         {
-            if (SP.IsOpen && tiValueUpdate.Enabled == false) SerialPort_ConnectionChanged(true);
+            if (SP.IsOpen && stateSet == false) SerialPort_ConnectionChanged(true);
         }
     }
 }

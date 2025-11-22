@@ -358,188 +358,180 @@ bool CSerial::Write(const std::string& data) {
     return Write(reinterpret_cast<const BYTE*>(data.c_str()), 0, static_cast<DWORD>(data.length()));
 }
 
-bool CSerial::Write(const BYTE* data, DWORD offset, DWORD count) {
-    // Check if open under lock
-    HANDLE hSerialLocal;
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        if (!m_isOpen || m_hSerial.get() == INVALID_HANDLE_VALUE) {
-            InvokeErrorOccurred(std::runtime_error("Write attempted on closed or invalid port."));
-            return false;
-        }
-        hSerialLocal = m_hSerial.get(); // Get handle under lock
+bool CSerial::Write(const BYTE* data, DWORD offset, DWORD count)
+{
+    if (count == 0) {
+        return true; // nothing to do
     }
 
+    // Snapshot handle under lock, but don't call callbacks while holding it
+    HANDLE hSerialLocal = INVALID_HANDLE_VALUE;
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_isOpen && m_hSerial.get() != INVALID_HANDLE_VALUE) {
+            hSerialLocal = m_hSerial.get();
+        }
+    }
 
-    DWORD bytesWritten = 0; // Initialize
-    OVERLAPPED overlapped = { 0 };
+    if (hSerialLocal == INVALID_HANDLE_VALUE) {
+        InvokeErrorOccurred(std::runtime_error("Write attempted on closed or invalid port."));
+        return false;
+    }
 
-    HandleGuard eventHandle(CreateEvent(NULL, TRUE, FALSE, NULL));
-    // Use CHECK macro for event creation failure
-    CHECK(eventHandle.get() != NULL, INVALID_HANDLE_VALUE, "CreateEvent failed in Write bytes.");
+    const BYTE* p = data + offset;
+    DWORD       remaining = count;
+
+    // Event for this write sequence (auto-reset is fine; kernel manages it for overlapped I/O)
+    HandleGuard eventHandle(CreateEvent(nullptr, FALSE, FALSE, nullptr));
+    if (!eventHandle.get()) {
+        DWORD le = GetLastError();
+        std::ostringstream os; os << "CreateEvent failed in Write. Error: " << le;
+        InvokeErrorOccurred(std::runtime_error(os.str()));
+        return false;
+    }
+
+    OVERLAPPED overlapped{};
     overlapped.hEvent = eventHandle.get();
 
+    while (remaining > 0) {
+        DWORD bytesWritten = 0;
 
-    BOOL writeResult = WriteFile(hSerialLocal, data + offset, count, NULL, &overlapped); // Pass NULL for sync bytes written
+        // Issue overlapped write
+        BOOL writeResult = WriteFile(
+            hSerialLocal,
+            p,
+            remaining,
+            nullptr,         // ignored for overlapped
+            &overlapped);
 
-    if (!writeResult) {
-        DWORD error = GetLastError();
-        if (error == ERROR_IO_PENDING) {
-            DWORD waitResult = WaitForSingleObject(overlapped.hEvent, IO_OPERATION_TIMEOUT);
-            if (waitResult == WAIT_OBJECT_0) {
-                // Get handle again in case it changed
-                HANDLE currentSerialHandle;
-                {
-                    std::lock_guard<std::mutex> lock(m_mutex);
-                    currentSerialHandle = m_hSerial.get();
+        if (!writeResult) {
+            DWORD error = GetLastError();
+
+            if (error == ERROR_IO_PENDING) {
+                // Wait for completion with a timeout
+                DWORD waitResult = WaitForSingleObject(overlapped.hEvent, IO_OPERATION_TIMEOUT);
+                if (waitResult == WAIT_OBJECT_0) {
+                    // Operation completed; fetch the result
+                    if (!GetOverlappedResult(hSerialLocal, &overlapped, &bytesWritten, FALSE)) {
+                        DWORD overlappedError = GetLastError();
+                        if (overlappedError != ERROR_OPERATION_ABORTED) {
+                            std::ostringstream os;
+                            os << "GetOverlappedResult failed in Write. Error: " << overlappedError;
+                            InvokeErrorOccurred(std::runtime_error(os.str()));
+                        }
+                        return false;
+                    }
                 }
-                if (currentSerialHandle == INVALID_HANDLE_VALUE) {
-                    std::cerr << "Write: Serial handle became invalid while waiting for I/O." << std::endl;
-                    InvokeErrorOccurred(std::runtime_error("Write failed: Port closed during operation."));
+                else {
+                    // Timeout or wait error
+                    DWORD waitError = (waitResult == WAIT_TIMEOUT) ? ERROR_TIMEOUT : GetLastError();
+                    CancelIoEx(hSerialLocal, &overlapped);
+
+                    std::ostringstream os;
+                    os << "WaitForSingleObject failed in Write. WaitResult: "
+                        << waitResult << " Error: " << waitError;
+                    InvokeErrorOccurred(std::runtime_error(os.str()));
                     return false;
                 }
-
-                if (!GetOverlappedResult(currentSerialHandle, &overlapped, &bytesWritten, FALSE)) { // Get bytes written
-                    DWORD overlappedError = GetLastError();
-                    if (overlappedError != ERROR_OPERATION_ABORTED) {
-                        InvokeErrorOccurred(std::runtime_error("GetOverlappedResult failed in Write. Error: " + std::to_string(overlappedError)));
-                    }
-                    return false; // Write failed
-                }
-                // Write completed successfully, bytesWritten contains the count
-                if (bytesWritten != count) {
-                    // Partial write occurred? Or error?
-                    InvokeErrorOccurred(std::runtime_error("Write operation wrote fewer bytes than requested."));
-                    // Decide if this is a failure or just informational
-                    return false; // Treat as failure for now
-                }
+            }
+            else if (error == ERROR_OPERATION_ABORTED) {
+                // Port was closed while write in flight
+                InvokeErrorOccurred(std::runtime_error("Write canceled because the port was closed."));
+                return false;
             }
             else {
-                // Wait failed (timeout or other error)
-                DWORD waitError = (waitResult == WAIT_TIMEOUT) ? ERROR_TIMEOUT : GetLastError();
-                std::cerr << "WaitForSingleObject failed in Write. WaitResult: " << waitResult << " Error: " << waitError << std::endl;
-                // Cancel the pending I/O
-                {
-                    std::lock_guard<std::mutex> lock(m_mutex);
-                    if (m_hSerial.get() != INVALID_HANDLE_VALUE) CancelIo(m_hSerial.get());
-                }
-                InvokeErrorOccurred(std::runtime_error("Write operation failed (wait). Error: " + std::to_string(waitError)));
-                return false; // Write failed
+                std::ostringstream os;
+                os << "WriteFile failed directly in Write. Error: " << error;
+                InvokeErrorOccurred(std::runtime_error(os.str()));
+                return false;
             }
         }
         else {
-            // Other WriteFile error
-            InvokeErrorOccurred(std::runtime_error("WriteFile failed directly. Error: " + std::to_string(error)));
-            return false; // Write failed
-        }
-    }
-    else {
-        // Write completed synchronously
-        HANDLE currentSerialHandle;
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            currentSerialHandle = m_hSerial.get();
-        }
-        if (currentSerialHandle == INVALID_HANDLE_VALUE) {
-            std::cerr << "Write: Serial handle became invalid after sync WriteFile." << std::endl;
-            InvokeErrorOccurred(std::runtime_error("Write failed: Port closed during operation."));
-            return false;
-        }
-        if (!GetOverlappedResult(currentSerialHandle, &overlapped, &bytesWritten, FALSE)) {
-            DWORD overlappedError = GetLastError();
-            if (overlappedError != ERROR_OPERATION_ABORTED) {
-                InvokeErrorOccurred(std::runtime_error("GetOverlappedResult failed (sync write). Error: " + std::to_string(overlappedError)));
+            // Completed synchronously (even with OVERLAPPED, lpBytesWritten is ignored)
+            if (!GetOverlappedResult(hSerialLocal, &overlapped, &bytesWritten, FALSE)) {
+                DWORD overlappedError = GetLastError();
+                if (overlappedError != ERROR_OPERATION_ABORTED) {
+                    std::ostringstream os;
+                    os << "GetOverlappedResult failed (sync write). Error: " << overlappedError;
+                    InvokeErrorOccurred(std::runtime_error(os.str()));
+                }
+                return false;
             }
+        }
+
+        if (bytesWritten == 0) {
+            InvokeErrorOccurred(std::runtime_error("WriteFile wrote zero bytes."));
             return false;
         }
-        if (bytesWritten != count) {
-            InvokeErrorOccurred(std::runtime_error("Synchronous write wrote fewer bytes than requested."));
-            return false;
-        }
+
+        // Advance pointer and reduce remaining count
+        remaining -= bytesWritten;
+        p += bytesWritten;
+
+        // Prepare OVERLAPPED for the next chunk
+        ZeroMemory(&overlapped, sizeof(overlapped));
+        overlapped.hEvent = eventHandle.get();
     }
 
-    return true; // Write succeeded
+    return true;
 }
 
 
-bool CSerial::Close() {
-    // Signal the read thread to stop *before* taking the lock
-    m_stopReadLoop.store(true); // Use store() for atomic write
+bool CSerial::Close()
+{
+    // Tell the read thread to stop as soon as possible
+    m_stopReadLoop.store(true, std::memory_order_release);
 
-    std::thread threadToJoin; // Local variable to hold the thread for joining
+    std::thread threadToJoin;    // thread we will join outside the lock
+    bool        wasOpen = false; // track whether we were actually open
 
-    { // Lock scope
+    {
         std::lock_guard<std::mutex> lock(m_mutex);
 
-        if (!m_isOpen) {
-            // Already closed or never opened, ensure thread is joined if it exists
-            if (m_readThread.joinable()) {
-                // Move to local variable inside lock, join outside
-                threadToJoin = std::move(m_readThread);
-            }
-            return true; // Nothing more to do
-        }
+        wasOpen = m_isOpen;
 
-        // Best effort: Send Halt command (ignore errors, might fail if port already broken)
-        if (m_hSerial.get() != INVALID_HANDLE_VALUE) {
-            DWORD bytesWritten;
-            std::string haltCmd = "Halt"; // Example command
-            // Use non-overlapped write for simplicity during close, or short timeout overlapped
-            // Using NULL overlapped structure for synchronous behavior here:
-            WriteFile(m_hSerial.get(), haltCmd.c_str(), (DWORD)haltCmd.length(), &bytesWritten, NULL);
-            // Ignore result of WriteFile during close
-        }
-
-        // Cancel any pending I/O operations on the handle *before* closing it
-        // This helps the ReadLoop exit cleanly if blocked on ReadFile/WaitForSingleObject
-        if (m_hSerial.get() != INVALID_HANDLE_VALUE) {
-            if (!CancelIoEx(m_hSerial.get(), NULL)) { // Cancel all I/O for this handle
-                DWORD cancelError = GetLastError();
-                // ERROR_NOT_FOUND means no pending I/O, which is fine.
-                if (cancelError != ERROR_NOT_FOUND) {
-                    std::cerr << "Close: CancelIoEx failed. Error: " << cancelError << std::endl;
-                    // Don't invoke error handler during close? Or maybe do?
-                    // InvokeErrorOccurred(std::runtime_error("CancelIoEx failed during close. Error: " + std::to_string(cancelError)));
-                }
-            }
-        }
-
-        // Move the thread handle to the local variable *before* resetting m_hSerial
+        // If there's a read thread, always move it to the local variable so we can join it.
         if (m_readThread.joinable()) {
             threadToJoin = std::move(m_readThread);
         }
 
-        // Reset the HandleGuard, which calls CloseHandle via RAII
-        m_hSerial.reset(); // Closes the underlying HANDLE
+        if (m_isOpen) {
+            // We are currently open: cancel any pending I/O before closing the handle
+            HANDLE h = m_hSerial.get();
+            if (h != INVALID_HANDLE_VALUE) {
+                if (!CancelIoEx(h, nullptr)) {
+                    DWORD cancelError = GetLastError();
+                    if (cancelError != ERROR_NOT_FOUND) {
+                        std::cerr << "Close: CancelIoEx failed. Error: "
+                            << cancelError << std::endl;
+                    }
+                }
+            }
 
-        m_isOpen = false; // Mark as closed
+            // Close the underlying handle via RAII
+            m_hSerial.reset();
+            m_isOpen = false;
+            m_dataHandler = nullptr; // no more data callbacks after close
+        }
+    } 
 
-		m_dataHandler = nullptr; // Clear data handler
+    // Small delay to let any in-flight I/O settle before join (heuristic only)
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
-    } // Mutex unlocked here
-
-    // Wait briefly *after* CancelIo and CloseHandle for thread to potentially exit I/O calls
-    // This is heuristic, joining is the guarantee.
-    std::this_thread::sleep_for(std::chrono::milliseconds(50)); // Reduced delay
-
-    // Join the read thread *outside* the lock to prevent deadlock
+    // Join the read thread outside the lock to avoid deadlocks
     if (threadToJoin.joinable()) {
         try {
             threadToJoin.join();
-            std::cout << "Close: Read thread joined successfully." << std::endl;
         }
         catch (const std::system_error& e) {
-            std::cerr << "Close: Exception caught while joining read thread: " << e.what() << " (" << e.code() << ")" << std::endl;
-            // This might happen if join() is called twice, etc.
+            std::cerr << "Close: Exception while joining read thread: "
+                << e.what() << " (" << e.code() << ")" << std::endl;
         }
     }
-    else {
-        std::cout << "Close: Read thread was not joinable (already joined or never started?)." << std::endl;
-    }
 
-
-    // Invoke state change after everything is done and lock released
-    InvokeConnectionChanged(false); // State is now false
+    // Only signal a connection state change if we were actually open
+    if (wasOpen) InvokeConnectionChanged(false);
+    
 
     return true;
 }
