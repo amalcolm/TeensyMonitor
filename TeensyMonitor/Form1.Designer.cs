@@ -30,7 +30,6 @@
         {
             components = new System.ComponentModel.Container();
             tb = new TextBox();
-            myPlot = new TeensyMonitor.Helpers.CTG_Chart();
             cbPorts = new ComboBox();
             labPorts = new Label();
             labIR = new Label();
@@ -49,15 +48,6 @@
             tb.Name = "tb";
             tb.Size = new Size(830, 76);
             tb.TabIndex = 1;
-            // 
-            // myPlot
-            // 
-            myPlot.BackColor = Color.Transparent;
-            myPlot.Location = new Point(73, 54);
-            myPlot.Margin = new Padding(4, 3, 4, 3);
-            myPlot.Name = "myPlot";
-            myPlot.Size = new Size(830, 554);
-            myPlot.TabIndex = 2;
             // 
             // cbPorts
             // 
@@ -151,7 +141,6 @@
             Controls.Add(labIR);
             Controls.Add(labPorts);
             Controls.Add(cbPorts);
-            Controls.Add(myPlot);
             Controls.Add(tb);
             Name = "Form1";
             Text = "Form1";
@@ -162,7 +151,6 @@
 
         #endregion
         private TextBox tb;
-        private Helpers.CTG_Chart myPlot;
         private ComboBox cbPorts;
         private Label labPorts;
         private Label labIR;

@@ -30,6 +30,7 @@ CSerial::CSerial()
 	, m_connectionHandler(nullptr)
 	, m_errorHandler(nullptr)
 	, m_readThread()
+    , m_userData(nullptr)
 	, m_mutex()
 
 { }
@@ -214,179 +215,142 @@ bool CSerial::SetPort(const std::string& portName, DataHandler dataHandler, void
 }
 
 
-void CSerial::ReadLoop() {
-    HandleGuard eventHandle(CreateEvent(NULL, TRUE, FALSE, NULL));
-    if (eventHandle.get() == NULL) {
-        std::cerr << "CreateEvent failed in ReadLoop. Error: " << GetLastError() << std::endl;
-        InvokeErrorOccurred(std::runtime_error("CreateEvent failed in ReadLoop."));
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_isOpen = false; // Mark as closed internally
-        }
-        InvokeConnectionChanged(false); // Notify closed state
+void CSerial::ReadLoop()
+{
+    // Create an auto-reset event for the read OVERLAPPED
+    HANDLE hEvent = CreateEvent(nullptr, /*bManualReset*/ FALSE, /*bInitialState*/ FALSE, nullptr);
+    if (hEvent == nullptr) {
+        const DWORD le = GetLastError();
+        std::ostringstream os; os << "CreateEvent failed in ReadLoop. Error: " << le;
+        InvokeErrorOccurred(std::runtime_error(os.str()));
         return;
     }
 
-    OVERLAPPED overlapped = { 0 };
-    overlapped.hEvent = eventHandle.get();
+    OVERLAPPED ov{}; // will be re-initialised before each ReadFile
 
-    BYTE buffer[READ_BUFFER_SIZE] = { 0 };
-    DWORD bytesRead = 0; // Initialize bytesRead
-	
-    {
-		std::lock_guard<std::mutex> lock(m_mutex);
-		if (!m_isOpen || m_hSerial.get() == INVALID_HANDLE_VALUE) {
-			std::cerr << "ReadLoop: Serial port is not open or handle is invalid." << std::endl;
-			return; // Exit if port is not open
-		}
+    std::vector<BYTE> buffer(READ_BUFFER_SIZE);
 
-		if (!PurgeComm(m_hSerial, PURGE_RXCLEAR | PURGE_TXCLEAR)) {
-			DWORD error = GetLastError();
-			std::cerr << "PurgeComm failed. Error: " << error << std::endl;
-			InvokeErrorOccurred(std::runtime_error("PurgeComm failed."));
-			return; // Exit if purge fails
-		}
-    }
-
-    while (!m_stopReadLoop.load()) {
-        {
-            // Check if port is still valid under lock
-            std::lock_guard<std::mutex> lock(m_mutex);
-            if (!m_isOpen || m_hSerial.get() == INVALID_HANDLE_VALUE) {
-                break; // Exit loop if port closed or handle invalid
-            }
-        }
-
-        ResetEvent(overlapped.hEvent); // Reset before each ReadFile
-
-        // Local copy of the HANDLE to use outside the lock
-        HANDLE hSerialLocal;
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            hSerialLocal = m_hSerial.get(); // Get handle under lock
-        }
-        // Check if handle became invalid between check and get (unlikely but possible)
-        if (hSerialLocal == INVALID_HANDLE_VALUE) {
+    for (;;) {
+        // Cooperative shutdown
+        if (m_stopReadLoop.load(std::memory_order_acquire)) {
             break;
         }
 
-		// Perform the read operation
-        BOOL readResult = ReadFile(hSerialLocal, buffer, READ_BUFFER_SIZE, NULL, &overlapped); // Pass NULL for sync bytes read
+        // Snapshot the handle under lock, then operate lock-free
+        HANDLE h = INVALID_HANDLE_VALUE;
+        bool   isOpen = false;
+        {
+            std::lock_guard<std::mutex> g(m_mutex);
+            isOpen = m_isOpen;
+            h = m_hSerial.get();
+        }
+        if (!isOpen || h == INVALID_HANDLE_VALUE) {
+            break; // port closed while running
+        }
 
-        if (!readResult) {
-            DWORD error = GetLastError();
-            if (error == ERROR_IO_PENDING) {
-                DWORD waitResult = WaitForSingleObject(overlapped.hEvent, IO_OPERATION_TIMEOUT);
-                if (waitResult == WAIT_OBJECT_0) {
-                    // Need to get handle again in case it changed (e.g., Close called)
-                    HANDLE currentSerialHandle;
-                    {
-                        std::lock_guard<std::mutex> lock(m_mutex);
-                        currentSerialHandle = m_hSerial.get();
-                    }
+        COMSTAT comStat{};
+        DWORD   errors = 0;
+        if (!ClearCommError(h, &errors, &comStat)) {
+            const DWORD le = GetLastError();
+            std::ostringstream os; os << "ClearCommError failed in ReadLoop. Error: " << le;
+            InvokeErrorOccurred(std::runtime_error(os.str()));
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            continue;
+        }
 
-                    if (currentSerialHandle == INVALID_HANDLE_VALUE) {
-                        std::cerr << "ReadLoop: Serial handle became invalid while waiting for I/O." << std::endl;
-                        break; // Exit loop
-                    }
+        DWORD queued = comStat.cbInQue;
+        if (queued == 0) {
+            // Nothing buffered right now – short pause to avoid busy-spin
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            continue;
+        }
 
-                    // Use current handle for GetOverlappedResult
-                    if (!GetOverlappedResult(currentSerialHandle, &overlapped, &bytesRead, FALSE)) { // Get bytesRead here
-                        DWORD overlappedError = GetLastError();
-                        // Don't report error if operation was aborted (e.g., by Close/CancelIo)
-                        if (overlappedError != ERROR_OPERATION_ABORTED) {
-                            std::cerr << "GetOverlappedResult failed after wait. Error: " << overlappedError << std::endl;
-                            InvokeErrorOccurred(std::runtime_error("GetOverlappedResult failed. Error: " + std::to_string(overlappedError)));
-                        }
-                        // Continue or break based on error? Continue for now, might recover.
-                        // If ERROR_HANDLE_EOF or similar, maybe break.
-                        continue;
+        // We know there is data. Decide how much to ask for this time.
+        DWORD requestSize = (std::min)(queued, static_cast<DWORD>(READ_BUFFER_SIZE));
+
+        DWORD bytesRead = 0;
+
+        // Re-initialise OVERLAPPED for this operation
+        ZeroMemory(&ov, sizeof(ov));
+        ov.hEvent = hEvent;
+
+        // Issue the overlapped read
+        BOOL issued = ReadFile(
+            h,
+            buffer.data(),
+            requestSize,
+            &bytesRead,
+            &ov);
+
+        if (!issued) {
+            const DWORD err = GetLastError();
+            if (err == ERROR_IO_PENDING) {
+                // Wait in short slices so we can notice a stop request and cancel the specific I/O.
+                for (;;) {
+                    if (m_stopReadLoop.load(std::memory_order_acquire)) {
+                        CancelIoEx(h, &ov); // cancel just this read
                     }
-                    // Successfully read 'bytesRead' bytes
+                    DWORD w = WaitForSingleObject(ov.hEvent, 100); // 100 ms slice (tune if you like)
+                    if (w == WAIT_OBJECT_0) break;     // completed
+                    if (w == WAIT_FAILED) {
+                        const DWORD we = GetLastError();
+                        std::ostringstream os; os << "WaitForSingleObject failed. Error: " << we;
+                        InvokeErrorOccurred(std::runtime_error(os.str()));
+                        // Best effort: cancel and try again
+                        CancelIoEx(h, &ov);
+                        bytesRead = 0;
+                        break;
+                    }
+                    // WAIT_TIMEOUT ? loop and re-check stop flag
                 }
-                else if (waitResult == WAIT_TIMEOUT) {
-                    std::cerr << "WaitForSingleObject timed out in ReadLoop after " << IO_OPERATION_TIMEOUT << "ms" << std::endl;
-                    InvokeErrorOccurred(std::runtime_error("Read I/O operation timed out"));
-                    // Cancel pending I/O on timeout
-                    {
-                        std::lock_guard<std::mutex> lock(m_mutex);
-                        if (m_hSerial.get() != INVALID_HANDLE_VALUE) CancelIo(m_hSerial.get());
+
+                BOOL ok = GetOverlappedResult(h, &ov, &bytesRead, FALSE);
+                if (!ok) {
+                    const DWORD ge = GetLastError();
+                    if (ge == ERROR_OPERATION_ABORTED) {
+                        // Normal during Close(); exit
+                        break;
                     }
-                    continue; // Try reading again
-                }
-                else {
-                    // Other wait failure
-                    DWORD waitError = GetLastError();
-                    std::cerr << "WaitForSingleObject failed in ReadLoop. WaitResult: " << waitResult << " Error: " << waitError << std::endl;
-                    InvokeErrorOccurred(std::runtime_error("WaitForSingleObject failed. Error: " + std::to_string(waitError)));
-                    // Cancel pending I/O on failure
-                    {
-                        std::lock_guard<std::mutex> lock(m_mutex);
-                        if (m_hSerial.get() != INVALID_HANDLE_VALUE) CancelIo(m_hSerial.get());
-                    }
-                    continue; // Try reading again
+                    // Transient failure — report and continue
+                    std::ostringstream os; os << "GetOverlappedResult failed. Error: " << ge;
+                    InvokeErrorOccurred(std::runtime_error(os.str()));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    continue;
                 }
             }
-            else if (error == ERROR_OPERATION_ABORTED) {
-                // Operation was cancelled, likely due to Close() calling CancelIo. Normal shutdown.
-                std::cout << "ReadLoop: I/O operation aborted. Exiting loop." << std::endl;
-                break; // Exit the loop cleanly
+            else if (err == ERROR_OPERATION_ABORTED) {
+                // Close() canceled us
+                break;
             }
             else {
-                // Other ReadFile error
-                std::cerr << "ReadFile failed directly. Error: " << error << std::endl;
-                InvokeErrorOccurred(std::runtime_error("ReadFile failed. Error: " + std::to_string(error)));
-                
-                // Consider if we should break or continue after an error
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                // Immediate ReadFile failure unrelated to pending I/O
+                std::ostringstream os; os << "ReadFile failed. Error: " << err;
+                InvokeErrorOccurred(std::runtime_error(os.str()));
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 continue;
             }
         }
-        else {
-            // ReadFile completed synchronously (unlikely with OVERLAPPED but possible)
-            // We still need GetOverlappedResult to get the number of bytes read
-            HANDLE currentSerialHandle;
-            {
-                std::lock_guard<std::mutex> lock(m_mutex);
-                currentSerialHandle = m_hSerial.get();
-            }
-            if (currentSerialHandle == INVALID_HANDLE_VALUE) {
-                std::cerr << "ReadLoop: Serial handle became invalid after sync ReadFile." << std::endl;
-                break; // Exit loop
-            }
-            if (!GetOverlappedResult(currentSerialHandle, &overlapped, &bytesRead, FALSE)) {
-                DWORD overlappedError = GetLastError();
-                if (overlappedError != ERROR_OPERATION_ABORTED) {
-                    std::cerr << "GetOverlappedResult failed after sync read. Error: " << overlappedError << std::endl;
-                    InvokeErrorOccurred(std::runtime_error("GetOverlappedResult failed (sync). Error: " + std::to_string(overlappedError)));
-                }
-                continue;
-            }
-            // Successfully read 'bytesRead' bytes synchronously
+
+        // If we got here with bytesRead set (sync or async paths)
+        if (bytesRead == 0) {
+            // Nothing to report; try again
+            continue;
         }
 
+        // Build and dispatch the packet (no locks held during callback)
+        Packet pkt{};
+        GetSystemTime(&pkt.timestamp); // For higher precision, consider GetSystemTimePreciseAsFileTime
+        pkt.bytesRead = bytesRead;
+        pkt.data.assign(buffer.begin(), buffer.begin() + bytesRead);
 
-        // Process data if bytes were read
-        if (bytesRead > 0) {
-            Packet packet;
-            GetSystemTime(&packet.timestamp); // Get current timestamp
-            packet.data.assign(buffer, buffer + bytesRead);  // Copy data
-            packet.bytesRead = bytesRead;
+        InvokeDataReceived(pkt);
+    }
 
-            InvokeDataReceived(packet); // Use the safe invocation helper
-            bytesRead = 0; // Reset for next read
-        }
-        else {
-            // Read completed successfully but returned 0 bytes (e.g., timeout occurred internally?)
-            // Can happen if ReadIntervalTimeout is used differently, but with MAXDWORD it shouldn't timeout this way.
-            // Could indicate EOF on some devices. For serial ports, often just means no data available yet.
-            // Add a small sleep to prevent busy-waiting if reads return 0 frequently.
-//            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-    } // end while (!m_stopReadLoop)
-
-    std::cout << "ReadLoop: Exiting." << std::endl;
+    // Silent exit: SetPort/Close handle connection state notifications
+    CloseHandle(hEvent);
 }
+
+
 
 
 bool CSerial::Write(const std::string& data) {

@@ -102,7 +102,9 @@ namespace PsycSerial {
             CallbackPolicy get() { return m_managedCallbacks->Policy; }
         }
 
-    private:
+        static array<String^>^ GetUSBSerialPorts();
+
+
     private:
         // Delegate types matching native function pointers
         delegate void NativeDataCallbackDelegate(void* userData, CSerial* pSender, const CSerial::Packet& packet);

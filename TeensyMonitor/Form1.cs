@@ -19,7 +19,7 @@ namespace TeensyMonitor
             SP.ConnectionChanged += SerialPort_ConnectionChanged;
             SP.ErrorOccurred += SerialPort_ErrorOccurred;
 
-            var ports = SerialHelper.GetPortNames();
+            var ports = SerialHelper.GetUSBSerialPorts();
             if (ports.Length == 0)
             {
                 MessageBox.Show("No serial ports found.");
@@ -55,20 +55,22 @@ namespace TeensyMonitor
                 else
                 {
                     tb.AppendText("Disconnected" + Environment.NewLine);
-                    myPlot.StopAnimation();
                 }
             });
         }
 
+        int count = 0;
         private void DataReceived(ManagedPacket packet)
         {
             // convert packet.data to string
             var data = System.Text.Encoding.UTF8.GetString(packet.Data);
 
+            this.Invoker( () =>             {
+                Text = $".{count++} {data.Length}";
+            });
             if (data.StartsWith("Amb:"))
             {
                 frame = new FrameTypes.DebugIO(packet);
-                myPlot.AddData(frame);
             }
 
         }
