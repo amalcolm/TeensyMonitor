@@ -9,6 +9,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
+    <Filter Include="Source Files\Packets">
+      <UniqueIdentifier>{2b313421-8c9c-4ca1-bd27-2271544bb84c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\CSerial.h">
@@ -29,6 +32,15 @@
     <ClInclude Include="src\SerialHelper.h">
       <Filter>Source Files\Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Packets\CDecoder.h">
+      <Filter>Source Files\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Packets\CPackets.h">
+      <Filter>Source Files\Packets</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Packets\Packets.h">
+      <Filter>Source Files\Packets</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />
@@ -46,6 +58,15 @@
     </ClCompile>
     <ClCompile Include="src\SerialHelper_GetUSBSerialPorts.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Packets\CDecoder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Packets\Packets.cpp">
+      <Filter>Source Files\Packets</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Packets\CPackets.cpp">
+      <Filter>Source Files\Packets</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

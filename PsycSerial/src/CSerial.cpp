@@ -1,5 +1,6 @@
 #include "CSerial.h"
 #pragma managed(push, off)
+#include "Packets/CDecoder.h"
 
 #include <chrono>
 #include <thread>
@@ -7,6 +8,9 @@
 #include <memory>
 #include <atomic>
 #include <sstream>
+
+static CDecoder decoder;
+
 #include <stdexcept> // Include for std::exception
 
 // Error handling macro for Windows API calls
@@ -89,7 +93,7 @@ void CSerial::InvokeErrorOccurred(const std::exception& ex) {
     }
 }
 
-void CSerial::InvokeDataReceived(const Packet& packet) {
+void CSerial::InvokeDataReceived(const CPacket& packet) {
     DataHandler handler = nullptr;
     void* context = nullptr;
     {
@@ -98,19 +102,26 @@ void CSerial::InvokeDataReceived(const Packet& packet) {
         context = m_userData; // Get user data under lock
     }
 
-    // Invoke outside the lock
-    if (handler) {
-        try {
-            handler(context, this, packet); // Pass user data
-        }
-        catch (const std::exception& e) {
-            std::cerr << "CSerial: Exception caught during DataReceived callback: " << e.what() << std::endl;
-            // Optionally invoke error handler here if desired, carefully
-            // InvokeErrorOccurred(std::runtime_error("Exception in DataReceived callback: " + std::string(e.what())));
-        }
-        catch (...) {
-            std::cerr << "CSerial: Unknown exception caught during DataReceived callback." << std::endl;
-            // InvokeErrorOccurred(std::runtime_error("Unknown exception in DataReceived callback"));
+    for (;;) {
+		CDecodedPacket dataPacket;
+        auto kind = decoder.process(packet, dataPacket);
+        if (kind == PacketKind::Unknown)
+            break;
+
+        // Invoke outside the lock
+        if (handler) {
+            try {
+               handler(context, this, dataPacket); // Pass user data
+            }
+            catch (const std::exception& e) {
+                std::cerr << "CSerial: Exception caught during DataReceived callback: " << e.what() << std::endl;
+                // Optionally invoke error handler here if desired, carefully
+                // InvokeErrorOccurred(std::runtime_error("Exception in DataReceived callback: " + std::string(e.what())));
+            }
+            catch (...) {
+                std::cerr << "CSerial: Unknown exception caught during DataReceived callback." << std::endl;
+                // InvokeErrorOccurred(std::runtime_error("Unknown exception in DataReceived callback"));
+            }
         }
     }
 }
@@ -230,6 +241,8 @@ void CSerial::ReadLoop()
 
     std::vector<BYTE> buffer(READ_BUFFER_SIZE);
 
+    const auto start = std::chrono::steady_clock::now();
+
     for (;;) {
         // Cooperative shutdown
         if (m_stopReadLoop.load(std::memory_order_acquire)) {
@@ -338,8 +351,9 @@ void CSerial::ReadLoop()
         }
 
         // Build and dispatch the packet (no locks held during callback)
-        Packet pkt{};
-        GetSystemTime(&pkt.timestamp); // For higher precision, consider GetSystemTimePreciseAsFileTime
+        CPacket pkt{};
+        auto now = std::chrono::steady_clock::now();
+        pkt.timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
         pkt.bytesRead = bytesRead;
         pkt.data.assign(buffer.begin(), buffer.begin() + bytesRead);
 

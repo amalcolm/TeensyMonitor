@@ -1,6 +1,7 @@
 #pragma once
 #pragma managed(push, off)
 #include "CHandleGuard.h"
+#include "Packets/CPackets.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -14,16 +15,10 @@
 
 class CSerial {
 public:
-    // Packet struct (remains the same)
-    struct Packet {
-        SYSTEMTIME timestamp;
-        std::vector<BYTE> data;
-        DWORD bytesRead;
-    };
-
+    
 
     // Native C-Style Callback Function Pointer Types
-    typedef void (*DataHandler)(void* userData, CSerial* sender, const Packet& packet);
+    typedef void (*DataHandler)(void* userData, CSerial* sender, const CDecodedPacket& packet);
     typedef void (*ErrorHandler)(void* userData, CSerial* sender, const std::exception& ex);
     typedef void (*ConnectionHandler)(void* userData, CSerial* sender, bool state);
 
@@ -75,7 +70,7 @@ private:
 
     void InvokeConnectionChanged(bool state);
     void InvokeErrorOccurred(const std::exception& ex);
-    void InvokeDataReceived(const Packet& packet);
+    void InvokeDataReceived(const CPacket& packet);
 };
 
 #pragma managed(pop)

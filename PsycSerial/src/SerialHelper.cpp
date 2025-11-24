@@ -312,7 +312,7 @@ namespace PsycSerial
     //---------------------------------------------------------------------
     // Private Static Callback Bridges
     //---------------------------------------------------------------------
-    void SerialHelper::StaticDataHandler(void* userData, CSerial* pSender, const CSerial::Packet& packet) {
+    void SerialHelper::StaticDataHandler(void* userData, CSerial* pSender, const CPacket& packet) {
         GCHandle handle = GCHandle::FromIntPtr(IntPtr(userData));
         SerialHelper^ wrapper = nullptr;
         try {
@@ -381,10 +381,10 @@ namespace PsycSerial
     // Private Instance Callback Handlers (Use Helper Structs)
     //---------------------------------------------------------------------
 
-    void SerialHelper::OnDataReceived(const CSerial::Packet& packet) {
+    void SerialHelper::OnDataReceived(const CPacket& packet) {
         ManagedPacket^ managedPacket = nullptr;
         try {
-            DateTime timestamp = ConvertSystemTime(packet.timestamp);
+            DateTime timestamp = DateTime::Today.AddMilliseconds(packet.timestamp);
             array<Byte>^ data = ConvertByteVector(packet.data);
             managedPacket = gcnew ManagedPacket(timestamp, data, static_cast<int>(packet.bytesRead));
         }

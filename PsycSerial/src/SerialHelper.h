@@ -44,13 +44,13 @@ namespace PsycSerial {
         // --- Static Callback Bridges (Native -> Managed) ---
         // These functions are called directly by the native CSerial instance.
         // They MUST be static and match the Native*Handler function pointer types.
-        static void StaticDataHandler(void* userData, CSerial* pSender, const CSerial::Packet& packet);
+        static void StaticDataHandler(void* userData, CSerial* pSender, const CPacket& packet);
         static void StaticErrorHandler(void* userData, CSerial* pSender, const std::exception& ex);
         static void StaticConnectionHandler(void* userData, CSerial* pSender, bool state);
 
         // --- Instance Callback Handlers (Called by Static Bridges) ---
         // These methods execute in the managed world and raise the public events.
-        void OnDataReceived(const CSerial::Packet& packet);
+        void OnDataReceived(const CPacket& packet);
         void OnErrorOccurred(const std::exception& ex);
         void OnConnectionChanged(bool state);
 
@@ -107,7 +107,7 @@ namespace PsycSerial {
 
     private:
         // Delegate types matching native function pointers
-        delegate void NativeDataCallbackDelegate(void* userData, CSerial* pSender, const CSerial::Packet& packet);
+        delegate void NativeDataCallbackDelegate(void* userData, CSerial* pSender, const CPacket& packet);
         delegate void NativeErrorCallbackDelegate(void* userData, CSerial* pSender, const std::exception& ex);
         delegate void NativeConnectionCallbackDelegate(void* userData, CSerial* pSender, bool state);
 
