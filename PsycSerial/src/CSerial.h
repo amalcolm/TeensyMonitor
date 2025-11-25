@@ -70,7 +70,7 @@ private:
 
     void InvokeConnectionChanged(bool state);
     void InvokeErrorOccurred(const std::exception& ex);
-    void InvokeDataReceived(const CPacket& packet);
+    void InvokeDataReceived(CPacket& packet);
 };
 
 #pragma managed(pop)

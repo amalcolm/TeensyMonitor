@@ -32,7 +32,7 @@ namespace PsycSerial
     void Packet::Reset()
     {
         Timestamp = DateTime::MaxValue;
-		// Data array is reused, no need to clean it.
+		// Data array is reused, and no need to clean it.
         BytesRead = 0;
     }
 
@@ -47,15 +47,14 @@ namespace PsycSerial
 
     DataPacket^ DataPacket::Rent()
     {
-        DataPacket^ p; if (s_dataPool->TryDequeue(p)) return p;
+        DataPacket^ p; if (s_pool->TryDequeue(p)) return p;
         return gcnew DataPacket();
 	}
 
     DataPacket::~DataPacket()
     {
-        // Deterministic cleanup path (Dispose)
         Reset();
-        s_dataPool->Enqueue(this);
+        s_pool->Enqueue(this);
         GC::SuppressFinalize(this);
 	}
 
@@ -63,39 +62,73 @@ namespace PsycSerial
 
     void DataPacket::Reset()
     {
-        Packet::Reset();
         State = 0;
-        TimeStamp = 0;
+        TimeStamp = DateTime::MinValue;
         HardwareState = 0;
-		// Channel array is reused, no need to clean it.
+		// Channel array is reused, and no need to clean it.
     }
 
 
 
     BlockPacket::BlockPacket()
     {
-        BlockData = gcnew array<DataPacket^>(16);
+        BlockData = gcnew array<DataPacket^>(64);
         Reset();
 	}
+    
     BlockPacket^ BlockPacket::Rent()
     {
-        BlockPacket^ p; if (s_blockPool->TryDequeue(p)) return p;
+        BlockPacket^ p; if (s_pool->TryDequeue(p)) return p;
         return gcnew BlockPacket();
 	}
+    
     BlockPacket::~BlockPacket()
     {
         // Deterministic cleanup path (Dispose)
         Reset();
-        s_blockPool->Enqueue(this);
+        s_pool->Enqueue(this);
         GC::SuppressFinalize(this);
 	}
-	BlockPacket::!BlockPacket() {}
+	
+    BlockPacket::!BlockPacket() {}
+
     void BlockPacket::Reset()
     {
-        Packet::Reset();
         State = 0;
-        TimeStamp = 0;
+        TimeStamp = DateTime::MinValue;
         Count = 0;
         // BlockData array is reused, no need to clean it.
 	}
+
+
+    TextPacket::TextPacket()
+    {
+        Text = gcnew String("");
+        Reset();
+    }
+    
+    TextPacket^ TextPacket::Rent()
+    {
+        TextPacket^ p; if (s_pool->TryDequeue(p)) return p;
+        return gcnew TextPacket();
+    }
+    
+    TextPacket::~TextPacket()
+    {
+        // Deterministic cleanup path (Dispose)
+        Reset();
+        s_pool->Enqueue(this);
+        GC::SuppressFinalize(this);
+    }
+    
+    TextPacket::!TextPacket() {}
+    
+    void TextPacket::Reset()
+    {
+        State = 0;
+		Length = 0;
+        TimeStamp = DateTime::MinValue;
+        // release Text
+     
+    }
 }

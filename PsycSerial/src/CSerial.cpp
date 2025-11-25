@@ -93,7 +93,7 @@ void CSerial::InvokeErrorOccurred(const std::exception& ex) {
     }
 }
 
-void CSerial::InvokeDataReceived(const CPacket& packet) {
+void CSerial::InvokeDataReceived(CPacket& packet) {
     DataHandler handler = nullptr;
     void* context = nullptr;
     {
@@ -123,6 +123,7 @@ void CSerial::InvokeDataReceived(const CPacket& packet) {
                 // InvokeErrorOccurred(std::runtime_error("Unknown exception in DataReceived callback"));
             }
         }
+		packet.bytesRead = 0; // Mark as processed
     }
 }
 
@@ -353,7 +354,7 @@ void CSerial::ReadLoop()
         // Build and dispatch the packet (no locks held during callback)
         CPacket pkt{};
         auto now = std::chrono::steady_clock::now();
-        pkt.timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+        pkt.timestamp = static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count());
         pkt.bytesRead = bytesRead;
         pkt.data.assign(buffer.begin(), buffer.begin() + bytesRead);
 

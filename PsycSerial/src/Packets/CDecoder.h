@@ -22,7 +22,8 @@ public:
     // or there aren't enough bytes to decide yet.
     static PacketKind classify(const uint8_t* buf, size_t n) noexcept;
 
-    // --- Convenience wrappers for your existing CPacket carrier ---------------
+    static PacketKind quickFrameCheck(const uint8_t* buf, size_t n, CDecodedPacket& out, size_t& usedBytes) noexcept;
+
 
     // Tries Data first, then Block. On success returns kind and fills the matching out param.
     PacketKind process(const CPacket& in, CDecodedPacket& out) noexcept;

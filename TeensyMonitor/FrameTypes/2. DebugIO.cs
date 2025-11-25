@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using System.Text.RegularExpressions;
 using TeensyMonitor.Helpers;
+using PsycSerial;
 
 namespace TeensyMonitor.FrameTypes
 {
@@ -13,9 +14,12 @@ namespace TeensyMonitor.FrameTypes
         public double IR => ir;
 
 
-        public DebugIO(PsycSerial.ManagedPacket packet)
+        public DebugIO(IPacket packet)
         {
-            Text = Encoding.UTF8.GetString(packet.Data);
+            if (packet is TextPacket textPacket == false)
+                throw new ArgumentException("Packet must be of type TextPacket", nameof(packet));
+
+            Text = textPacket.Text;
 
             var match = MyRegex.Match(Text);
             if (match.Success)

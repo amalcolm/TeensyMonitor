@@ -1,6 +1,7 @@
 #include "SerialHelper.h"
 #include "Utilities.h"
 #include "EventRaisers.h"
+#include "Packets/Decoder.h"
 
 // Include necessary headers for interop
 #include <vcclr.h> // For GCHandle, pin_ptr
@@ -312,7 +313,7 @@ namespace PsycSerial
     //---------------------------------------------------------------------
     // Private Static Callback Bridges
     //---------------------------------------------------------------------
-    void SerialHelper::StaticDataHandler(void* userData, CSerial* pSender, const CPacket& packet) {
+    void SerialHelper::StaticDataHandler(void* userData, CSerial* pSender, const CDecodedPacket& packet) {
         GCHandle handle = GCHandle::FromIntPtr(IntPtr(userData));
         SerialHelper^ wrapper = nullptr;
         try {
@@ -381,12 +382,12 @@ namespace PsycSerial
     // Private Instance Callback Handlers (Use Helper Structs)
     //---------------------------------------------------------------------
 
-    void SerialHelper::OnDataReceived(const CPacket& packet) {
-        ManagedPacket^ managedPacket = nullptr;
+    void SerialHelper::OnDataReceived(const CDecodedPacket& packet) {
+        IPacket^ managedPacket = nullptr;
         try {
-            DateTime timestamp = DateTime::Today.AddMilliseconds(packet.timestamp);
-            array<Byte>^ data = ConvertByteVector(packet.data);
-            managedPacket = gcnew ManagedPacket(timestamp, data, static_cast<int>(packet.bytesRead));
+
+            managedPacket = Decoder::Convert(packet);
+
         }
         catch (Exception^ ex) {
             Debug::WriteLine(String::Format("SerialHelper::OnDataReceived Error converting native packet: {0}", ex));

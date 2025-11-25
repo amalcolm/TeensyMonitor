@@ -2,6 +2,7 @@
 
 #include "ManagedCallbacks.h"
 #include "CSerial.h"
+#include "Packets/Packets.h"
 
 using namespace System;
 using namespace System::Diagnostics;
@@ -10,11 +11,8 @@ using namespace System::Threading;
 
 namespace PsycSerial {
 
-	// Forward declaration; see end of file for definition
-    ref struct ManagedPacket;  
 
-
-    public delegate void DataEventHandler(ManagedPacket^ packet);
+    public delegate void DataEventHandler(IPacket^ packet);
     public delegate void ErrorEventHandler(Exception^ exception);
     public delegate void ConnectionEventHandler(bool isOpen);
 
@@ -44,13 +42,13 @@ namespace PsycSerial {
         // --- Static Callback Bridges (Native -> Managed) ---
         // These functions are called directly by the native CSerial instance.
         // They MUST be static and match the Native*Handler function pointer types.
-        static void StaticDataHandler(void* userData, CSerial* pSender, const CPacket& packet);
+        static void StaticDataHandler(void* userData, CSerial* pSender, const CDecodedPacket& packet);
         static void StaticErrorHandler(void* userData, CSerial* pSender, const std::exception& ex);
         static void StaticConnectionHandler(void* userData, CSerial* pSender, bool state);
 
         // --- Instance Callback Handlers (Called by Static Bridges) ---
         // These methods execute in the managed world and raise the public events.
-        void OnDataReceived(const CPacket& packet);
+        void OnDataReceived(const CDecodedPacket& packet);
         void OnErrorOccurred(const std::exception& ex);
         void OnConnectionChanged(bool state);
 
@@ -107,7 +105,7 @@ namespace PsycSerial {
 
     private:
         // Delegate types matching native function pointers
-        delegate void NativeDataCallbackDelegate(void* userData, CSerial* pSender, const CPacket& packet);
+        delegate void NativeDataCallbackDelegate(void* userData, CSerial* pSender, const CDecodedPacket& packet);
         delegate void NativeErrorCallbackDelegate(void* userData, CSerial* pSender, const std::exception& ex);
         delegate void NativeConnectionCallbackDelegate(void* userData, CSerial* pSender, bool state);
 
@@ -117,21 +115,10 @@ namespace PsycSerial {
         NativeConnectionCallbackDelegate^ m_delegateConnectionHandler;
 
     public:
-        void RaiseDataReceivedEvent(ManagedPacket^ packet) { DataReceived(packet); }
-        void RaiseErrorOccurredEvent(Exception^ ex)        { ErrorOccurred(ex); }
-        void RaiseConnectionChangedEvent(bool state)       { ConnectionChanged(state); }
+        void RaiseDataReceivedEvent(IPacket^ packet) { DataReceived(packet);     }
+        void RaiseErrorOccurredEvent(Exception^ ex)  { ErrorOccurred(ex);        }
+        void RaiseConnectionChangedEvent(bool state) { ConnectionChanged(state); }
 
-    };
-
-    // Managed representation of the native Packet
-    public ref struct ManagedPacket {
-        DateTime     Timestamp;
-        array<Byte>^ Data;
-        int          BytesRead;
-
-        ManagedPacket(DateTime ts, array<Byte>^ data, int bytesRead)
-            : Timestamp(ts), Data(data), BytesRead(bytesRead) {
-        }
     };
 
 

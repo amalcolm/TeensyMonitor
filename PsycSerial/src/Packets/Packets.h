@@ -31,9 +31,15 @@ namespace PsycSerial
     };
 
 
-    ref struct DataPacket : Packet
+    public interface class IPacket
     {
-		static ConcurrentQueue<DataPacket^>^ s_dataPool = gcnew ConcurrentQueue<DataPacket^>();
+        property DateTime TimeStamp;
+        property UInt32   State;
+    };
+
+    public ref struct DataPacket : IPacket
+    {
+	public:
 		static DataPacket^ Rent();
 
         ~DataPacket();
@@ -41,18 +47,20 @@ namespace PsycSerial
 
 		void Reset();
 
-        property UInt32 State;
-        property UInt32 TimeStamp;
-        property UInt32 HardwareState;
+        virtual property UInt32 State;
+        virtual property DateTime TimeStamp;
+
+        property UInt32         HardwareState;
         property array<UInt32>^ Channel;
 
     protected:
 		DataPacket();
+        static ConcurrentQueue<DataPacket^>^ s_pool = gcnew ConcurrentQueue<DataPacket^>();
     };
 
-    ref struct BlockPacket : Packet
+    public ref struct BlockPacket : IPacket
     {
-		static ConcurrentQueue<BlockPacket^>^ s_blockPool = gcnew ConcurrentQueue<BlockPacket^>();
+    public:
 		static BlockPacket^ Rent();
 
 		~BlockPacket();
@@ -60,14 +68,38 @@ namespace PsycSerial
 
 		void Reset();
 
-        property UInt32 State;
-        property UInt32 TimeStamp;
-        property UInt32 Count;
+        virtual property UInt32      State;
+        virtual property DateTime    TimeStamp;
+
+        property UInt32              Count;
         property array<DataPacket^>^ BlockData;
 
 	protected:
 		BlockPacket();
+
+		static ConcurrentQueue<BlockPacket^>^ s_pool = gcnew ConcurrentQueue<BlockPacket^>();
     };
+
+	public ref struct TextPacket : IPacket
+	{
+    public:
+        static TextPacket^ Rent();
+
+        ~TextPacket();
+        !TextPacket();
+        
+        void Reset();
+        
+        virtual property UInt32   State;
+        virtual property DateTime TimeStamp;
+
+        property String^   Text;
+		property UInt32    Length;
+
+    protected:
+        TextPacket();
+        static ConcurrentQueue<TextPacket^>^ s_pool = gcnew ConcurrentQueue<TextPacket^>();
+	};
 }
 
 #pragma managed(pop)

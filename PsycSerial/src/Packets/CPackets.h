@@ -60,7 +60,7 @@ struct CTextPacket
 #pragma pack(pop)
 
 // Sizes & sanity checks (same endianness is assumed by design)
-static_assert(std::is_trivially_copyable_v<CDataPacket>, "CDataPacket must be POD");
+static_assert(std::is_trivially_copyable_v<CDataPacket> , "CDataPacket must be POD");
 static_assert(std::is_trivially_copyable_v<CBlockPacket>, "CBlockPacket must be POD");
 
 static_assert(sizeof(CDataPacket) ==

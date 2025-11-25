@@ -19,7 +19,7 @@ namespace TeensyMonitor.FrameTypes
 
 
         readonly Random random = new();
-        public TestFrame(ManagedPacket packet) : base(true)
+        public TestFrame(IPacket packet) : base(true)
         {
             ambient = random.Next(0, 1000);
             red = random.Next(1000, 2000);

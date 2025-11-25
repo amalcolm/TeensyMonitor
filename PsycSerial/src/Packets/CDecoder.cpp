@@ -14,13 +14,25 @@ namespace
 	constexpr size_t kHeaderCountOffset     =  8u; // offset of 'count' field in block header
 
 	constexpr uint8_t kFrameStartByte       = 0xBA; // Common first byte of all frame types
-	constexpr uint8_t kFrameEndByte         = 0xEA; // '\n' line feed byte
+	constexpr uint8_t kFrameEndByte         = 0xEA; // Common end  byte of all frame types
 
     bool readU32(const uint8_t* p, uint32_t& v) noexcept;
     bool readDataPayload (const uint8_t* payload, CDecodedPacket& out) noexcept;
     bool readBlockPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept;
+    void readTextPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept;
+
 }
 
+PacketKind CDecoder::quickFrameCheck(const uint8_t* buf, size_t n, CDecodedPacket& out, size_t& usedBytes) noexcept
+{
+    usedBytes = 0;
+    switch (classify(buf, n))
+    {
+        case PacketKind::Data :  if (tryParseDataFrame (buf, n, out, usedBytes)) return out.kind; else break;
+        case PacketKind::Block:  if (tryParseBlockFrame(buf, n, out, usedBytes)) return out.kind; else break;
+    }
+	return PacketKind::Unknown;
+}
 
 PacketKind CDecoder::process(const CPacket& in, CDecodedPacket& out) noexcept
 {
@@ -29,75 +41,72 @@ PacketKind CDecoder::process(const CPacket& in, CDecodedPacket& out) noexcept
 	size_t usedBytes = 0;
 
     if (m_buf.size() == 0)
-        switch (classify(buf, n))
-        {
-            case PacketKind::Data :  if (tryParseDataFrame (buf, n, out, usedBytes)) return out.kind; else break;
-            case PacketKind::Block:  if (tryParseBlockFrame(buf, n, out, usedBytes)) return out.kind; else break;
-        }
-    
+        if (quickFrameCheck(buf, n, out, usedBytes) != PacketKind::Unknown)
+            return out.kind;
 
 	pushAndExtract(in, out);
     return out.kind;
 }
 
-// only called if buffer is non-empty, ie. contains partial frame or partial string
 bool CDecoder::pushAndExtract(const CPacket& in, CDecodedPacket& out)
 {
     out.kind = PacketKind::Unknown;
-    const uint8_t* data = in.data.data();
-    const size_t   len  = static_cast<size_t>(in.bytesRead);
+    const uint8_t* data    = in.data.data();
+    const size_t   dataLen = static_cast<size_t>(in.bytesRead);
+    const size_t   oldSize = m_buf.size();
 
-    if (len == 0 || data == nullptr) return false;
+    // append new data to internal buffer
+    if (dataLen != 0 && data != nullptr) {
+        m_buf.resize(oldSize + dataLen);
+        memcpy(m_buf.data() + oldSize, data, dataLen);
+    }
 
-	// append new data to internal buffer
-    const uint8_t* buf = m_buf.data();
-    const auto oldSize = m_buf.size();
-    m_buf.resize(oldSize + len);
-    memcpy(m_buf.data() + oldSize, data, len);
-    
-    bool isUnfinishedFrame = *buf == kFrameStartByte;
+    if (m_buf.empty())
+		return false;
 
-	const uint8_t* rP = buf + oldSize;
-	const uint8_t* endP = rP + len;
-    const uint8_t  target = isUnfinishedFrame ? kFrameEndByte : '\n';
+	uint8_t* buf       = m_buf.data();
+	size_t   len       = m_buf.size();
+    size_t   usedBytes = 0;
 
-	// scan for either end of frame or newline character
-    while (rP < endP && *rP != target)
-        ++rP;
+	bool isFrame = (buf[0] == kFrameStartByte);
 
-	// didn't find anything yet so wait until next push
-    if (rP >= endP) return false;
-
-    size_t dataLen = rP - buf;
-    size_t usedBytes = 0;
-
-	// if we are parsing a frame and found the end marker, try to parse the frame now
-    if (isUnfinishedFrame)
-    {
-        switch (classify(buf, dataLen))
+    if (isFrame) {
+        if (quickFrameCheck(buf, len, out, usedBytes) != PacketKind::Unknown)
         {
-            case PacketKind::Data:  if (!tryParseDataFrame (buf, dataLen, out, usedBytes)) out.kind = PacketKind::Unknown;  break;
-            case PacketKind::Block: if (!tryParseBlockFrame(buf, dataLen, out, usedBytes)) out.kind = PacketKind::Unknown;  break;
+            m_buf.erase(m_buf.begin(), m_buf.begin() + usedBytes);
+            return true;
+        }
+		return false; // still waiting for full frame
+    }
+
+
+	// scan fornewline character
+    uint8_t *pNL = std::find(buf, buf + len, '\n');
+
+    if (pNL < buf + len) {
+        size_t lineBytes = static_cast<size_t>(pNL - buf);   // bytes before '\n'
+        size_t total = lineBytes + 1;                        // include '\n' in what we eat
+        readTextPayload(buf, lineBytes, out, usedBytes);     // payload = line only
+
+        if (out.kind == PacketKind::Text && out.text.timeStamp == 0)
+			out.text.timeStamp = static_cast<uint32_t>(in.timestamp);
+
+        m_buf.erase(m_buf.begin(), m_buf.begin() + usedBytes);
+        return true;
+    }
+
+	uint8_t* pStart = std::find(buf, buf + len, kFrameStartByte);
+    if (pStart < buf + len) {
+        // start found: discard leading garbage
+        m_buf.erase(m_buf.begin(), m_buf.begin() + (pStart - buf));
+
+        if (quickFrameCheck(m_buf.data(), m_buf.size(), out, usedBytes) != PacketKind::Unknown)
+        {
+            m_buf.erase(m_buf.begin(), m_buf.begin() + usedBytes);
+            return true;
         }
     }
-
-    if (out.kind == PacketKind::Unknown)
-    {
-        // we have a text line; output as a TextPacket
-        CTextPacket tp{};
-        tp.timeStamp = in.timestamp;
-        tp.length = static_cast<uint32_t>(dataLen);
-        memcpy_s(tp.text, CTextPacket::MAX_TEXT_SIZE, buf, tp.length);
-        out.text = tp;
-        out.kind = PacketKind::Text;
-
-        usedBytes = tp.length;
-    }
-
-
-    m_buf.erase(m_buf.begin(), m_buf.begin() + usedBytes);
-
-    return true;
+	return false;
 }
 
 
@@ -108,8 +117,8 @@ bool CDecoder::tryParseDataFrame(const uint8_t* buf, size_t n, CDecodedPacket& o
     constexpr size_t need = kFrameSize + sizeof(CDataPacket) + kFrameSize;
     if (n < need) return false;
 
-    uint32_t start = 0; readU32(buf + 0, start);                                                    if (start != CDataPacket::frameStart) return false;
-    uint32_t end   = 0; readU32(buf + (kFrameSize + sizeof(CDataPacket)), end);                     if (end   != CDataPacket::frameEnd) return false;
+    uint32_t start = 0; readU32(buf + 0, start);                                                    if (start != CDataPacket::frameStart    ) return false;
+    uint32_t end   = 0; readU32(buf + (kFrameSize + sizeof(CDataPacket)), end);                     if (end   != CDataPacket::frameEnd      ) return false;
 
     readDataPayload(buf + kFrameSize, out);
     usedBytes = need;
@@ -121,14 +130,13 @@ bool CDecoder::tryParseBlockFrame(const uint8_t* buf, size_t n, CDecodedPacket& 
 
     constexpr size_t minNeed = kFrameSize + kHeaderSize + kFrameSize;                               if (n < minNeed) return false;
 
-    uint32_t start = 0; readU32(buf + 0, start);                                                    if (start != CBlockPacket::frameStart) return false;
-
-    uint32_t count = 0; readU32(buf + kFrameSize + kHeaderCountOffset, count);                      if (count > CBlockPacket::MAX_BLOCK_SIZE) return false;
+    uint32_t start = 0; readU32(buf + 0, start);                                                    if (start != CBlockPacket::frameStart    ) return false;
+    uint32_t count = 0; readU32(buf + kFrameSize + kHeaderCountOffset, count);                      if (count >  CBlockPacket::MAX_BLOCK_SIZE) return false;
 
     const size_t payloadBytes = kHeaderSize + static_cast<size_t>(count) * sizeof(CDataPacket);
     const size_t need = kFrameSize + payloadBytes + kFrameSize;                                     if (n < need) return false;
 
-    uint32_t end   = 0; readU32(buf + (need - kFrameSize), end);                                    if (end != CBlockPacket::frameEnd) return false;
+    uint32_t end   = 0; readU32(buf + (need - kFrameSize), end);                                    if (end   != CBlockPacket::frameEnd      ) return false;
 
     // Copy payload into out
     size_t consumed = 0;
@@ -204,6 +212,20 @@ namespace
         out.kind = PacketKind::Block;
 
         return true;
+    }
+
+    void readTextPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept
+    {
+        CTextPacket tp{};
+        size_t len = min(payloadBytes, CTextPacket::MAX_TEXT_SIZE - 1u);
+
+        memcpy_s(tp.text, CTextPacket::MAX_TEXT_SIZE, payload, len);
+        tp.text[len] = '\0';
+        tp.length = static_cast<uint32_t>(len);
+
+        consumed = len;
+        out.text = tp;
+        out.kind = PacketKind::Text;
     }
 
 

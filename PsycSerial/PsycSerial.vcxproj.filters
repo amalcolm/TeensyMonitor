@@ -41,6 +41,12 @@
     <ClInclude Include="src\Packets\Packets.h">
       <Filter>Source Files\Packets</Filter>
     </ClInclude>
+    <ClInclude Include="src\Packets\Decoder.h">
+      <Filter>Source Files\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="AString.h">
+      <Filter>Source Files\Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />
@@ -67,6 +73,12 @@
     </ClCompile>
     <ClCompile Include="src\Packets\CPackets.cpp">
       <Filter>Source Files\Packets</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Packets\Decoder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="AString.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -54,15 +54,14 @@ namespace TeensyMonitor
         }
 
         int count = 0;
-        private void DataReceived(ManagedPacket packet)
+        private void DataReceived(IPacket packet)
         {
-            // convert packet.data to string
-            var data = System.Text.Encoding.UTF8.GetString(packet.Data);
+            if (packet is TextPacket textPacket == false) return;
 
             this.Invoker( () =>             {
-                Text = $".{count++} {data.Length}";
+                Text = $".{count++} {textPacket.Length}";
             });
-            if (data.StartsWith("Amb:"))
+            if (textPacket.Text.StartsWith("Amb:"))
             {
                 frame = new FrameTypes.DebugIO(packet);
             }

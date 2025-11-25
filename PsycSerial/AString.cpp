@@ -1,0 +1,163 @@
+#include "AString.h"
+
+using namespace System;
+using namespace System::Collections::Concurrent;
+using namespace System::Text;
+
+namespace PsycSerial
+{
+    // ----- CharPool ----------------------------------------------------------
+
+
+    CharPool::CharPool()
+    {
+        s_pool = gcnew ConcurrentBag<array<wchar_t>^>();
+
+        for (int i = 0; i < InitialBagSize; ++i)
+        {
+            s_pool->Add(gcnew array<wchar_t>(BufferSize));
+        }
+    }
+
+    array<wchar_t>^ CharPool::Rent()
+    {
+        array<wchar_t>^ buffer;
+        if (s_pool->TryTake(buffer))
+            return buffer;
+
+        return gcnew array<wchar_t>(BufferSize);
+    }
+
+    void CharPool::Return(array<wchar_t>^ buffer)
+    {
+        if (buffer == nullptr)
+            return;
+
+        // If you ever allocate different sizes, you can skip pooling them:
+        // if (buffer->Length != BufferSize) return;
+
+        s_pool->Add(buffer);
+    }
+
+    // ----- AString -----------------------------------------------------------
+
+
+    AString::AString()
+        : _buffer(nullptr), _length(0), _time(0.0)
+    {
+        _buffer = CharPool::Rent();
+    }
+
+    AString^ AString::Rent()
+    {
+        if (s_pool == nullptr)
+        {
+            s_pool = gcnew ConcurrentBag<AString^>();
+        }
+
+        AString^ inst;
+        if (s_pool->TryTake(inst))
+        {
+            // Reuse existing instance; ensure it has a buffer
+            if (inst->_buffer == nullptr)
+                inst->_buffer = CharPool::Rent();
+
+            inst->_length = 0;
+            inst->_time = 0.0;
+            return inst;
+        }
+
+        return gcnew AString();
+    }
+
+    void AString::Reset()
+    {
+        _length = 0;
+        _time = 0.0;
+        // Buffer is kept for reuse
+    }
+
+    AString^ AString::FromChars(array<wchar_t>^ chars, int offset, int count, double time)
+    {
+        if (chars == nullptr || count <= 0)
+            return nullptr;
+
+        if (offset < 0 || count < 0 || offset + count > chars->Length)
+            throw gcnew ArgumentOutOfRangeException("offset/count");
+
+        AString^ inst = Rent();
+
+        if (count > inst->_buffer->Length)
+        {
+            // Replace with a larger buffer (not pooled back via CharPool)
+            inst->_buffer = gcnew array<wchar_t>(count);
+        }
+
+        Array::Copy(chars, offset, inst->_buffer, 0, count);
+        inst->_length = count;
+        inst->_time = time;
+        return inst;
+    }
+
+    AString^ AString::FromUtf8(array<Byte>^ bytes, int offset, int count, double time)
+    {
+        if (bytes == nullptr || count <= 0)
+            return nullptr;
+
+        if (offset < 0 || count < 0 || offset + count > bytes->Length)
+            throw gcnew ArgumentOutOfRangeException("offset/count");
+
+        Encoding^ utf8 = Encoding::UTF8;
+        int charCount = utf8->GetCharCount(bytes, offset, count);
+        if (charCount <= 0)
+            return nullptr;
+
+        AString^ inst = Rent();
+
+        if (charCount > inst->_buffer->Length)
+        {
+            inst->_buffer = gcnew array<wchar_t>(charCount);
+        }
+
+        int written = utf8->GetChars(bytes, offset, count, inst->_buffer, 0);
+        if (written <= 0)
+        {
+            // Return instance to pool on failure
+            inst->Reset();
+            if (s_pool == nullptr)
+                s_pool = gcnew ConcurrentBag<AString^>();
+            s_pool->Add(inst);
+            return nullptr;
+        }
+
+        inst->_length = written;
+        inst->_time = time;
+        return inst;
+    }
+
+    AString::~AString()
+    {
+        // Deterministic cleanup (maps to IDisposable.Dispose in .NET)
+        this->!AString();
+
+        // Return the wrapper itself to the pool for reuse
+        if (s_pool == nullptr)
+        {
+            s_pool = gcnew ConcurrentBag<AString^>();
+        }
+        s_pool->Add(this);
+    }
+
+    AString::!AString()
+    {
+        if (_buffer != nullptr)
+        {
+			if (_buffer->Length == CharPool::BufferSize)
+                CharPool::Return(_buffer);
+
+            _buffer = nullptr;
+        }
+        _length = 0;
+        _time = 0.0;
+    }
+}

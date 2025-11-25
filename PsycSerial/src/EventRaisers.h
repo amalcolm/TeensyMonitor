@@ -12,9 +12,9 @@ namespace PsycSerial
     // Helper struct for raising DataReceived event
     private ref struct DataEventRaiser {
         SerialHelper^ m_target;
-        ManagedPacket^ m_packet;
+        IPacket^ m_packet;
 
-        DataEventRaiser(SerialHelper^ target, ManagedPacket^ packet) : m_target(target), m_packet(packet) {
+        DataEventRaiser(SerialHelper^ target, IPacket^ packet) : m_target(target), m_packet(packet) {
             if (m_target == nullptr) throw gcnew System::ArgumentNullException("target");
             if (m_packet == nullptr) throw gcnew System::ArgumentNullException("packet");
         }
@@ -33,9 +33,10 @@ namespace PsycSerial
         Exception^ m_exception;
 
         ErrorEventRaiser(SerialHelper^ target, Exception^ ex) : m_target(target), m_exception(ex) {
-            if (m_target == nullptr) throw gcnew System::ArgumentNullException("target");
+            if (m_target    == nullptr) throw gcnew System::ArgumentNullException("target");
             if (m_exception == nullptr) throw gcnew System::ArgumentNullException("ex");
         }
+
         void Raise() {
             if (m_target->m_disposed) return;
 
