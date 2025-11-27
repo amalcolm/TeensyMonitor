@@ -107,6 +107,7 @@ void CSerial::InvokeDataReceived(CPacket& packet) {
         auto kind = decoder.process(packet, dataPacket);
         if (kind == PacketKind::Unknown)
             break;
+		packet.bytesRead = 0; // Mark as consumed
 
         // Invoke outside the lock
         if (handler) {
@@ -123,8 +124,7 @@ void CSerial::InvokeDataReceived(CPacket& packet) {
                 // InvokeErrorOccurred(std::runtime_error("Unknown exception in DataReceived callback"));
             }
         }
-		packet.bytesRead = 0; // Mark as processed
-    }
+	}
 }
 
 bool CSerial::SetPort(const std::string& portName, DataHandler dataHandler, void* userData, int baudRate) {
@@ -489,6 +489,15 @@ bool CSerial::Write(const BYTE* data, DWORD offset, DWORD count)
     }
 
     return true;
+}
+
+void CSerial::Clear()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_isOpen && m_hSerial.get() != INVALID_HANDLE_VALUE) {
+        PurgeComm(m_hSerial.get(), PURGE_RXCLEAR | PURGE_TXCLEAR | PURGE_RXABORT | PURGE_TXABORT);
+    }
+    decoder.reset();
 }
 
 

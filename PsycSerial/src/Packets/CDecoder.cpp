@@ -40,8 +40,8 @@ PacketKind CDecoder::process(const CPacket& in, CDecodedPacket& out) noexcept
     const size_t   n = static_cast<size_t>(in.bytesRead);
 	size_t usedBytes = 0;
 
-    if (m_buf.size() == 0)
-        if (quickFrameCheck(buf, n, out, usedBytes) != PacketKind::Unknown)
+    if (m_buf.empty())
+        if (quickFrameCheck(buf, n, out, usedBytes) != PacketKind::Unknown) 
             return out.kind;
 
 	pushAndExtract(in, out);
@@ -51,7 +51,8 @@ PacketKind CDecoder::process(const CPacket& in, CDecodedPacket& out) noexcept
 bool CDecoder::pushAndExtract(const CPacket& in, CDecodedPacket& out)
 {
     out.kind = PacketKind::Unknown;
-    const uint8_t* data    = in.data.data();
+
+    const uint8_t* data = in.data.data();
     const size_t   dataLen = static_cast<size_t>(in.bytesRead);
     const size_t   oldSize = m_buf.size();
 
@@ -60,18 +61,16 @@ bool CDecoder::pushAndExtract(const CPacket& in, CDecodedPacket& out)
         m_buf.resize(oldSize + dataLen);
         memcpy(m_buf.data() + oldSize, data, dataLen);
     }
-
+    
     if (m_buf.empty())
 		return false;
 
-	uint8_t* buf       = m_buf.data();
-	size_t   len       = m_buf.size();
     size_t   usedBytes = 0;
 
-	bool isFrame = (buf[0] == kFrameStartByte);
+	bool isFrame = (m_buf[0] == kFrameStartByte);
 
     if (isFrame) {
-        if (quickFrameCheck(buf, len, out, usedBytes) != PacketKind::Unknown)
+        if (quickFrameCheck(m_buf.data(), m_buf.size(), out, usedBytes) != PacketKind::Unknown)
         {
             m_buf.erase(m_buf.begin(), m_buf.begin() + usedBytes);
             return true;
@@ -80,25 +79,26 @@ bool CDecoder::pushAndExtract(const CPacket& in, CDecodedPacket& out)
     }
 
 
-	// scan fornewline character
-    uint8_t *pNL = std::find(buf, buf + len, '\n');
+	// Do not try to cache m_buf.data() or m_buf.size() as m_buf.erase() would invalidate it
 
-    if (pNL < buf + len) {
-        size_t lineBytes = static_cast<size_t>(pNL - buf);   // bytes before '\n'
-        size_t total = lineBytes + 1;                        // include '\n' in what we eat
-        readTextPayload(buf, lineBytes, out, usedBytes);     // payload = line only
+	// scan for newline character
+    uint8_t *pNL = std::find(m_buf.data(), m_buf.data() + m_buf.size(), '\n');
+
+    if (pNL < m_buf.data() + m_buf.size()) {
+        size_t lineBytes = static_cast<size_t>(pNL - m_buf.data());   // bytes before '\n'
+		readTextPayload(m_buf.data(), lineBytes + 1, out, usedBytes);  // include '\n'
 
         if (out.kind == PacketKind::Text && out.text.timeStamp == 0)
 			out.text.timeStamp = static_cast<uint32_t>(in.timestamp);
 
         m_buf.erase(m_buf.begin(), m_buf.begin() + usedBytes);
-        return true;
+        return true; 
     }
 
-	uint8_t* pStart = std::find(buf, buf + len, kFrameStartByte);
-    if (pStart < buf + len) {
+	uint8_t* pStart = std::find(m_buf.data(), m_buf.data() + m_buf.size(), kFrameStartByte);
+    if (pStart < m_buf.data() + m_buf.size()) {
         // start found: discard leading garbage
-        m_buf.erase(m_buf.begin(), m_buf.begin() + (pStart - buf));
+        m_buf.erase(m_buf.begin(), m_buf.begin() + (pStart - m_buf.data()));
 
         if (quickFrameCheck(m_buf.data(), m_buf.size(), out, usedBytes) != PacketKind::Unknown)
         {
@@ -106,6 +106,7 @@ bool CDecoder::pushAndExtract(const CPacket& in, CDecodedPacket& out)
             return true;
         }
     }
+
 	return false;
 }
 
@@ -219,9 +220,9 @@ namespace
         CTextPacket tp{};
         size_t len = min(payloadBytes, CTextPacket::MAX_TEXT_SIZE - 1u);
 
-        memcpy_s(tp.text, CTextPacket::MAX_TEXT_SIZE, payload, len);
-        tp.text[len] = '\0';
-        tp.length = static_cast<uint32_t>(len);
+        memcpy_s(tp.utf8Bytes, CTextPacket::MAX_TEXT_SIZE, payload, len);
+        tp.utf8Bytes[len] = '\0';
+        tp.length = static_cast<uint32_t>(len-1);  // ignore terminator
 
         consumed = len;
         out.text = tp;

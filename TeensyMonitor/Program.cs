@@ -4,7 +4,8 @@ namespace TeensyMonitor
 {
     internal static class Program
     {
-        public static readonly SerialHelper serialPort = new(CallbackPolicy.Queued);
+        public const string Version = "1.0";
+        public static readonly TeensySerial serialPort = new(Version);
         public static bool IsRunning = true;
         /// <summary>
         ///  The main entry point for the application.

@@ -19,7 +19,8 @@ namespace TeensyMonitor.FrameTypes
             if (packet is TextPacket textPacket == false)
                 throw new ArgumentException("Packet must be of type TextPacket", nameof(packet));
 
-            Text = textPacket.Text;
+
+            Text = textPacket.Text.ToString()!;
 
             var match = MyRegex.Match(Text);
             if (match.Success)

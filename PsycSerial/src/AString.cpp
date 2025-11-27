@@ -1,4 +1,5 @@
 #include "AString.h"
+#include <vcclr.h>
 
 using namespace System;
 using namespace System::Collections::Concurrent;
@@ -43,7 +44,7 @@ namespace PsycSerial
 
 
     AString::AString()
-        : _buffer(nullptr), _length(0), _time(0.0)
+        : _buffer(nullptr), _length(0)
     {
         _buffer = CharPool::Rent();
     }
@@ -63,7 +64,6 @@ namespace PsycSerial
                 inst->_buffer = CharPool::Rent();
 
             inst->_length = 0;
-            inst->_time = 0.0;
             return inst;
         }
 
@@ -73,11 +73,10 @@ namespace PsycSerial
     void AString::Reset()
     {
         _length = 0;
-        _time = 0.0;
         // Buffer is kept for reuse
     }
 
-    AString^ AString::FromChars(array<wchar_t>^ chars, int offset, int count, double time)
+    AString^ AString::FromChars(array<wchar_t>^ chars, int offset, int count)
     {
         if (chars == nullptr || count <= 0)
             return nullptr;
@@ -95,20 +94,22 @@ namespace PsycSerial
 
         Array::Copy(chars, offset, inst->_buffer, 0, count);
         inst->_length = count;
-        inst->_time = time;
         return inst;
     }
 
-    AString^ AString::FromUtf8(array<Byte>^ bytes, int offset, int count, double time)
+    AString^ AString::FromUtf8(const uint8_t* bytes, int offset, const int count)
     {
         if (bytes == nullptr || count <= 0)
             return nullptr;
 
-        if (offset < 0 || count < 0 || offset + count > bytes->Length)
-            throw gcnew ArgumentOutOfRangeException("offset/count");
+        if (offset < 0) throw gcnew ArgumentOutOfRangeException("offset");
+        if (count  < 0) throw gcnew ArgumentOutOfRangeException("count" );
+
+        const uint8_t* src = bytes + offset;
 
         Encoding^ utf8 = Encoding::UTF8;
-        int charCount = utf8->GetCharCount(bytes, offset, count);
+
+        int charCount = utf8->GetCharCount((unsigned char*)src, (int)count);
         if (charCount <= 0)
             return nullptr;
 
@@ -118,8 +119,16 @@ namespace PsycSerial
         {
             inst->_buffer = gcnew array<wchar_t>(charCount);
         }
+        
+        pin_ptr<wchar_t> pChars = &inst->_buffer[0];
 
-        int written = utf8->GetChars(bytes, offset, count, inst->_buffer, 0);
+        int written = utf8->GetChars(
+            (unsigned char*)src,   // byte* (from native buffer)
+            count,                 // number of bytes
+            pChars,                // wchar_t* into pinned managed buffer
+            inst->_buffer->Length  // max chars we can write
+        );
+
         if (written <= 0)
         {
             // Return instance to pool on failure
@@ -131,8 +140,16 @@ namespace PsycSerial
         }
 
         inst->_length = written;
-        inst->_time = time;
         return inst;
+    }
+
+
+    String^ AString::ToString()
+    {
+        if (IsEmpty)
+            return String::Empty;
+
+        return gcnew String(_buffer, 0, _length);
     }
 
     AString::~AString()
@@ -158,6 +175,6 @@ namespace PsycSerial
             _buffer = nullptr;
         }
         _length = 0;
-        _time = 0.0;
     }
+
 }

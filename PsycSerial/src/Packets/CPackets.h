@@ -54,7 +54,7 @@ struct CTextPacket
 
 	uint32_t timeStamp{};
 	uint32_t length{}; // number of valid bytes in text
-    char text[MAX_TEXT_SIZE]{};
+    uint8_t  utf8Bytes[MAX_TEXT_SIZE]{};
 };
 
 #pragma pack(pop)

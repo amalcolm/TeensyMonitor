@@ -6,10 +6,7 @@ namespace TeensyMonitor
 
     public partial class Form1 : Form
     {
-        readonly SerialHelper SP = Program.serialPort;
-
-        FrameTypes.DebugIO? frame;
-        readonly Mutex mutex = new();
+        readonly TeensySerial SP = Program.serialPort;
 
         public Form1()
         {
@@ -38,16 +35,19 @@ namespace TeensyMonitor
 
         bool stateSet = false;
 
-        private void SerialPort_ConnectionChanged(bool isOpen)
+        private void SerialPort_ConnectionChanged(ConnectionState state)
         {
             if (IsHandleCreated == false) return;
 
             this.Invoker(delegate
             {
-                if (isOpen)
-                    tb.AppendText("Connected " + SP.PortName + Environment.NewLine);
-                else
-                    tb.AppendText("Disconnected" + Environment.NewLine);
+                switch (state)
+                {
+                    case ConnectionState.Connected:
+                    case ConnectionState.HandshakeInProgress: tb.AppendText("Connected " + SP.PortName + Environment.NewLine); break;
+                    case ConnectionState.Disconnected:        tb.AppendText("Disconnected"             + Environment.NewLine); break;
+                    case ConnectionState.HandshakeSuccessful: tb.AppendText("Handshake successful"     + Environment.NewLine); break;
+                }
 
                 stateSet = true;
             });
@@ -56,15 +56,12 @@ namespace TeensyMonitor
         int count = 0;
         private void DataReceived(IPacket packet)
         {
+            if (IsHandleCreated == false) return;
             if (packet is TextPacket textPacket == false) return;
 
             this.Invoker( () =>             {
                 Text = $".{count++} {textPacket.Length}";
             });
-            if (textPacket.Text.StartsWith("Amb:"))
-            {
-                frame = new FrameTypes.DebugIO(packet);
-            }
 
         }
 
@@ -77,7 +74,7 @@ namespace TeensyMonitor
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            if (SP.IsOpen && stateSet == false) SerialPort_ConnectionChanged(true);
+            if (SP.IsOpen && stateSet == false) SerialPort_ConnectionChanged(SP.CurrentConnectionState);
         }
     }
 }

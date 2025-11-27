@@ -12,6 +12,7 @@ using namespace System;
 using namespace System::Diagnostics;
 using namespace System::Runtime::InteropServices;
 using namespace System::Threading;
+using namespace System::Text;
 using namespace PsycSerial;
 
 constexpr bool VERBOSE = false; // Set to true for verbose logging
@@ -249,6 +250,14 @@ namespace PsycSerial
         return result;
     }
 
+    void SerialHelper::Clear() {
+        ThrowIfDisposed();
+        m_handshakeLength = 0;
+        Array::Clear(m_managedBytes, 0, m_managedBytes->Length);
+        m_handshakeEvent->Reset();
+
+        m_nativeSerial->Clear();
+	}
 
 
     bool SerialHelper::IsOpen::get() {
@@ -323,7 +332,10 @@ namespace PsycSerial
 
         if (wrapper != nullptr && !wrapper->m_disposed) {
             try {
-                wrapper->OnDataReceived(packet);
+                if (wrapper->m_connectionState == ConnectionState::HandshakeInProgress && packet.kind == PacketKind::Text)
+					wrapper->OnHandshakeReceived(packet.text);
+                else
+                    wrapper->OnDataReceived(packet);
             }
             catch (Exception^ ex) {
                 Debug::WriteLine(String::Format("StaticDataHandler Exception: {0}", ex));
@@ -355,7 +367,7 @@ namespace PsycSerial
         else { Debug::WriteLine("StaticErrorHandler WARNING: Wrapper null or disposed."); }
     }
 
-    void SerialHelper::StaticConnectionHandler(void* userData, CSerial* pSender, bool state) {
+    void SerialHelper::StaticConnectionHandler(void* userData, CSerial* pSender, const bool state) {
         GCHandle handle = GCHandle::FromIntPtr(IntPtr(userData));
         SerialHelper^ wrapper = nullptr;
         try {
@@ -365,7 +377,8 @@ namespace PsycSerial
 
         if (wrapper != nullptr && !wrapper->m_disposed) {
             try {
-                wrapper->OnConnectionChanged(state); // Ensure this method name matches definition
+
+                wrapper->OnConnectionChanged(state ? ConnectionState::Connected : ConnectionState::Disconnected);
             }
             catch (Exception^ ex) {
                 Debug::WriteLine(String::Format("StaticConnectionHandler Exception: {0}", ex));
@@ -445,12 +458,13 @@ namespace PsycSerial
         }
     }
 
-    void SerialHelper::OnConnectionChanged(bool state) {
+    void SerialHelper::OnConnectionChanged(ConnectionState state) {
         ConnectionEventRaiser^ raiser = gcnew ConnectionEventRaiser(this, state);
         Action^ eventRaiser = gcnew Action(raiser, &ConnectionEventRaiser::Raise);
 
         if (m_managedCallbacks != nullptr) {
             try {
+				m_connectionState = state;
                 m_managedCallbacks->Execute(eventRaiser);
             }
             catch (ObjectDisposedException^) {
@@ -469,5 +483,44 @@ namespace PsycSerial
         }
     }
 
+    void SerialHelper::OnHandshakeReceived(const CTextPacket& message) {
 
+        if (message.length == 0) return;
+
+        Marshal::Copy(
+            IntPtr((void*)message.utf8Bytes),
+            m_managedBytes, 
+            0,
+            static_cast<int>(message.length)
+        );
+		m_handshakeLength = static_cast<int>(message.length);
+
+		m_handshakeEvent->Set();
+	}
+
+    String^ SerialHelper::GetHandshakeResponse() { return UTF8Encoding::UTF8->GetString(m_managedBytes, 0, m_handshakeLength); }
+
+    bool SerialHelper::TestHandshakeResponse(array<Byte>^ response){
+
+
+        if (response->Length == 0) { OutputDebugString(L"SerialHelper::TestHandshakeResponse: No handshake received.\r\n"); return response->Length == 0; }
+
+		int maxLength = min(m_handshakeLength, response->Length);
+
+		OutputDebugString(L"SerialHelper::TestHandshakeResponse: Length = ");
+
+		pin_ptr<const wchar_t> pinnedLen = PtrToStringChars(response->Length.ToString());
+		OutputDebugString((LPCWSTR)pinnedLen);
+        OutputDebugStringW(L" {");
+
+        pin_ptr<const wchar_t> pinnedStr = PtrToStringChars(GetHandshakeResponse());
+		OutputDebugString((LPCWSTR)pinnedStr);
+		OutputDebugStringW(L"}\r\n");
+
+        for (int i = 0; i < maxLength; ++i) 
+            if (m_managedBytes[i] != response[i]) return false;
+		
+
+		return true;
+    }
 } // End namespace PsycSerial

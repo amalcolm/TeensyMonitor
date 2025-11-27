@@ -125,7 +125,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="AString.h" />
+    <ClInclude Include="src\AString.h" />
     <ClInclude Include="src\EventRaisers.h" />
     <ClInclude Include="src\ManagedCallbacks.h" />
     <ClInclude Include="src\CHandleGuard.h" />
@@ -135,11 +135,12 @@
     <ClInclude Include="src\Packets\Decoder.h" />
     <ClInclude Include="src\Packets\Packets.h" />
     <ClInclude Include="src\SerialHelper.h" />
+    <ClInclude Include="src\TeensySerial.h" />
     <ClInclude Include="src\Utilities.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />
-    <ClCompile Include="AString.cpp" />
+    <ClCompile Include="src\AString.cpp" />
     <ClCompile Include="src\ManagedCallbacks.cpp" />
     <ClCompile Include="src\CSerial.cpp" />
     <ClCompile Include="src\Packets\CDecoder.cpp" />
@@ -148,6 +149,7 @@
     <ClCompile Include="src\Packets\Packets.cpp" />
     <ClCompile Include="src\SerialHelper.cpp" />
     <ClCompile Include="src\SerialHelper_GetUSBSerialPorts.cpp" />
+    <ClCompile Include="src\TeensySerial.cpp" />
     <ClCompile Include="src\Utilities.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -1,6 +1,8 @@
 #pragma once
 #pragma managed(push, on)
 
+#include "..\AString.h"
+
 using namespace System;
 using namespace System::Collections::Concurrent;
 
@@ -93,7 +95,7 @@ namespace PsycSerial
         virtual property UInt32   State;
         virtual property DateTime TimeStamp;
 
-        property String^   Text;
+        property AString^   Text;
 		property UInt32    Length;
 
     protected:

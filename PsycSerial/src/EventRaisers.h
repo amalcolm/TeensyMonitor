@@ -48,9 +48,9 @@ namespace PsycSerial
     // Helper struct for raising ConnectionChanged event
     private ref struct ConnectionEventRaiser {
         SerialHelper^ m_target;
-        bool m_state;
+        ConnectionState m_state;
 
-        ConnectionEventRaiser(SerialHelper^ target, bool state) : m_target(target), m_state(state) {
+        ConnectionEventRaiser(SerialHelper^ target, ConnectionState state) : m_target(target), m_state(state) {
             if (m_target == nullptr) throw gcnew System::ArgumentNullException("target");
         }
 

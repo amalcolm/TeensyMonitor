@@ -32,19 +32,22 @@
     <ClInclude Include="src\SerialHelper.h">
       <Filter>Source Files\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Packets\CDecoder.h">
-      <Filter>Source Files\Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\Packets\CPackets.h">
       <Filter>Source Files\Packets</Filter>
     </ClInclude>
     <ClInclude Include="src\Packets\Packets.h">
       <Filter>Source Files\Packets</Filter>
     </ClInclude>
+    <ClInclude Include="src\Packets\CDecoder.h">
+      <Filter>Source Files\Packets</Filter>
+    </ClInclude>
     <ClInclude Include="src\Packets\Decoder.h">
+      <Filter>Source Files\Packets</Filter>
+    </ClInclude>
+    <ClInclude Include="src\AString.h">
       <Filter>Source Files\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="AString.h">
+    <ClInclude Include="src\TeensySerial.h">
       <Filter>Source Files\Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -65,19 +68,22 @@
     <ClCompile Include="src\SerialHelper_GetUSBSerialPorts.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Packets\CDecoder.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\Packets\Packets.cpp">
       <Filter>Source Files\Packets</Filter>
     </ClCompile>
     <ClCompile Include="src\Packets\CPackets.cpp">
       <Filter>Source Files\Packets</Filter>
     </ClCompile>
+    <ClCompile Include="src\Packets\CDecoder.cpp">
+      <Filter>Source Files\Packets</Filter>
+    </ClCompile>
     <ClCompile Include="src\Packets\Decoder.cpp">
+      <Filter>Source Files\Packets</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AString.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="AString.cpp">
+    <ClCompile Include="src\TeensySerial.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

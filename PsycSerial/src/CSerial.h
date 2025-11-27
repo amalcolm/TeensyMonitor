@@ -32,6 +32,8 @@ public:
     bool Write(const std::string& data);
     bool Write(const BYTE* data, DWORD offset, DWORD count);
 
+    void Clear();
+
     bool Close();
 
     bool IsOpen() const;

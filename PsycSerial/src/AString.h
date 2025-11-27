@@ -1,8 +1,10 @@
-#pragma once
+ #pragma once
 
 using namespace System;
 using namespace System::Collections::Concurrent;
 using namespace System::Text;
+
+#include <cstdint>
 
 namespace PsycSerial
 {
@@ -30,8 +32,7 @@ namespace PsycSerial
     private:
         array<wchar_t>^ _buffer;
         int             _length;
-        double          _time;
-
+ 
         static ConcurrentBag<AString^>^ s_pool;
 
         // Only Rent() can create instances
@@ -41,12 +42,6 @@ namespace PsycSerial
         property int Length
         {
             int get() { return _length; }
-        }
-
-        property double Time
-        {
-            double get() { return _time; }
-            void   set(double value) { _time = value; }
         }
 
         property array<wchar_t>^ Buffer
@@ -60,19 +55,21 @@ namespace PsycSerial
         }
 
         // Indexer: aString[i]
-         property wchar_t default[int]
+        property wchar_t default[int]
+        {
+            wchar_t get(int index)
             {
-                wchar_t get(int index)
-                {
-                    if (index < 0 || index >= _length)
-                        throw gcnew ArgumentOutOfRangeException("index");
-                    return _buffer[index];
-                }
+                if (index < 0 || index >= _length)
+                    throw gcnew ArgumentOutOfRangeException("index");
+                return _buffer[index];
             }
+        }
 
-            // --- Pooling API -----------------------------------------------------
+        virtual String^ ToString() override;
 
-            // Rent/reuse AString instances
+        // --- Pooling API -----------------------------------------------------
+
+        // Rent/reuse AString instances
         static AString^ Rent();
 
         // Reset fields but keep buffer for reuse
@@ -81,10 +78,10 @@ namespace PsycSerial
         // --- Factories to fill the buffer -----------------------------------
 
         // Copy from existing char[] slice
-        static AString^ FromChars(array<wchar_t>^ chars, int offset, int count, double time);
+        static AString^ FromChars(array<wchar_t>^ chars, int offset, const int count);
 
         // Decode UTF-8 bytes directly into the internal buffer
-        static AString^ FromUtf8(array<Byte>^ bytes, int offset, int count, double time);
+        static AString^ FromUtf8(const uint8_t* bytes, int offset, const int count);
 
         // Destructor returns buffer and object to pools (called via 'delete')
         ~AString();

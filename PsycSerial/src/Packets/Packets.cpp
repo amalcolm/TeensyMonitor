@@ -103,7 +103,7 @@ namespace PsycSerial
 
     TextPacket::TextPacket()
     {
-        Text = gcnew String("");
+		Text = AString::Rent();
         Reset();
     }
     

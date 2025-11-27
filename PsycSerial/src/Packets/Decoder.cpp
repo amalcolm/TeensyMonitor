@@ -56,9 +56,11 @@ namespace PsycSerial
 			case PacketKind::Text:
 			{
 				TextPacket^ textPkt = TextPacket::Rent();
+				const uint8_t* utf8Bytes = nativePacket.text.utf8Bytes;
+
 				textPkt->TimeStamp  = DateTime::Today.AddMilliseconds(nativePacket.text.timeStamp);
 				textPkt->State      = 0;
-				textPkt->Text       = ConvertStdString(nativePacket.text.text);
+				textPkt->Text       = AString::FromUtf8(utf8Bytes, 0, nativePacket.text.length);
 				textPkt->Length		= textPkt->Text->Length;
 
 				return textPkt;
