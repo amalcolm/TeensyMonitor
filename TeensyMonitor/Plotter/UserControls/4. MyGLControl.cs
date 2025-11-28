@@ -1,0 +1,265 @@
+﻿using TeensyMonitor;
+using OpenTK.GLControl;
+using OpenTK.Graphics.OpenGL4;
+using OpenTK.Mathematics;
+using OpenTK.Windowing.Common;
+using TeensyMonitor.Plotter.Fonts;
+using System.Collections.Concurrent;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+
+using TeensyMonitor.Plotter.Helpers;
+namespace TeensyMonitor.Plotter.UserControls
+{
+    public abstract class MyGLControl : UserControl
+    {
+        static int InstanceCount = 0;
+
+        public MyGLThread? GLThread { get; private set; } = default!;
+        public void Enqueue(Action? initAction, Action? shutdownAction = null) 
+            => GLThread!.Enqueue(initAction, shutdownAction);
+
+        public delegate void LoadedEventHandler(object sender, bool isLoaded);
+        public event LoadedEventHandler? LoadedChanged;
+
+        private static readonly ThreadLocal<ConcurrentDictionary<string, FontFile>> _fontCache = new(() => new());
+
+        public static FontFile GetFont(string name)
+        {
+            var cache = _fontCache.Value!;
+            if (cache.TryGetValue(name, out var font))
+                return font;
+            font = FontLoader.Load(name);
+            cache[name] = font;
+            return font;
+        }
+
+        protected readonly GLControl MyGL = default!;
+        private static DebugProc? _debugProcCallback;
+        protected int _textShaderProgram;
+
+        private bool _isLoaded = false;
+        public bool IsLoaded
+        {
+            get => _isLoaded;
+            protected set
+            {
+                if (_isLoaded != value)
+                {
+                    _isLoaded = value;
+                    LoadedChanged?.Invoke(this, _isLoaded);
+                }
+            }
+        }
+
+        protected FontFile? font;
+        public FontRenderer fontRenderer = new();
+
+        // --- Methods for Subclasses ---
+        protected virtual void Init() { }
+        protected virtual void Render() { }
+        protected virtual void DrawText() { }
+        protected virtual void Shutdown() { }
+
+
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public RectangleF ViewPort { get; set; } = new(0, 1, 100, 2);
+
+
+        public MyGLControl()
+        {
+            if (!Program.IsRunning) { ShowDesignView("MyGLControl (Design View)"); return; }
+            InstanceCount++;
+
+            var glControlSettings = new GLControlSettings
+            {
+                NumberOfSamples = 4,
+                APIVersion = new Version(4, 6),
+                Profile = ContextProfile.Core,
+                API = ContextAPI.OpenGL,
+                Flags = ContextFlags.Debug
+            };
+            MyGL = new(glControlSettings) { Dock = DockStyle.Fill };
+            this.Controls.Add(MyGL);
+
+            GLThread = new(MyGL);
+
+            this.Load += (s,e) => GLThread.Enqueue(GL_Load, shutdownAction:GL_Shutdown);
+            this.Resize += (s,e) => GLThread.Enqueue(GL_Resize);
+            GLThread.RenderAction = RenderLoop;
+        }
+
+        /// <summary>
+        /// Final setup method that initializes OpenGL, shaders, and plots.
+        /// </summary>
+        private void GL_Load()
+        {
+            if (IsLoaded || IsDisposed) return;
+
+
+            SetupDebugCallback();
+
+            GL.Viewport(0, 0, MyGL.ClientSize.Width, MyGL.ClientSize.Height);
+
+            GL.ClearColor(Color.Gainsboro);
+
+            GL.Enable(EnableCap.Blend);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
+            _textShaderProgram = ShaderManager.Get("msdf");
+            font = GetFont("Roboto-Medium.json");
+            fontRenderer.Font = font;
+            fontRenderer.Init();
+
+            fontRenderer.ProjectionMatrix = Matrix4.CreateOrthographicOffCenter(0, MyGL.ClientSize.Width, 0, MyGL.ClientSize.Height, -1, 1);
+            fontRenderer.ModelMatrix = Matrix4.Identity;
+
+            if (ParentForm != null)
+                ParentForm.FormClosing += (s, e) => IsLoaded = false;
+
+
+
+            Init();
+            IsLoaded = true;
+        }
+
+        private static void SetupDebugCallback()
+        {
+            // Create the delegate and pin it
+            _debugProcCallback = DebugCallback;
+
+            GL.Enable(EnableCap.DebugOutput);
+            GL.Enable(EnableCap.DebugOutputSynchronous);
+            GL.DebugMessageCallback(_debugProcCallback, IntPtr.Zero);
+
+            // Optional: Filter out Intel/Nvidia chatter
+            GL.DebugMessageControl(DebugSourceControl.DontCare, DebugTypeControl.DontCare,
+                                   DebugSeverityControl.DontCare, 0, (int[]?)null, true);
+        }
+
+        private static void DebugCallback(DebugSource source, DebugType type, int id,
+                                          DebugSeverity severity, int length, IntPtr message, IntPtr userParam)
+        {
+            // Filter: Ignore "Notification" severity (buffer info, etc)
+            if (severity == DebugSeverity.DebugSeverityNotification) return;
+
+            // Filter: Ignore "Performance" if you only care about crashes for now
+            if (type == DebugType.DebugTypePerformance) return;
+
+
+            string log =$"[GL {type}]: {Marshal.PtrToStringAnsi(message, length)}";
+
+            Console.WriteLine(log);
+
+            // Break on errors so you see the stack trace immediately
+            if (type == DebugType.DebugTypeError)
+            {
+                throw new Exception(log);
+            }
+        }
+
+        private void GL_Resize()
+        {   if (!_isLoaded) return;
+
+            GL.Viewport(0, 0, MyGL.ClientSize.Width, MyGL.ClientSize.Height);
+        }
+
+        /// <summary>
+        /// The main render loop. Renders all registered plots.
+        /// </summary>
+        private void RenderLoop()
+        {
+            if (!IsLoaded || IsDisposed) return;
+
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+            Render();
+
+            RenderText();
+
+            if (GLThread != null && !GLThread._shutdownRequested)
+                MyGL.SwapBuffers();
+        }
+
+        private void RenderText()
+        {
+            GL.UseProgram(_textShaderProgram);
+
+            int uProjLoc = GL.GetUniformLocation(_textShaderProgram, "uProj");
+            int uModelLoc = GL.GetUniformLocation(_textShaderProgram, "uModel");
+
+            Matrix4 proj = fontRenderer.ProjectionMatrix;
+            Matrix4 model = fontRenderer.ModelMatrix;
+            GL.UniformMatrix4(uProjLoc, false, ref proj);
+            GL.UniformMatrix4(uModelLoc, false, ref model);
+
+            int textureLocation = GL.GetUniformLocation(_textShaderProgram, "uTexture");
+            GL.Uniform1(textureLocation, 0);
+
+            int colorLocation = GL.GetUniformLocation(_textShaderProgram, "uColor");
+            GL.Uniform4(colorLocation, Color.Black);
+
+            DrawText();
+        }
+
+        protected override void OnHandleDestroyed(EventArgs e)
+        {
+            GLThread?.Dispose();     // block until render thread exits
+            GLThread = null;
+            base.OnHandleDestroyed(e);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                GLThread?.Dispose(); // block here first
+                GLThread = null;
+            }
+            base.Dispose(disposing);
+        }
+
+
+        protected void GL_Shutdown()
+        {
+            if (_isLoaded)
+            {
+                _isLoaded = false;
+
+                Shutdown();
+                InstanceCount--;
+
+                if (InstanceCount == 0)
+                {
+                    fontRenderer.Shutdown();
+
+                    var cache = _fontCache.Value!;
+                    foreach (var font in cache.Values)
+                        GL.DeleteTexture(font.TextureId);
+
+                    ShaderManager.Dispose();
+                }
+            }
+        }
+
+
+
+        protected void ShowDesignView(string Title)
+        {
+            var label = new Label
+            {
+                Text = Title,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter,
+                ForeColor = Color.Gray,
+                Font = new Font("Calibri", 16, FontStyle.Italic)
+            };
+            this.Controls.Add(label);
+
+            this.BackColor = Color.PapayaWhip;
+            this.BorderStyle = BorderStyle.FixedSingle;
+
+        }
+    }
+}

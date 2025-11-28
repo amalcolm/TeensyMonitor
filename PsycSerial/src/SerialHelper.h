@@ -22,7 +22,7 @@ namespace PsycSerial {
     private:
         // Pointer to the native C++ serial port implementation
         CSerial* m_nativeSerial;
-        String^ m_portName; // Store the port name for debugging
+        String^ m_portName = String::Empty;
 
         // Managed callback dispatcher (if needed for threading policies other than Direct)
         ManagedCallbacks^ m_managedCallbacks;
@@ -70,6 +70,7 @@ namespace PsycSerial {
         !SerialHelper();       // Finalizer (dispose unmanaged only)
 
         // --- Public Methods ---
+        bool Open();
         bool Open(String^ portName);
         bool Open(String^ portName, int baudRate);
         
@@ -81,12 +82,26 @@ namespace PsycSerial {
 
         void Clear();
 
+        // --- Async helpers ---
+
+        // [NEW] Parameterless Open (uses last known m_portName)
+        
+        Task<bool>^ OpenAsync();
+        Task<bool>^ OpenAsync(String^ portName);
+        Task<bool>^ CloseAsync();
+
+
         // --- Public Properties ---
 
-		property String^ PortName {
-			String^ get() { return m_portName; }
-            void set(String^ value) { Open(value, BaudRate); }
-		}
+		property String^ PortName { String^ get() { return m_portName; } 
+                                       void set(String^ value)
+                                       {   if (value == nullptr) throw gcnew ArgumentNullException("PortName cannot be set to null");
+    						       		   if (m_portName == value) return;
+							       		   if (IsOpen)  Close();
+                                   
+							       	       Open(value); // sets m_portName
+                                       }
+                                  }
 
         property bool IsOpen  { bool get(); }
         property int  BaudRate { int get(); }

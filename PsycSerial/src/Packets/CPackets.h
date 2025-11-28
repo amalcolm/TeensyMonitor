@@ -26,8 +26,8 @@ struct CDataPacket
 {
     static constexpr uint8_t A2D_NUM_CHANNELS = 8;
 
-    static constexpr Frame frameStart = 0xBA52442B; // "RD+" start marker (your values)
-    static constexpr Frame frameEnd   = 0xEA52442D; // "RD-" end   marker
+    static constexpr Frame frameStart = 0xEDD1FAB4;
+    static constexpr Frame frameEnd   = 0xEDD2FAB4; // "RD-" end   marker
 
     uint32_t state{};
     uint32_t timeStamp{};
@@ -39,8 +39,8 @@ struct CBlockPacket
 {
     static constexpr size_t MAX_BLOCK_SIZE = 64;
 
-    static constexpr Frame frameStart = 0xBA514B2B; // "QK+" start marker
-    static constexpr Frame frameEnd   = 0xEA514B2D; // "QK-" end   marker
+    static constexpr Frame frameStart = 0xEDB1FAB4; // "QK+" start marker
+    static constexpr Frame frameEnd   = 0xEDB2FAB4; // "QK-" end   marker
 
     uint32_t state{};
     uint32_t timeStamp{};

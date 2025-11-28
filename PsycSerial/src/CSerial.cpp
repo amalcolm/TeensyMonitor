@@ -36,7 +36,7 @@ CSerial::CSerial()
 	, m_readThread()
     , m_userData(nullptr)
 	, m_mutex()
-
+	, m_readLoopRunning(false)
 { }
 
 
@@ -157,7 +157,6 @@ bool CSerial::SetPort(const std::string& portName, DataHandler dataHandler, void
             break;
         }
 
-
         DCB dcbSerialParams = { 0 };
         dcbSerialParams.DCBlength = sizeof(dcbSerialParams);
         if (!GetCommState(hSerial, &dcbSerialParams)) {
@@ -171,22 +170,23 @@ bool CSerial::SetPort(const std::string& portName, DataHandler dataHandler, void
         dcbSerialParams.Parity = NOPARITY;
         dcbSerialParams.fBinary = TRUE;
 
+        // --- DTR / RTS and flow control ---
+        // No hardware handshaking unless you explicitly want it:
+        dcbSerialParams.fOutxCtsFlow = FALSE;
+        dcbSerialParams.fOutxDsrFlow = FALSE;
+        dcbSerialParams.fOutX = FALSE;
+        dcbSerialParams.fInX = FALSE;
+
+        // This is the native equivalent of SerialPort.DtrEnable = true;
+        dcbSerialParams.fDtrControl = DTR_CONTROL_ENABLE;   // assert DTR while port is open
+        // Optional, similar for RTS:
+        dcbSerialParams.fRtsControl = RTS_CONTROL_ENABLE;   // or RTS_CONTROL_HANDSHAKE if you use RTS/CTS
+
         if (!SetCommState(hSerial, &dcbSerialParams)) {
             failStage = "SetCommState failed.";
             break;
         }
 
-        COMMTIMEOUTS timeouts = { 0 };
-        timeouts.ReadIntervalTimeout         =    0;
-        timeouts.ReadTotalTimeoutConstant    =    0;
-        timeouts.ReadTotalTimeoutMultiplier  =    0;
-        timeouts.WriteTotalTimeoutConstant   = 1500;
-        timeouts.WriteTotalTimeoutMultiplier =    0;
-
-        if (!SetCommTimeouts(hSerial, &timeouts)) {
-            failStage = "SetCommTimeouts failed.";
-            break;
-        }
 
         SetupComm(hSerial, 1 << 16, 1 << 16);           // 64K in/out buffers
         PurgeComm(hSerial, PURGE_RXCLEAR | PURGE_TXCLEAR | PURGE_RXABORT | PURGE_TXABORT);
@@ -229,6 +229,7 @@ bool CSerial::SetPort(const std::string& portName, DataHandler dataHandler, void
 
 void CSerial::ReadLoop()
 {
+    m_readLoopRunning.store(true, std::memory_order_release);
     // Create an auto-reset event for the read OVERLAPPED
     HANDLE hEvent = CreateEvent(nullptr, /*bManualReset*/ FALSE, /*bInitialState*/ FALSE, nullptr);
     if (hEvent == nullptr) {
@@ -261,6 +262,7 @@ void CSerial::ReadLoop()
         if (!isOpen || h == INVALID_HANDLE_VALUE) {
             break; // port closed while running
         }
+
 
         COMSTAT comStat{};
         DWORD   errors = 0;
@@ -363,6 +365,8 @@ void CSerial::ReadLoop()
 
     // Silent exit: SetPort/Close handle connection state notifications
     CloseHandle(hEvent);
+	m_readLoopRunning.store(false, std::memory_order_release);
+
 }
 
 
@@ -375,23 +379,26 @@ bool CSerial::Write(const std::string& data) {
 
 bool CSerial::Write(const BYTE* data, DWORD offset, DWORD count)
 {
-    if (count == 0) {
-        return true; // nothing to do
-    }
-
     // Snapshot handle under lock, but don't call callbacks while holding it
     HANDLE hSerialLocal = INVALID_HANDLE_VALUE;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        if (m_isOpen && m_hSerial.get() != INVALID_HANDLE_VALUE) {
+        if (m_isOpen && m_hSerial.get() != INVALID_HANDLE_VALUE)
             hSerialLocal = m_hSerial.get();
-        }
     }
 
+ 
     if (hSerialLocal == INVALID_HANDLE_VALUE) {
         InvokeErrorOccurred(std::runtime_error("Write attempted on closed or invalid port."));
         return false;
     }
+
+    if (m_readLoopRunning.load(std::memory_order_acquire) == false)
+        m_readThread = std::thread(&CSerial::ReadLoop, this);
+
+    if (count == 0)
+        return true; // nothing to do
+
 
     const BYTE* p = data + offset;
     DWORD       remaining = count;

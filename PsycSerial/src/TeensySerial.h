@@ -16,26 +16,20 @@ namespace PsycSerial
         virtual ~TeensySerial();
         !TeensySerial();
 
-        property String^ PortName {
-            String^ get()              { return SerialHelper::PortName; }
-            void    set(String^ value) { Open(value);                   }
-		}
+		bool Open() { return Open(PortName); }
+        bool Open(String^ portName);
 
-        bool Open(String^ portName)
-        {
-            if (m_handshakeTask != nullptr && !m_handshakeTask->IsCompleted) { RaiseErrorOccurredEvent(gcnew System::Exception("Previous handshake still running")); return false; }
-            if (!SerialHelper::Open(portName, BAUDRATE))                     { RaiseErrorOccurredEvent(gcnew System::Exception("Failed to open port")); return false; }
+		Task<bool>^ OpenAsync() { return OpenAsync(PortName); }
+        Task<bool>^ OpenAsync(String^ portName);
 
-            m_handshakeTask = Task::Run(gcnew Func<Task^>(this, &TeensySerial::PerformHandshake));
-            return true;
-		}
 
-    protected: 
-        property String^ DeviceVersion { String^ get() { return m_deviceVersion; } }
+		property String^ DeviceVersion { String^ get() { return m_deviceVersion; } }
+
 
     private:
 		Task^ m_handshakeTask;
 		Task^ PerformHandshake();
+        bool PerformAsyncConnectionSequence();
 
 		String^ m_programVersion;
 		String^ m_deviceVersion;

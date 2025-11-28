@@ -99,30 +99,27 @@ namespace PsycSerial
 
     AString^ AString::FromUtf8(const uint8_t* bytes, int offset, const int count)
     {
-        if (bytes == nullptr || count <= 0)
+        if (bytes == nullptr)
             return nullptr;
 
         if (offset < 0) throw gcnew ArgumentOutOfRangeException("offset");
         if (count  < 0) throw gcnew ArgumentOutOfRangeException("count" );
 
+        AString^ inst = Rent();
+        if (count == 0)	return inst;
+
         const uint8_t* src = bytes + offset;
 
-        Encoding^ utf8 = Encoding::UTF8;
-
-        int charCount = utf8->GetCharCount((unsigned char*)src, (int)count);
+        int charCount = Encoding::UTF8->GetCharCount((unsigned char*)src, (int)count);
         if (charCount <= 0)
             return nullptr;
 
-        AString^ inst = Rent();
-
         if (charCount > inst->_buffer->Length)
-        {
             inst->_buffer = gcnew array<wchar_t>(charCount);
-        }
         
         pin_ptr<wchar_t> pChars = &inst->_buffer[0];
 
-        int written = utf8->GetChars(
+        int written = Encoding::UTF8->GetChars(
             (unsigned char*)src,   // byte* (from native buffer)
             count,                 // number of bytes
             pChars,                // wchar_t* into pinned managed buffer
@@ -142,6 +139,22 @@ namespace PsycSerial
         inst->_length = written;
         return inst;
     }
+
+    AString^ AString::FromString(String^ str)
+    {
+        if (str == nullptr) return nullptr;
+
+        AString^ inst = Rent();
+        int strLength = str->Length;
+
+        if (strLength == 0) return inst;
+        if (strLength > inst->_buffer->Length)
+            inst->_buffer = gcnew array<wchar_t>(strLength);
+
+        str->CopyTo(0, inst->_buffer, 0, strLength);
+        inst->_length = strLength;
+        return inst;
+	}
 
 
     String^ AString::ToString()

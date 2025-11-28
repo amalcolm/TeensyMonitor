@@ -6,11 +6,8 @@ namespace PsycSerial
 	{
 	}
 
-
-
 	TeensySerial::~TeensySerial()
 	{
-
 	}
 
 	TeensySerial::!TeensySerial()
@@ -21,6 +18,18 @@ namespace PsycSerial
 			m_handshakeTask->Wait(1000);
 		}
 	}
+
+	bool TeensySerial::Open(String^ portName)
+	{
+		if (m_handshakeTask != nullptr && !m_handshakeTask->IsCompleted) { RaiseErrorOccurredEvent(gcnew System::Exception("Previous handshake still running")); return false; }
+		if (!SerialHelper::Open(portName, BAUDRATE)) { RaiseErrorOccurredEvent(gcnew System::Exception("Failed to open port")); return false; }
+
+
+		m_handshakeTask = Task::Run(gcnew Func<Task^>(this, &TeensySerial::PerformHandshake));
+		return true;
+	}
+
+
 
 	Task^ TeensySerial::PerformHandshake()
 	{
@@ -70,4 +79,38 @@ namespace PsycSerial
 			return Task::FromResult(false);
 		}
 	} 
+
+	
+	Task<bool>^ TeensySerial::OpenAsync(String^ portName)
+	{
+		if (m_handshakeTask != nullptr && !m_handshakeTask->IsCompleted) {
+			RaiseErrorOccurredEvent(gcnew System::Exception("Previous handshake still running"));
+			return Task::FromResult(false);
+		}
+
+		this->PortName = portName; 
+
+		return Task::Run(gcnew Func<bool>(this, &TeensySerial::PerformAsyncConnectionSequence));
+	}
+
+	bool TeensySerial::PerformAsyncConnectionSequence()
+	{
+		// 1. Open Physical Port (Uses the member variable m_portName we just set)
+		if (!SerialHelper::Open()) {
+			RaiseErrorOccurredEvent(gcnew System::Exception("Failed to open port"));
+			return false;
+		}
+
+		// 2. Perform Handshake (Blocking wait is safe here strictly because we are in a Task)
+		try {
+			m_handshakeTask = this->PerformHandshake();
+			m_handshakeTask->Wait(); // Wait for the handshake task to finish
+		}
+		catch (Exception^ ex) {
+			RaiseErrorOccurredEvent(ex);
+			return false;
+		}
+
+		return (m_connectionState == ConnectionState::HandshakeSuccessful);
+	}
 }

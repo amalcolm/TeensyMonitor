@@ -12,45 +12,27 @@ namespace TeensyMonitor
         {
             InitializeComponent();
 
-            SP.DataReceived += DataReceived;
+            SP.DataReceived      += DataReceived;
             SP.ConnectionChanged += SerialPort_ConnectionChanged;
-            SP.ErrorOccurred += SerialPort_ErrorOccurred;
-
-            var ports = SerialHelper.GetUSBSerialPorts();
-            if (ports.Length == 0)
-            {
-                MessageBox.Show("No serial ports found.");
-                Close();
-                return;
-            }
-            else
-            {
-                cbPorts.Items.AddRange(ports);
-                cbPorts.SelectedIndex = cbPorts.Items.Count - 1;
-            }
+            SP.ErrorOccurred     += SerialPort_ErrorOccurred;
         }
 
         private void SerialPort_ErrorOccurred(Exception exception)
-            => this.Invoker(delegate { tb.AppendText(exception.Message + Environment.NewLine); });
-
-        bool stateSet = false;
+            => myDebugPane1.Log(AString.FromString(exception.Message + Environment.NewLine));
 
         private void SerialPort_ConnectionChanged(ConnectionState state)
         {
-            if (IsHandleCreated == false) return;
-
-            this.Invoker(delegate
+            AString? str = state switch
             {
-                switch (state)
-                {
-                    case ConnectionState.Connected:
-                    case ConnectionState.HandshakeInProgress: tb.AppendText("Connected " + SP.PortName + Environment.NewLine); break;
-                    case ConnectionState.Disconnected:        tb.AppendText("Disconnected"             + Environment.NewLine); break;
-                    case ConnectionState.HandshakeSuccessful: tb.AppendText("Handshake successful"     + Environment.NewLine); break;
-                }
+                ConnectionState.Connected           => AString.FromString("Connected " + SP.PortName),
+                ConnectionState.HandshakeInProgress => AString.FromString("Handshake in progress"   ),
+                ConnectionState.Disconnected        => AString.FromString("Disconnected"            ),
+                ConnectionState.HandshakeSuccessful => AString.FromString("Handshake successful"    ),
+                _ => null
+            };
 
-                stateSet = true;
-            });
+            if (str != null)
+                myDebugPane1.Log(str);
         }
 
         int count = 0;
@@ -59,7 +41,8 @@ namespace TeensyMonitor
             if (IsHandleCreated == false) return;
             if (packet is TextPacket textPacket == false) return;
 
-            this.Invoker( () =>             {
+            this.Invoker(() =>
+            {
                 Text = $".{count++} {textPacket.Length}";
             });
 
@@ -74,7 +57,20 @@ namespace TeensyMonitor
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            if (SP.IsOpen && stateSet == false) SerialPort_ConnectionChanged(SP.CurrentConnectionState);
+            var ports = SerialHelper.GetUSBSerialPorts();
+
+            if (ports.Length == 0)
+            {
+                MessageBox.Show("No serial ports found.");
+                Close();
+                return;
+            }
+            else
+            {
+                cbPorts.Items.AddRange(ports);
+                cbPorts.SelectedIndex = cbPorts.Items.Count - 1;
+            }
+
         }
     }
 }

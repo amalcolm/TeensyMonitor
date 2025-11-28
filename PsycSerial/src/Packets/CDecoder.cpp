@@ -13,8 +13,7 @@ namespace
 	constexpr size_t kHeaderTimeStampOffset =  4u; // offset of 'timeStamp' field in block header
 	constexpr size_t kHeaderCountOffset     =  8u; // offset of 'count' field in block header
 
-	constexpr uint8_t kFrameStartByte       = 0xBA; // Common first byte of all frame types
-	constexpr uint8_t kFrameEndByte         = 0xEA; // Common end  byte of all frame types
+	constexpr uint8_t kFrameStart[2] = {0xB4, 0xFA}; // common start bytes of all framing
 
     bool readU32(const uint8_t* p, uint32_t& v) noexcept;
     bool readDataPayload (const uint8_t* payload, CDecodedPacket& out) noexcept;
@@ -50,6 +49,8 @@ PacketKind CDecoder::process(const CPacket& in, CDecodedPacket& out) noexcept
 
 bool CDecoder::pushAndExtract(const CPacket& in, CDecodedPacket& out)
 {
+	constexpr size_t bloat_cuttof_size = 4096; // if no frame found in this many bytes, discard old data
+	static uint32_t lastUsedFrameOffset = 0;
     out.kind = PacketKind::Unknown;
 
     const uint8_t* data = in.data.data();
@@ -61,51 +62,50 @@ bool CDecoder::pushAndExtract(const CPacket& in, CDecodedPacket& out)
         m_buf.resize(oldSize + dataLen);
         memcpy(m_buf.data() + oldSize, data, dataLen);
     }
-    
+
     if (m_buf.empty())
-		return false;
+        return false;
 
     size_t   usedBytes = 0;
 
-	bool isFrame = (m_buf[0] == kFrameStartByte);
-
-    if (isFrame) {
-        if (quickFrameCheck(m_buf.data(), m_buf.size(), out, usedBytes) != PacketKind::Unknown)
-        {
-            m_buf.erase(m_buf.begin(), m_buf.begin() + usedBytes);
-            return true;
-        }
-		return false; // still waiting for full frame
-    }
+    if (quickFrameCheck(m_buf.data() + lastUsedFrameOffset, m_buf.size() - lastUsedFrameOffset, out, usedBytes) != PacketKind::Unknown) {
+        m_buf.erase(m_buf.begin(), m_buf.begin() + usedBytes);
+        return true;
+	}
 
 
-	// Do not try to cache m_buf.data() or m_buf.size() as m_buf.erase() would invalidate it
+    // Do not try to cache m_buf.data() or m_buf.size() as m_buf.erase() would invalidate it
 
-	// scan for newline character
-    uint8_t *pNL = std::find(m_buf.data(), m_buf.data() + m_buf.size(), '\n');
+    // scan for newline character
+    uint8_t* pNL = std::find(m_buf.data(), m_buf.data() + m_buf.size(), '\n');
 
     if (pNL < m_buf.data() + m_buf.size()) {
         size_t lineBytes = static_cast<size_t>(pNL - m_buf.data());   // bytes before '\n'
-		readTextPayload(m_buf.data(), lineBytes + 1, out, usedBytes);  // include '\n'
+        readTextPayload(m_buf.data(), lineBytes + 1, out, usedBytes);  // include '\n'
 
         if (out.kind == PacketKind::Text && out.text.timeStamp == 0)
-			out.text.timeStamp = static_cast<uint32_t>(in.timestamp);
+            out.text.timeStamp = static_cast<uint32_t>(in.timestamp);
 
         m_buf.erase(m_buf.begin(), m_buf.begin() + usedBytes);
-        return true; 
+        return true;
     }
+    
+	uint32_t offset = (lastUsedFrameOffset > 0) ? static_cast<uint32_t>(lastUsedFrameOffset + sizeof(kFrameStart) - 1) : 0;
+	auto end = m_buf.data() + m_buf.size() + offset;
+    auto pMightBeStart = std::search( m_buf.data() + offset + 1, end, std::begin(kFrameStart), std::end(kFrameStart) );
 
-	uint8_t* pStart = std::find(m_buf.data(), m_buf.data() + m_buf.size(), kFrameStartByte);
-    if (pStart < m_buf.data() + m_buf.size()) {
-        // start found: discard leading garbage
-        m_buf.erase(m_buf.begin(), m_buf.begin() + (pStart - m_buf.data()));
 
-        if (quickFrameCheck(m_buf.data(), m_buf.size(), out, usedBytes) != PacketKind::Unknown)
-        {
-            m_buf.erase(m_buf.begin(), m_buf.begin() + usedBytes);
-            return true;
-        }
-    }
+
+    if (pMightBeStart >= end) 
+        if (m_buf.size() > bloat_cuttof_size)
+            m_buf.erase(m_buf.begin(), m_buf.end() - sizeof(kFrameStart));
+
+
+    if (quickFrameCheck(pMightBeStart, static_cast<size_t>(end - pMightBeStart), out, usedBytes) != PacketKind::Unknown) {
+        m_buf.erase(m_buf.begin(), m_buf.begin() + (pMightBeStart - m_buf.data()) + usedBytes);
+        return true;
+	}
+	lastUsedFrameOffset = static_cast<uint32_t>(pMightBeStart - m_buf.data());
 
 	return false;
 }

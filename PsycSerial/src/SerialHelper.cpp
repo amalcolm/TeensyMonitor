@@ -127,7 +127,13 @@ namespace PsycSerial
     //---------------------------------------------------------------------
     // Public Methods
     //---------------------------------------------------------------------
-	bool SerialHelper::Open(String^ portName) {
+
+    bool SerialHelper::Open() {
+        if (String::IsNullOrEmpty(m_portName)) { Debug::WriteLine("SerialHelper::Open Error: PortName is not set."); return false; }
+        return Open(m_portName, BaudRate); // Uses the property or default baud
+    }
+
+    bool SerialHelper::Open(String^ portName) {
 		return Open(portName, CSerial::DEFAULT_BAUDRATE);
 	}   
 
@@ -137,6 +143,7 @@ namespace PsycSerial
         if (m_nativeSerial == nullptr) { Debug::WriteLine("SerialHelper::Open Error: Native serial object is null."); return FAIL; }
         if (String::IsNullOrEmpty(portName)) { throw gcnew ArgumentNullException("portName"); }
 
+        m_portName = portName;
         std::string nativePortName = ConvertSysString(portName);
 
         void* pUserData = nullptr;
@@ -153,6 +160,8 @@ namespace PsycSerial
         bool result = FAIL;
         try {                                                                                                                                       if (VERBOSE) Debug::WriteLine(String::Format("SerialHelper: Calling native SetPort('{0}', {1})...", portName, baudRate));
             result = m_nativeSerial->SetPort(nativePortName, pNativeDataHandler, pUserData, baudRate);                                              if (VERBOSE) Debug::WriteLine(String::Format("SerialHelper: Native SetPort returned {0}.", result));
+            if (result) 
+                m_portName = portName;                                                                                                              if (VERBOSE) Debug::WriteLine(String::Format("SerialHelper: PortName set to '{0}'.", m_portName));
         }
         catch (const std::exception& ex) {
             String^ errMsg = gcnew String(ex.what());
@@ -258,6 +267,22 @@ namespace PsycSerial
 
         m_nativeSerial->Clear();
 	}
+
+
+    Task<bool>^ SerialHelper::OpenAsync() {
+        return Task::Run(gcnew Func<bool>(this, &SerialHelper::Open));
+    }
+
+    Task<bool>^ SerialHelper::OpenAsync(String^ portName) {
+        m_portName = portName;
+		return Task::Run(gcnew Func<bool>(this, &SerialHelper::Open));
+    }
+
+    Task<bool>^ SerialHelper::CloseAsync() {
+        return Task::Run(gcnew Func<bool>(this, &SerialHelper::Close));
+    }
+
+
 
 
     bool SerialHelper::IsOpen::get() {
