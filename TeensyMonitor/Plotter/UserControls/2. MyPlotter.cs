@@ -8,7 +8,8 @@ namespace TeensyMonitor.Plotter.UserControls
     public partial class MyPlotter : MyPlotterBase
     {
         protected Dictionary<uint, MyPlot> Plots = [];
-        public float TimeWindowSeconds { get; set; } = 10.0f;
+        public float TimeWindowSeconds  { get; set; } = 10.0f;
+        public float Yscale             { get; set; } =  1.0f;
 
         protected string Debug = string.Empty;
         protected override void Init()
@@ -56,6 +57,8 @@ namespace TeensyMonitor.Plotter.UserControls
             foreach (var key in Plots.Keys)
             {
                 ref var plot = ref CollectionsMarshal.GetValueRefOrNullRef(Plots, key);
+                if (plot.Yscale == 0.0f)
+                    plot.Yscale = Yscale;
 
                 if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref plot)) continue;
                 

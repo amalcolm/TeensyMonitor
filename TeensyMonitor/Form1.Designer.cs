@@ -31,7 +31,7 @@
             cbPorts = new ComboBox();
             labPorts = new Label();
             dbg = new TeensyMonitor.Plotter.UserControls.MyDebugPane();
-            myChart1 = new TeensyMonitor.Plotter.UserControls.MyChart();
+            chart = new TeensyMonitor.Plotter.UserControls.MyChart();
             SuspendLayout();
             // 
             // cbPorts
@@ -54,6 +54,7 @@
             // 
             // dbg
             // 
+            dbg.AutoClear = true;
             dbg.BackColor = Color.WhiteSmoke;
             dbg.BorderStyle = BorderStyle.FixedSingle;
             dbg.Location = new Point(12, 609);
@@ -61,23 +62,25 @@
             dbg.Size = new Size(1160, 351);
             dbg.TabIndex = 5;
             // 
-            // myChart1
+            // chart
             // 
-            myChart1.BackColor = Color.PapayaWhip;
-            myChart1.BorderStyle = BorderStyle.FixedSingle;
-            myChart1.ChannelScale = 0.05F;
-            myChart1.Location = new Point(12, 47);
-            myChart1.Name = "myChart1";
-            myChart1.Size = new Size(1160, 525);
-            myChart1.TabIndex = 6;
-            myChart1.TimeWindowSeconds = 5F;
+            chart.AutoClear = true;
+            chart.BackColor = Color.PapayaWhip;
+            chart.BorderStyle = BorderStyle.FixedSingle;
+            chart.ChannelScale = 0.05F;
+            chart.Location = new Point(12, 47);
+            chart.Name = "chart";
+            chart.Size = new Size(1160, 525);
+            chart.TabIndex = 6;
+            chart.TimeWindowSeconds = 5F;
+            chart.Yscale = 0.01F;
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1184, 972);
-            Controls.Add(myChart1);
+            Controls.Add(chart);
             Controls.Add(dbg);
             Controls.Add(labPorts);
             Controls.Add(cbPorts);
@@ -92,6 +95,6 @@
         private ComboBox cbPorts;
         private Label labPorts;
         private Plotter.UserControls.MyDebugPane dbg;
-        private Plotter.UserControls.MyChart myChart1;
+        private Plotter.UserControls.MyChart chart;
     }
 }

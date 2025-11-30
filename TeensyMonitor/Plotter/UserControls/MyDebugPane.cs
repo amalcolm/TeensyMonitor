@@ -59,19 +59,19 @@ namespace TeensyMonitor.Plotter.UserControls
 
             MaxNumberOfLines = (int)Math.Round((_control.Height - 2 * Margin) / lineHeight);
             LineBuffers = new LineVertices[MaxNumberOfLines];
-            
-            nextHeight = _control.Height - Margin - lineHeight;
-            ScrollThreashold = MaxNumberOfLines - 1;
 
+            baseHeight = -PrecisionBoundary;
+            nextHeight = baseHeight + _control.Height - Margin - lineHeight;
+            
             _control.AutoClear = false;
         }
 
         private int MaxNumberOfLines;  // number of lines that fit in the control
-        private int ScrollThreashold;  // when to start scrolling = MaxNumberOfLines - 1
         private float nextHeight = 0;  // height of the next line to add
         private float baseHeight = 0;  // base height offset for scrolling
         private int UsedLines = 0;     // total number of lines added so far
 
+        private const float PrecisionBoundary = 0x200000;
         private LineVertices[] LineBuffers = [];
 
         struct LineVertices
@@ -113,14 +113,14 @@ namespace TeensyMonitor.Plotter.UserControls
 
                 if (UsedLines >= MaxNumberOfLines)
                     pool.Return(LineBuffers[thisLine].Vertices);
-                
-                if (UsedLines >= ScrollThreashold)
-                    baseHeight -= lineHeight;
 
                 LineBuffers[thisLine] = newLine;
+
                 UsedLines++;
 
                 needUpdate = true;
+                
+                ManageScrolling();
             }
 
             if (!needUpdate) return;
@@ -141,5 +141,27 @@ namespace TeensyMonitor.Plotter.UserControls
 
         private MyGLControl _control;
 
+
+        private void ManageScrolling()
+        {
+            // Scroll is needed one before we exceed max lines
+            // No idea why, but it works.  Beats GPT-5.1 Thinking et.al.
+            if (UsedLines >= MaxNumberOfLines)
+            {
+                baseHeight -= lineHeight;
+                if (baseHeight > PrecisionBoundary)
+                {
+                    // reset base height to avoid float precision issues
+                    baseHeight = -PrecisionBoundary;
+                    nextHeight = baseHeight + _control.Height - Margin - lineHeight;
+                    nextHeight = (MaxNumberOfLines - 1) * lineHeight;
+
+                    float offset = 2 * PrecisionBoundary;
+                    foreach (ref var line in LineBuffers.AsSpan())
+                        for (int i = 0; i < line.Length; i++)
+                            line.Vertices[i].Position.Y -= offset;
+                }
+            }
+        }
     }
 }

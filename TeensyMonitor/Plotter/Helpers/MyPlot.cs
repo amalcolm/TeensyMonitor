@@ -7,7 +7,7 @@ namespace TeensyMonitor.Plotter.Helpers
     public class MyPlot
     {
         public float LastX { get; private set; } = 0;
-        public float Yscale { get; set; } = 1.0f;
+        public float Yscale { get; set; } = 0.0f; // overridden by MyPlotter if 0.0f.  If not overridden, use 1.0f
         public Color Colour { get; set; } = MyColours.GetNextColour();
         public double XCounter { get; set; } = -Math.Pow(2, 20) + 2; // X value counter, for signals without timestamps
 
@@ -69,6 +69,8 @@ namespace TeensyMonitor.Plotter.Helpers
         /// </summary>
         public void Add(double x, double y)
         {
+            float scale = Yscale == 0.0f ? 1.0f : Yscale;
+
             lock (_lock)
             {
                 // When the buffer is full, copy the last block of data to the start.
@@ -84,7 +86,7 @@ namespace TeensyMonitor.Plotter.Helpers
                 LastX = fX;
 
                 _vertexData[_writeIndex * 3 + 0] = fX;
-                _vertexData[_writeIndex * 3 + 1] = (float)y * Yscale;
+                _vertexData[_writeIndex * 3 + 1] = (float)y * scale;
                 _vertexData[_writeIndex * 3 + 2] = 0.0f;
 
                 _writeIndex++;
@@ -149,7 +151,7 @@ namespace TeensyMonitor.Plotter.Helpers
         /// </summary>
         public void Shutdown()
         {
-  //          lock (_lock)
+            lock (_lock)
             {
                 if (_vboHandle != 0) GL.DeleteBuffer(_vboHandle);
                 if (_vaoHandle != 0) GL.DeleteVertexArray(_vaoHandle);
