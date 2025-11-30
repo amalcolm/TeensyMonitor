@@ -15,8 +15,6 @@ namespace TeensyMonitor.Plotter.UserControls
         private readonly Log log = default!;
         public MyDebugPane()
         {
-            if (!Program.IsRunning) { ShowDesignView("MyDebugPane (Design View)"); return; }
-
             InitializeComponent();
 
             log = new Log(this);
@@ -38,6 +36,9 @@ namespace TeensyMonitor.Plotter.UserControls
 
     class Log
     {
+        public const int Margin = 8;
+        public const float LineSpacing = 1.2f;
+
         public Log(MyGLControl control)
         {
             _control = control;
@@ -50,21 +51,28 @@ namespace TeensyMonitor.Plotter.UserControls
             };
         }
         readonly ArrayPool<FontVertex> pool = ArrayPool<FontVertex>.Shared;
-
+        float lineHeight;
         public void Init()
         {
             var fr = _control.fontRenderer;
-            MaxNumberOfLines = _control.Height / (int)(fr.Font.LineHeight * fr.Scaling * 1.2f) - 1;
+            lineHeight = fr.Font.LineHeight * fr.Scaling * LineSpacing;
+
+            MaxNumberOfLines = (int)Math.Round((_control.Height - 2 * Margin) / lineHeight);
             LineBuffers = new LineVertices[MaxNumberOfLines];
-            nextHeight = _control.Height - 10 - fr.Font.LineHeight * fr.Scaling * 1.2f;
+            
+            nextHeight = _control.Height - Margin - lineHeight;
+            ScrollThreashold = MaxNumberOfLines - 1;
+
+            _control.AutoClear = false;
         }
 
-        private int MaxNumberOfLines;
-        private float nextHeight = 0;
-        private float baseHeight = 0;
-        private int UsedLines = 0;
+        private int MaxNumberOfLines;  // number of lines that fit in the control
+        private int ScrollThreashold;  // when to start scrolling = MaxNumberOfLines - 1
+        private float nextHeight = 0;  // height of the next line to add
+        private float baseHeight = 0;  // base height offset for scrolling
+        private int UsedLines = 0;     // total number of lines added so far
 
-        private LineVertices[] LineBuffers = default!;
+        private LineVertices[] LineBuffers = [];
 
         struct LineVertices
         {
@@ -93,37 +101,42 @@ namespace TeensyMonitor.Plotter.UserControls
 
             var numVerts = FontVertex.BuildString(buf, 0, str.Buffer.AsSpan(), FontFile.Default, 0, nextHeight, fr.Scaling, TextAlign.Left);
             qLinesToAdd.Enqueue(new LineVertices { Vertices = buf, Length = numVerts });
-            nextHeight -= fr.Font.LineHeight * fr.Scaling * 1.2f;
+            nextHeight -= lineHeight;
         }
 
         public void Render()
         {
-            var fr = _control.fontRenderer;
-            float lineHeight = fr.Font.LineHeight * fr.Scaling * 1.2f;
+            bool needUpdate = false;
             while (qLinesToAdd.TryDequeue(out LineVertices newLine))
             {
                 int thisLine = UsedLines % MaxNumberOfLines;
+
                 if (UsedLines >= MaxNumberOfLines)
-                {
                     pool.Return(LineBuffers[thisLine].Vertices);
+                
+                if (UsedLines >= ScrollThreashold)
                     baseHeight -= lineHeight;
-                }
 
                 LineBuffers[thisLine] = newLine;
                 UsedLines++;
 
+                needUpdate = true;
             }
+
+            if (!needUpdate) return;
+
+            _control.ClearViewport();
+
+            var fr = _control.fontRenderer;
+            float fMargin = Margin;
 
             fr.ProjectionMatrix = Matrix4.CreateOrthographicOffCenter(
-                -10, _control.Width - 10,
-                10 + baseHeight, 10 + _control.Height + baseHeight, 
+                -fMargin, _control.Width - fMargin,
+                fMargin + baseHeight, fMargin + _control.Height + baseHeight,
                 -1, 1);
 
-            foreach (var line in LineBuffers)
-            {
-                var vertices = line.Vertices;
+            foreach (ref var line in LineBuffers.AsSpan())
                 fr.RenderText(line.Vertices, line.Length);
-            }
         }
 
         private MyGLControl _control;

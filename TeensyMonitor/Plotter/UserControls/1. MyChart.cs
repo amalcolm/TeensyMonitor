@@ -1,17 +1,23 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
-using TeensyMonitor.Plotter.Backgrounds;
-using TeensyMonitor.Plotter.Fonts;
 using PsycSerial;
 using System.ComponentModel;
-
+using System.Net.Sockets;
+using System.Runtime.InteropServices;
+using TeensyMonitor.Plotter.Backgrounds;
+using TeensyMonitor.Plotter.Fonts;
 using TeensyMonitor.Plotter.Helpers;
+
 namespace TeensyMonitor.Plotter.UserControls
 {
 
     [ToolboxItem(true)]
     public partial class MyChart : MyPlotter
     {
+        public TeensySerial? SP = Program.serialPort;
+
+        public float ChannelScale { get; set; } = 0.05f;
+
         private const int WindowSize = 1200;
 
         private readonly Dictionary<uint, double> _latestValues = [];
@@ -21,37 +27,28 @@ namespace TeensyMonitor.Plotter.UserControls
         private LabelAreaRenderer? _labelAreaRenderer;
 
         public MyChart()
-            => InitializeComponent();
-
-        public TeensySerial IO { get; set; } = default!;
-
-        private void MyChart_Load(object sender, EventArgs e)
         {
-            IO = new(Program.Version);
+            InitializeComponent();
 
-            IO.DataReceived += IO_DataReceived;
+            if (SP == null) return;
+
+            SP.DataReceived += IO_DataReceived;
         }
+
+
 
         private void IO_DataReceived(IPacket packet)
         {
             if (packet is BlockPacket blockPacket == false) return;
 
-            uint state = blockPacket.State;
-
-            for (int i = 0; i < blockPacket.Count; i++)
+            if (Plots.TryGetValue(blockPacket.State, out var plot) == false)
             {
-                DataPacket data = blockPacket.BlockData[i];
-                
-                if (Plots.TryGetValue(data.State, out var plot) == false)
-                {
-                    plot = new MyPlot(WindowSize, this);
-                    Plots[data.State] = plot;
-                    CreateTextBlocksForLabel(data.State);
-                }
-                float time = (float)(DateTime.Today - data.TimeStamp).TotalSeconds;
-                plot.Add(time, data.Channel[0]);
+                plot = new  MyPlot(WindowSize, this);
+                Plots[blockPacket.State] = plot;
+                CreateTextBlocksForLabel(blockPacket.State);
             }
 
+            plot.Add(blockPacket);
         }
 
         protected override void Init()
@@ -87,11 +84,16 @@ namespace TeensyMonitor.Plotter.UserControls
 
             _textBlocksToRender.Clear();
             // 1. Populate the list of blocks to render and flag if their content has changed.
-            foreach (var kvp in _latestValues)
+            foreach (var key in _latestValues.Keys)
             {
-                if (_blocks.TryGetValue(kvp.Key, out var tuple))
+                if (_blocks.TryGetValue(key, out var tuple))
                 {
-                    tuple.Item2.SetValue(kvp.Value, "F2");
+                    ref var item = ref CollectionsMarshal.GetValueRefOrNullRef(_latestValues, key);
+
+                    if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref item)) continue;
+
+                    // Check
+                    tuple.Item2.SetValue(item, "F2");
 
                     _textBlocksToRender.Add(tuple.Item1);
                     _textBlocksToRender.Add(tuple.Item2);
@@ -130,7 +132,7 @@ namespace TeensyMonitor.Plotter.UserControls
         {
             RectangleF totalBounds = RectangleF.Empty;
 
-            foreach (var block in _textBlocksToRender)
+            foreach (ref var block in CollectionsMarshal.AsSpan(_textBlocksToRender))
             {
                 if (block.Bounds.IsEmpty) continue;
 

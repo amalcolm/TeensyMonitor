@@ -19,8 +19,8 @@ static CDecoder decoder;
         DWORD error = GetLastError(); \
         if (handle != INVALID_HANDLE_VALUE) CloseHandle(handle); \
         std::ostringstream os; \
-        os << errorMsg << " Error: " << error; \
-        std::cerr << os.str() << std::endl; \
+        os << errorMsg << " Error: " << error << " (" << GetErrorMessage(error) << ")\r\n"; \
+        OutputDebugString(os.str().c_str()); \
         InvokeErrorOccurred(std::runtime_error(os.str())); \
         return false; \
     }
@@ -60,11 +60,13 @@ void CSerial::InvokeConnectionChanged(bool state) {
             handler(context, this, state); // Pass user data
         }
         catch (const std::exception& e) {
-            std::cerr << "CSerial: Exception caught during ConnectionChanged callback: " << e.what() << std::endl;
+            OutputDebugStringA("CSerial: Exception caught during ConnectionChanged callback: ");
+            OutputDebugStringA(e.what());
+            OutputDebugStringA("\r\n");
             // Avoid calling InvokeErrorOccurred from here to prevent potential infinite loops
         }
         catch (...) {
-            std::cerr << "CSerial: Unknown exception caught during ConnectionChanged callback." << std::endl;
+            OutputDebugStringA("CSerial: Unknown exception caught during ConnectionChanged callback.\r\n");
         }
     }
 }
@@ -85,10 +87,12 @@ void CSerial::InvokeErrorOccurred(const std::exception& ex) {
             handler(context, this, ex); // Pass user data
         }
         catch (const std::exception& e) {
-            std::cerr << "CSerial: Exception caught during ErrorOccurred callback: " << e.what() << std::endl;
+            OutputDebugStringA("CSerial: Exception caught during ErrorOccurred callback: ");
+            OutputDebugStringA(e.what());
+            OutputDebugStringA("\r\n");
         }
         catch (...) {
-            std::cerr << "CSerial: Unknown exception caught during ErrorOccurred callback." << std::endl;
+            OutputDebugString(L"CSerial: Unknown exception caught during ErrorOccurred callback.\r\n");
         }
     }
 }
@@ -107,7 +111,11 @@ void CSerial::InvokeDataReceived(CPacket& packet) {
         auto kind = decoder.process(packet, dataPacket);
         if (kind == PacketKind::Unknown)
             break;
-		packet.bytesRead = 0; // Mark as consumed
+        packet.bytesRead = 0; // Mark as consumed
+
+		// Ignore lone carriage return text packets
+        if (kind == PacketKind::Text && dataPacket.text.length == 1 && dataPacket.text.utf8Bytes[0] == '\r')
+            continue;
 
         // Invoke outside the lock
         if (handler) {
@@ -115,12 +123,14 @@ void CSerial::InvokeDataReceived(CPacket& packet) {
                handler(context, this, dataPacket); // Pass user data
             }
             catch (const std::exception& e) {
-                std::cerr << "CSerial: Exception caught during DataReceived callback: " << e.what() << std::endl;
+                OutputDebugStringA("CSerial: Exception caught during DataReceived callback: ");
+                OutputDebugStringA(e.what());
+                OutputDebugStringA("\r\n");
                 // Optionally invoke error handler here if desired, carefully
                 // InvokeErrorOccurred(std::runtime_error("Exception in DataReceived callback: " + std::string(e.what())));
             }
             catch (...) {
-                std::cerr << "CSerial: Unknown exception caught during DataReceived callback." << std::endl;
+                OutputDebugStringA("CSerial: Unknown exception caught during DataReceived callback.\r\n");
                 // InvokeErrorOccurred(std::runtime_error("Unknown exception in DataReceived callback"));
             }
         }
@@ -198,7 +208,8 @@ bool CSerial::SetPort(const std::string& portName, DataHandler dataHandler, void
         DWORD errorCode = GetLastError();
         if (hSerial != INVALID_HANDLE_VALUE) CloseHandle(hSerial);
         std::ostringstream os; os << failStage << ". Error: " << errorCode;
-        std::cerr << os.str() << std::endl;
+        OutputDebugStringA(os.str().c_str());
+		OutputDebugStringW(L"\r\n");
         InvokeErrorOccurred(std::runtime_error(os.str()));
         return false;
     }
@@ -236,6 +247,7 @@ void CSerial::ReadLoop()
         const DWORD le = GetLastError();
         std::ostringstream os; os << "CreateEvent failed in ReadLoop. Error: " << le;
         InvokeErrorOccurred(std::runtime_error(os.str()));
+        m_readLoopRunning.store(false, std::memory_order_release);
         return;
     }
 
@@ -275,6 +287,25 @@ void CSerial::ReadLoop()
         }
 
         DWORD queued = comStat.cbInQue;
+
+
+
+        // If a Clear() is in progress and the driver says there's nothing queued,
+        // we can signal completion and skip doing any reads this iteration.
+        if (m_clearRequested.load(std::memory_order_acquire)) {
+            if (queued == 0) {
+                {
+                    std::lock_guard<std::mutex> lk(m_clearMutex);
+                    m_clearRequested.store(false, std::memory_order_release);
+                }
+                m_clearCv.notify_all();
+                // No data to drain, just loop again
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                continue;
+            }
+            // queued > 0 and clear is requested:
+            // we will read and discard below.
+        }
         if (queued == 0) {
             // Nothing buffered right now – short pause to avoid busy-spin
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -348,10 +379,14 @@ void CSerial::ReadLoop()
         }
 
         // If we got here with bytesRead set (sync or async paths)
-        if (bytesRead == 0) {
-            // Nothing to report; try again
+        if (bytesRead == 0)
             continue;
-        }
+        
+        // If Clear() is in progress, we *intentionally* throw these bytes away.
+        // They count toward "draining" the OS buffer, but we don't decode or callback.
+        if (m_clearRequested.load(std::memory_order_acquire))
+            continue;
+        
 
         // Build and dispatch the packet (no locks held during callback)
         CPacket pkt{};
@@ -500,11 +535,27 @@ bool CSerial::Write(const BYTE* data, DWORD offset, DWORD count)
 
 void CSerial::Clear()
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    if (m_isOpen && m_hSerial.get() != INVALID_HANDLE_VALUE) {
-        PurgeComm(m_hSerial.get(), PURGE_RXCLEAR | PURGE_TXCLEAR | PURGE_RXABORT | PURGE_TXABORT);
+    if (!m_readLoopRunning.load(std::memory_order_acquire))
+        return;
+
+    // Ask read loop to drain & discard
+    {
+        std::unique_lock<std::mutex> lk(m_clearMutex);
+        m_clearRequested.store(true, std::memory_order_release);
+
+        m_clearCv.wait(lk, [this] {
+            return !m_clearRequested.load(std::memory_order_acquire) ||
+                !m_readLoopRunning.load(std::memory_order_acquire);
+            });
+    } 
+
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_isOpen && m_hSerial.get() != INVALID_HANDLE_VALUE) 
+            PurgeComm(m_hSerial.get(), PURGE_RXCLEAR | PURGE_TXCLEAR | PURGE_RXABORT | PURGE_TXABORT);
+        
+        decoder.reset();
     }
-    decoder.reset();
 }
 
 
@@ -533,8 +584,9 @@ bool CSerial::Close()
                 if (!CancelIoEx(h, nullptr)) {
                     DWORD cancelError = GetLastError();
                     if (cancelError != ERROR_NOT_FOUND) {
-                        std::cerr << "Close: CancelIoEx failed. Error: "
-                            << cancelError << std::endl;
+                        ::OutputDebugStringA("Close: CancelIoEx failed. Error: ");
+                        ::OutputDebugStringA(std::to_string(cancelError).c_str());
+						::OutputDebugStringA("\r\n");
                     }
                 }
             }
@@ -555,8 +607,11 @@ bool CSerial::Close()
             threadToJoin.join();
         }
         catch (const std::system_error& e) {
-            std::cerr << "Close: Exception while joining read thread: "
-                << e.what() << " (" << e.code() << ")" << std::endl;
+            ::OutputDebugStringA("Close: Exception while joining read thread: ");
+            ::OutputDebugStringA(e.what());
+            ::OutputDebugStringA(" (");
+            ::OutputDebugStringA(std::to_string(e.code().value()).c_str());
+            ::OutputDebugStringA(")\r\n");
         }
     }
 

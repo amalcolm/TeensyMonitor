@@ -3,9 +3,10 @@ using StbImageSharp;
 
 namespace TeensyMonitor.Plotter.Fonts
 {
-    using TeensyMonitor.Plotter.Fonts.Json;
+    using System.Runtime.InteropServices;
     using System.Text.Json;
     using System.Text.RegularExpressions;
+    using TeensyMonitor.Plotter.Fonts.Json;
 
     public static partial class FontLoader
     {
@@ -45,7 +46,8 @@ namespace TeensyMonitor.Plotter.Fonts
                 fontFile.TextureId = LoadTexture(texturePath);
             }
 
-            foreach (var jsonChar in jsonFontFile.Chars)
+            Span<JsonChar> charSpan = CollectionsMarshal.AsSpan(jsonFontFile.Chars);
+            foreach (ref var jsonChar in charSpan)
             {
                 var fontChar = new FontChar
                 {
@@ -61,7 +63,8 @@ namespace TeensyMonitor.Plotter.Fonts
                 fontFile.Chars[fontChar.ID] = fontChar;
             }
 
-            foreach (var jsonKerning in jsonFontFile.Kernings)
+            Span<JsonKerning> kerningSpan = CollectionsMarshal.AsSpan(jsonFontFile.Kernings);
+            foreach (ref var jsonKerning in kerningSpan)
                 fontFile.Kernings[(jsonKerning.First, jsonKerning.Second)] = jsonKerning.Amount;
 
             return fontFile;

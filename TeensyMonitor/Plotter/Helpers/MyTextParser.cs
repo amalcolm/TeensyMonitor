@@ -1,5 +1,6 @@
 ﻿using PsycSerial;
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 namespace TeensyMonitor.Plotter.Helpers
 {
@@ -57,7 +58,8 @@ namespace TeensyMonitor.Plotter.Helpers
             if (_buckets.TryGetValue(hashCode, out var bucket))
             {
                 // 3. A bucket exists. Check all strings within it (to handle hash collisions).
-                foreach (string s in bucket)
+                Span<string> spanBucket = CollectionsMarshal.AsSpan(bucket);
+                foreach (ref var s in spanBucket)
                 {
                     if (span.SequenceEqual(s))
                     {

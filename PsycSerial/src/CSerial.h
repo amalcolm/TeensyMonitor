@@ -57,8 +57,12 @@ private:
 
     void ReadLoop();
     std::thread m_readThread;
-    std::atomic<bool> m_stopReadLoop;
-    std::atomic<bool> m_readLoopRunning;
+    std::atomic<bool> m_stopReadLoop{ false };
+    std::atomic<bool> m_readLoopRunning{ false };
+
+    std::atomic<bool>        m_clearRequested{ false };
+    std::mutex               m_clearMutex;
+    std::condition_variable  m_clearCv;
 
     HandleGuard m_hSerial;
     bool m_isOpen;

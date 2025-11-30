@@ -1,6 +1,6 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 using System.ComponentModel;
-
+using System.Runtime.InteropServices;
 using TeensyMonitor.Plotter.Helpers;
 namespace TeensyMonitor.Plotter.UserControls
 {
@@ -10,36 +10,32 @@ namespace TeensyMonitor.Plotter.UserControls
         protected Dictionary<uint, MyPlot> Plots = [];
         public float TimeWindowSeconds { get; set; } = 10.0f;
 
-        protected bool TestMode = false;
         protected string Debug = string.Empty;
         protected override void Init()
         {
             base.Init();
             MyGL.MouseWheel += MyGL_MouseWheel;
-            if (!TestMode) return;
-
-            sin = Plots[1] = new MyPlot(1200, this);
-            cos = Plots[2] = new MyPlot(1200, this);
-            Debug = "Test Mode: Sine and Cosine Waves";
-
         }
-        MyPlot? sin;
-        MyPlot? cos;
 
         private float _currentViewRight = 0.0f;
         private float _maxTime = 0.0f;
+
+        private DateTime lastTime = DateTime.Now;
+        private readonly TimeSpan timeBetweenDebug = TimeSpan.MaxValue;
         protected override void DrawPlots()
         {
-            if (Plots.Count == 0) return;
-
-            if (TestMode)
+            if (DateTime.Now - lastTime > timeBetweenDebug)
             {
-                sin?.Add(Math.Sin(sin.XCounter * 1.1) * 500 + 512);
-                cos?.Add(Math.Cos(cos.XCounter * 1.1) * 500 + 512);
+                System.Diagnostics.Debug.WriteLine($"[MyPlotter] Plots: {Plots.Count}, TimeWindow: {TimeWindowSeconds:F1}s, MaxTime: {_maxTime:F3}s");
+
+                lastTime = DateTime.Now;
             }
 
+            if (Plots.Count == 0) return;
+
             // 1. Get the latest time from all plots
-            _maxTime = Plots.Values.Max(p => p.LastX);
+            _maxTime = Plots.Values.Max(p => p?.LastX ?? float.MinValue);
+            if (_maxTime == float.MinValue) return; // work around synchronization issue
 
             // 2. Define the target for the right edge of our viewport.
             //    This includes a small buffer for the gap.
@@ -57,8 +53,13 @@ namespace TeensyMonitor.Plotter.UserControls
 
 
             int colorLocation = GL.GetUniformLocation(_plotShaderProgram, "uColor");
-            foreach (var plot in Plots.Values)
+            foreach (var key in Plots.Keys)
             {
+                ref var plot = ref CollectionsMarshal.GetValueRefOrNullRef(Plots, key);
+
+                if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref plot)) continue;
+                
+                // Chec
                 GL.Uniform4(colorLocation, plot.Colour);
                 plot.Render();
             }

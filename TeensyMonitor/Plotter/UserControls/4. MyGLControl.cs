@@ -1,19 +1,22 @@
-﻿using TeensyMonitor;
-using OpenTK.GLControl;
+﻿using OpenTK.GLControl;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
-using TeensyMonitor.Plotter.Fonts;
+
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 
+using TeensyMonitor.Plotter.Fonts;
 using TeensyMonitor.Plotter.Helpers;
+
 namespace TeensyMonitor.Plotter.UserControls
 {
     public abstract class MyGLControl : UserControl
     {
         static int InstanceCount = 0;
+
+        public bool AutoClear { get; set; } = true;
 
         public MyGLThread? GLThread { get; private set; } = default!;
         public void Enqueue(Action? initAction, Action? shutdownAction = null) 
@@ -69,7 +72,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
         public MyGLControl()
         {
-            if (!Program.IsRunning) { ShowDesignView("MyGLControl (Design View)"); return; }
+            if (!Program.IsRunning) { ShowDesignView(); return; }
             InstanceCount++;
 
             var glControlSettings = new GLControlSettings
@@ -150,7 +153,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
             string log =$"[GL {type}]: {Marshal.PtrToStringAnsi(message, length)}";
 
-            Console.WriteLine(log);
+            System.Diagnostics.Debug.WriteLine(log);
 
             // Break on errors so you see the stack trace immediately
             if (type == DebugType.DebugTypeError)
@@ -160,19 +163,26 @@ namespace TeensyMonitor.Plotter.UserControls
         }
 
         private void GL_Resize()
-        {   if (!_isLoaded) return;
+        {   if (!_isLoaded || IsDisposed) return;
 
             GL.Viewport(0, 0, MyGL.ClientSize.Width, MyGL.ClientSize.Height);
         }
 
+        public void ClearViewport()
+        {
+            if (!IsLoaded || IsDisposed) return;
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+        }
+
         /// <summary>
-        /// The main render loop. Renders all registered plots.
+        /// The main render loop..
         /// </summary>
         private void RenderLoop()
         {
             if (!IsLoaded || IsDisposed) return;
 
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+            if (AutoClear)
+                GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             Render();
 
@@ -184,6 +194,8 @@ namespace TeensyMonitor.Plotter.UserControls
 
         private void RenderText()
         {
+            if (!IsLoaded || IsDisposed) return;
+
             GL.UseProgram(_textShaderProgram);
 
             int uProjLoc = GL.GetUniformLocation(_textShaderProgram, "uProj");
@@ -245,11 +257,12 @@ namespace TeensyMonitor.Plotter.UserControls
 
 
 
-        protected void ShowDesignView(string Title)
+        protected void ShowDesignView()
         {
+            var title = this.GetType().Name ?? "MyGLControl";
             var label = new Label
             {
-                Text = Title,
+                Text = $"[{title} Design View]",
                 Dock = DockStyle.Fill,
                 TextAlign = ContentAlignment.MiddleCenter,
                 ForeColor = Color.Gray,

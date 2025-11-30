@@ -37,8 +37,8 @@ namespace TeensyMonitor.Plotter.Helpers
             for (int i = 0; i < files.Length; i+=2)  // process in pairs, .frag then .vert
             {   if (i+1 >= files.Length) break;
 
-                var fragFile = files[i];
-                var vertFile = files[i + 1];
+                ref var fragFile = ref files[i    ];
+                ref var vertFile = ref files[i + 1];
 
                 if (!fragFile.EndsWith(".frag", StringComparison.OrdinalIgnoreCase)) continue;
                 if (!vertFile.EndsWith(".vert", StringComparison.OrdinalIgnoreCase)) continue;

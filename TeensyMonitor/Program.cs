@@ -6,7 +6,7 @@ namespace TeensyMonitor
     {
         public const string Version = "1.0";
 
-        public static readonly TeensySerial serialPort = new(Version);
+        public static readonly TeensySerial? serialPort = new(Version);
 
         public static bool IsRunning = false;
 
@@ -21,14 +21,17 @@ namespace TeensyMonitor
             Application.ThreadException += (sender, e) =>
             {
                 MessageBox.Show(e.Exception.Message);
-                serialPort.Close();
+                serialPort?.Close();
             };
 
             IsRunning = true;
-           
-            Application.Run(new Form1());
 
-            serialPort.Close();
+            if (serialPort != null)
+                Application.Run(new Form1());
+            else
+                Application.Run(new Form2());
+
+            serialPort?.Close();
         }
     }
 }

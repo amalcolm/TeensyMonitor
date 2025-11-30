@@ -65,14 +65,14 @@ namespace TeensyMonitor.Plotter.Fonts
         public void RenderText(TextBlock block)
             => RenderText(block.Span, block.X, block.Y, block.Font, block.Align);
 
-        public void RenderText(IEnumerable<TextBlock> blocks)
+        public void RenderText(TextBlock[] blocks)
         {
             _currentVertexCount = 0;
 
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture2D, blocks.FirstOrDefault()?.Font.TextureId ?? FontFile.Default.TextureId);
 
-            foreach (var block in blocks)
+            foreach (ref var block in blocks.AsSpan())
             {
                 var blockVerticesSpan = block.GetVertices(Scaling);
                 EnsureVertexCapacity(_currentVertexCount + blockVerticesSpan.Length);
@@ -83,6 +83,26 @@ namespace TeensyMonitor.Plotter.Fonts
             BindVertices();
             Render();
         }
+
+        public void RenderText(List<TextBlock> blocks)
+        {
+            _currentVertexCount = 0;
+         
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(TextureTarget.Texture2D, blocks.FirstOrDefault()?.Font.TextureId ?? FontFile.Default.TextureId);
+            
+            foreach (ref var block in CollectionsMarshal.AsSpan(blocks))
+            {
+                var blockVerticesSpan = block.GetVertices(Scaling);
+                EnsureVertexCapacity(_currentVertexCount + blockVerticesSpan.Length);
+                blockVerticesSpan.CopyTo(_vertices.AsSpan(_currentVertexCount));
+                _currentVertexCount += blockVerticesSpan.Length;
+            }
+            
+            BindVertices();
+            Render();
+        }
+
 
         public void RenderText(FontVertex[] verts, int length, FontFile? font = null)
         {

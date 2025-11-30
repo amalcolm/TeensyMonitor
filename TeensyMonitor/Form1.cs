@@ -6,11 +6,13 @@ namespace TeensyMonitor
 
     public partial class Form1 : Form
     {
-        readonly TeensySerial SP = Program.serialPort;
+        readonly TeensySerial? SP = Program.serialPort;
 
         public Form1()
         {
             InitializeComponent();
+
+            if (SP == null) return;
 
             SP.DataReceived      += DataReceived;
             SP.ConnectionChanged += SerialPort_ConnectionChanged;
@@ -18,13 +20,13 @@ namespace TeensyMonitor
         }
 
         private void SerialPort_ErrorOccurred(Exception exception)
-            => myDebugPane1.Log(AString.FromString(exception.Message + Environment.NewLine));
+            => dbg.Log(AString.FromString(exception.Message + Environment.NewLine));
 
         private void SerialPort_ConnectionChanged(ConnectionState state)
         {
             AString? str = state switch
             {
-                ConnectionState.Connected           => AString.FromString("Connected " + SP.PortName),
+                ConnectionState.Connected           => AString.FromString("Connected " + SP?.PortName),
                 ConnectionState.HandshakeInProgress => AString.FromString("Handshake in progress"   ),
                 ConnectionState.Disconnected        => AString.FromString("Disconnected"            ),
                 ConnectionState.HandshakeSuccessful => AString.FromString("Handshake successful"    ),
@@ -32,27 +34,23 @@ namespace TeensyMonitor
             };
 
             if (str != null)
-                myDebugPane1.Log(str);
+                dbg.Log(str);
         }
 
-        int count = 0;
         private void DataReceived(IPacket packet)
+
         {
             if (IsHandleCreated == false) return;
             if (packet is TextPacket textPacket == false) return;
 
-            this.Invoker(() =>
-            {
-                Text = $".{count++} {textPacket.Length}";
-            });
-
+            dbg.Log(AString.FromString(textPacket.Text + Environment.NewLine));
         }
 
         private void cbPorts_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (cbPorts.SelectedItem == null) return;
 
-            SP.Open(cbPorts.SelectedItem.ToString());
+            SP?.Open(cbPorts.SelectedItem.ToString());
         }
 
         private void Form1_Load(object sender, EventArgs e)

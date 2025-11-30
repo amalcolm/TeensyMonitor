@@ -141,9 +141,9 @@ namespace TeensyMonitor.Plotter.Fonts
 
             for (int i = 0; i < _vertexCount; i += 6)
             {
-                var topLeft = _vertices[i].Position;
-                var bottomLeft = _vertices[i + 2].Position;
-                var bottomRight = _vertices[i + 5].Position;
+                ref var topLeft     = ref _vertices[i    ].Position;
+                ref var bottomLeft  = ref _vertices[i + 2].Position;
+                ref var bottomRight = ref _vertices[i + 5].Position;
 
                 minX = Math.Min(minX, bottomLeft.X);
                 minY = Math.Min(minY, bottomLeft.Y);

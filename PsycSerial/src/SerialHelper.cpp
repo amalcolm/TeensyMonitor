@@ -540,7 +540,11 @@ namespace PsycSerial
 
         pin_ptr<const wchar_t> pinnedStr = PtrToStringChars(GetHandshakeResponse());
 		OutputDebugString((LPCWSTR)pinnedStr);
-		OutputDebugStringW(L"}\r\n");
+		wchar_t lastChar = wcslen(pinnedStr) > 0 ? pinnedStr[wcslen(pinnedStr) - 1] : L'\0';
+        if (lastChar == L'\n')
+			OutputDebugStringW(L"}");
+		else
+    		OutputDebugStringW(L"}\r\n");
 
         for (int i = 0; i < maxLength; ++i) 
             if (m_managedBytes[i] != response[i]) return false;

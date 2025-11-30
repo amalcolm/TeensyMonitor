@@ -1,4 +1,5 @@
 ﻿using OpenTK.Graphics.OpenGL4;
+using PsycSerial;
 using TeensyMonitor.Plotter.UserControls;
 
 namespace TeensyMonitor.Plotter.Helpers
@@ -6,8 +7,9 @@ namespace TeensyMonitor.Plotter.Helpers
     public class MyPlot
     {
         public float LastX { get; private set; } = 0;
+        public float Yscale { get; set; } = 1.0f;
         public Color Colour { get; set; } = MyColours.GetNextColour();
-        public double XCounter { get; set; } = -Math.Pow(2, 22) - 2; // X value counter, for signals without timestamps
+        public double XCounter { get; set; } = -Math.Pow(2, 20) + 2; // X value counter, for signals without timestamps
 
         private readonly object _lock = new();
 
@@ -82,10 +84,42 @@ namespace TeensyMonitor.Plotter.Helpers
                 LastX = fX;
 
                 _vertexData[_writeIndex * 3 + 0] = fX;
-                _vertexData[_writeIndex * 3 + 1] = (float)y;
+                _vertexData[_writeIndex * 3 + 1] = (float)y * Yscale;
                 _vertexData[_writeIndex * 3 + 2] = 0.0f;
 
                 _writeIndex++;
+            }
+        }
+
+        public void Add(BlockPacket packet)
+        {
+            lock (_lock)
+            {
+                var today = DateTime.Today;
+                for (int i = 0; i < packet.Count; i++)
+                {
+                    ref var item = ref packet.BlockData[i];
+                    
+                    float x = (float)(packet.TimeStamp - today).TotalSeconds;
+                    float y = item.Channel[0] * Yscale;
+
+                    // When the buffer is full, copy the last block of data to the start.
+                    if (_writeIndex >= _bufferCapacity)
+                    {
+                        int sourceIndex = (_bufferCapacity - _historyLength) * 3;
+                        int length = _historyLength * 3;
+                        Array.Copy(_vertexData, sourceIndex, _vertexData, 0, length);
+                        _writeIndex = _historyLength;
+                    }
+
+                    LastX = x;
+
+                    _vertexData[_writeIndex * 3 + 0] = x;
+                    _vertexData[_writeIndex * 3 + 1] = y;
+                    _vertexData[_writeIndex * 3 + 2] = 0.0f;
+
+                    _writeIndex++;
+                }
             }
         }
 

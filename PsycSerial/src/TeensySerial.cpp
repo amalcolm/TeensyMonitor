@@ -44,23 +44,29 @@ namespace PsycSerial
 			{
 				Clear();
 				Write(HOST_ACKNOWLEDGE);
-				auto received = m_handshakeEvent->WaitOne(500);
-				if (received) {
-					if (TestHandshakeResponse(DEVICE_ACKNOWLEDGE)) {
+
+				bool devAck = false;
+				bool received = true;
+				while (!devAck && received && !token.IsCancellationRequested) {
+					received = m_handshakeEvent->WaitOne(500);
+					if (received)
+						devAck = TestHandshakeResponse(DEVICE_ACKNOWLEDGE);
+				}
+
+				if (devAck)
+				{
+					Clear();
+					Write(m_programVersion);
+					received = m_handshakeEvent->WaitOne(500);
+					if (received)
+					{
+						m_deviceVersion = GetHandshakeResponse();
+ 						m_connectionState = ConnectionState::HandshakeSuccessful;
 
 						Clear();
-						Write(m_programVersion);
-						received = m_handshakeEvent->WaitOne(500);
-						if (received)
-						{
-							m_deviceVersion = GetHandshakeResponse();
- 							m_connectionState = ConnectionState::HandshakeSuccessful;
+						RaiseConnectionChangedEvent(m_connectionState);
 
-							Clear();
-							RaiseConnectionChangedEvent(m_connectionState);
-
-							return Task::FromResult(true);
-						}
+						return Task::FromResult(true);
 					}
 				}
 				else
