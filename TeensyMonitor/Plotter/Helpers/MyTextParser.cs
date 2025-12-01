@@ -26,11 +26,8 @@ namespace TeensyMonitor.Plotter.Helpers
                     ReadOnlySpan<char> fieldSpan = part[..colon];
                     ReadOnlySpan<char> valueSpan = part[(colon + 1)..];
 
-                    // — no allocation here —
                     if (double.TryParse(valueSpan, NumberStyles.Float, CultureInfo.InvariantCulture, out double value))
-                    {
                         target[OptimizedStringStorage.Get(fieldSpan)] = value;
-                    }
                 }
 
                 if (tab < 0) break;
@@ -60,12 +57,8 @@ namespace TeensyMonitor.Plotter.Helpers
                 // 3. A bucket exists. Check all strings within it (to handle hash collisions).
                 Span<string> spanBucket = CollectionsMarshal.AsSpan(bucket);
                 foreach (ref var s in spanBucket)
-                {
-                    if (span.SequenceEqual(s))
-                    {
+                     if (span.SequenceEqual(s))
                         return s; // Match found, return the cached string.
-                    }
-                }
             }
 
             // 4. No match found. Allocate the new string.
@@ -73,10 +66,8 @@ namespace TeensyMonitor.Plotter.Helpers
 
             // 5. Return the new string to the correct bucket.
             if (bucket == null)
-            {
-                bucket = [];
-                _buckets[hashCode] = bucket;
-            }
+                _buckets[hashCode] = bucket = [];
+
             bucket.Add(newString);
 
             return newString;

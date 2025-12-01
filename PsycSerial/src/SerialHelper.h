@@ -103,8 +103,8 @@ namespace PsycSerial {
                                        }
                                   }
 
-        property bool IsOpen  { bool get(); }
-        property int  BaudRate { int get(); }
+        property bool IsOpen   { bool get(); }
+        property int  BaudRate {  int get(); }
 
         property int PendingCallbacks { int get(); } // Returns queue size from ManagedCallbacks
         

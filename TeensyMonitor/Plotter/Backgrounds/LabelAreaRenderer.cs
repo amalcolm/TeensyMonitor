@@ -12,7 +12,7 @@ namespace TeensyMonitor.Plotter.Backgrounds
 
         public LabelAreaRenderer(MyGLControl myGL, string texturePath)
         {
-            myGL.Enqueue(() => InitBackground(texturePath));
+            myGL.Setup(() => InitBackground(texturePath));
         }
 
         private void InitBackground(string texturePath)

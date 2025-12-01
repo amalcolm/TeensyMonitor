@@ -6,10 +6,11 @@ namespace TeensyMonitor.Plotter.Helpers
 {
     public class MyPlot
     {
-        public float LastX { get; private set; } = 0;
-        public float Yscale { get; set; } = 0.0f; // overridden by MyPlotter if 0.0f.  If not overridden, use 1.0f
-        public Color Colour { get; set; } = MyColours.GetNextColour();
-        public double XCounter { get; set; } = -Math.Pow(2, 20) + 2; // X value counter, for signals without timestamps
+        public float  LastX   { get; private set; } = 0;
+        public double Yscale  { get; set;         } = 0.0; // overridden by MyPlotter if 0.0.  If not overridden, use 1.0.
+        public Color  Colour  { get; set;         } = MyColours.GetNextColour();
+        public double XCounter { get; set;        } = -Math.Pow(2, 20) + 2; // X value counter, for signals without timestamps
+                                                                            // Starts at a large negative value to avoid issues with float precision with ++;
 
         private readonly object _lock = new();
 
@@ -28,11 +29,13 @@ namespace TeensyMonitor.Plotter.Helpers
         public MyPlot(int historyLength, MyGLControl myGL)
         {
             _historyLength = historyLength;
+
             // Make the buffer larger than the history to avoid copying every single frame
-            _bufferCapacity = (int)(historyLength * 1.5);
+            _bufferCapacity = historyLength * 8;
+            
             _vertexData = new float[_bufferCapacity * 3];
 
-            myGL.Enqueue(Init, Shutdown);
+            myGL.Setup(initAction:Init, shutdownAction:Shutdown);
         }
 
 
@@ -69,7 +72,7 @@ namespace TeensyMonitor.Plotter.Helpers
         /// </summary>
         public void Add(double x, double y)
         {
-            float scale = Yscale == 0.0f ? 1.0f : Yscale;
+            double scale = Yscale == 0.0 ? 1.0 : Yscale;
 
             lock (_lock)
             {
@@ -83,11 +86,13 @@ namespace TeensyMonitor.Plotter.Helpers
                 }
 
                 float fX = (float)x;
-                LastX = fX;
+                float fY = (float)(y * scale);
 
                 _vertexData[_writeIndex * 3 + 0] = fX;
-                _vertexData[_writeIndex * 3 + 1] = (float)y * scale;
+                _vertexData[_writeIndex * 3 + 1] = fY;
                 _vertexData[_writeIndex * 3 + 2] = 0.0f;
+
+                LastX = fX;
 
                 _writeIndex++;
             }
@@ -101,9 +106,8 @@ namespace TeensyMonitor.Plotter.Helpers
                 for (int i = 0; i < packet.Count; i++)
                 {
                     ref var item = ref packet.BlockData[i];
-                    
-                    float x = (float)(packet.TimeStamp - today).TotalSeconds;
-                    float y = item.Channel[0] * Yscale;
+                    double x = (packet.TimeStamp - today).TotalSeconds;
+                    double y = item.Channel[0] * Yscale;
 
                     // When the buffer is full, copy the last block of data to the start.
                     if (_writeIndex >= _bufferCapacity)
@@ -114,11 +118,14 @@ namespace TeensyMonitor.Plotter.Helpers
                         _writeIndex = _historyLength;
                     }
 
-                    LastX = x;
+                    float fX = (float)x;
+                    float fY = (float)y;
 
-                    _vertexData[_writeIndex * 3 + 0] = x;
-                    _vertexData[_writeIndex * 3 + 1] = y;
+                    _vertexData[_writeIndex * 3 + 0] = fX;
+                    _vertexData[_writeIndex * 3 + 1] = fY;
                     _vertexData[_writeIndex * 3 + 2] = 0.0f;
+
+                    LastX = fX;
 
                     _writeIndex++;
                 }

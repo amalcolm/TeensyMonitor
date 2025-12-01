@@ -19,7 +19,7 @@ namespace TeensyMonitor.Plotter.UserControls
         public bool AutoClear { get; set; } = true;
 
         public MyGLThread? GLThread { get; private set; } = default!;
-        public void Enqueue(Action? initAction, Action? shutdownAction = null) 
+        public void Setup(Action? initAction, Action? shutdownAction = null) 
             => GLThread!.Enqueue(initAction, shutdownAction);
 
         public delegate void LoadedEventHandler(object sender, bool isLoaded);

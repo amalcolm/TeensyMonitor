@@ -414,6 +414,9 @@ bool CSerial::Write(const std::string& data) {
 
 bool CSerial::Write(const BYTE* data, DWORD offset, DWORD count)
 {
+    if (IsOpen() == false) {
+        return false;
+	}
     // Snapshot handle under lock, but don't call callbacks while holding it
     HANDLE hSerialLocal = INVALID_HANDLE_VALUE;
     {

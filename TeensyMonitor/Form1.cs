@@ -3,33 +3,55 @@
 namespace TeensyMonitor
 {
     using PsycSerial;
+    using TeensyMonitor.Plotter.Helpers;
 
     public partial class Form1 : Form
     {
         readonly TeensySerial? SP = Program.serialPort;
-
+        readonly CancellationTokenSource cts = new();
         public Form1()
         {
             InitializeComponent();
 
             if (SP == null) return;
 
-            SP.DataReceived      += DataReceived;
+            SP.DataReceived += DataReceived;
             SP.ConnectionChanged += SerialPort_ConnectionChanged;
-            SP.ErrorOccurred     += SerialPort_ErrorOccurred;
+            SP.ErrorOccurred += SerialPort_ErrorOccurred;
         }
 
-        private void SerialPort_ErrorOccurred(Exception exception)
-            => dbg.Log(AString.FromString(exception.Message + Environment.NewLine));
+        private async void SerialPort_ErrorOccurred(Exception exception)
+        {
+            dbg.Log(AString.FromString(exception.Message + Environment.NewLine));
 
+            while (!cts.Token.IsCancellationRequested && SP?.IsOpen == false) // null check here
+            {
+                await Task.Delay(500, cts.Token); // Wait before retrying
+                if (cts.Token.IsCancellationRequested) return;
+
+                var ports = SerialHelper.GetUSBSerialPorts();
+                if (ports?.Length > 0)
+                {
+                    await Task.Delay(200, cts.Token);
+                    if (cts.Token.IsCancellationRequested) return;
+
+                    this.Invoker(() =>
+                    {
+                        cbPorts.Items.Clear();
+                        cbPorts.Items.AddRange(ports);
+                        cbPorts.SelectedIndex = cbPorts.Items.Count - 1;
+                    });
+                }
+            }
+        }
         private void SerialPort_ConnectionChanged(ConnectionState state)
         {
             AString? str = state switch
             {
-                ConnectionState.Connected           => AString.FromString("Connected " + SP?.PortName),
-                ConnectionState.HandshakeInProgress => AString.FromString("Handshake in progress"   ),
-                ConnectionState.Disconnected        => AString.FromString("Disconnected"            ),
-                ConnectionState.HandshakeSuccessful => AString.FromString("Handshake successful"    ),
+                ConnectionState.Connected => AString.FromString("Connected " + SP?.PortName),
+                ConnectionState.HandshakeInProgress => AString.FromString("Handshake in progress"),
+                ConnectionState.Disconnected => AString.FromString("Disconnected"),
+                ConnectionState.HandshakeSuccessful => AString.FromString("Handshake successful"),
                 _ => null
             };
 
@@ -69,6 +91,11 @@ namespace TeensyMonitor
                 cbPorts.SelectedIndex = cbPorts.Items.Count - 1;
             }
 
+        }
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            cts.Cancel();
         }
     }
 }

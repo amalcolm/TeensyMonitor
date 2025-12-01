@@ -1,4 +1,5 @@
 using PsycSerial;
+using TeensyMonitor.Plotter.Helpers;
 
 namespace TeensyMonitor
 {
@@ -25,9 +26,18 @@ namespace TeensyMonitor
             };
 
             IsRunning = true;
+            SocketWatcher.SP = serialPort;
+
+
 
             if (serialPort != null)
+            {
+                SocketWatcher.StartListening();
+
                 Application.Run(new Form1());
+                
+                SocketWatcher.StopListening();
+            }
             else
                 Application.Run(new Form2());
 

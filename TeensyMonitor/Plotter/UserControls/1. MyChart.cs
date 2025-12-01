@@ -26,6 +26,8 @@ namespace TeensyMonitor.Plotter.UserControls
 
         private LabelAreaRenderer? _labelAreaRenderer;
 
+        private object _lock = new();
+
         public MyChart()
         {
             InitializeComponent();
@@ -40,15 +42,22 @@ namespace TeensyMonitor.Plotter.UserControls
         private void IO_DataReceived(IPacket packet)
         {
             if (packet is BlockPacket blockPacket == false) return;
-
+            if (blockPacket.Count == 0) return;
             if (Plots.TryGetValue(blockPacket.State, out var plot) == false)
             {
-                plot = new  MyPlot(WindowSize, this);
+                plot = new MyPlot(WindowSize, this);
                 Plots[blockPacket.State] = plot;
                 CreateTextBlocksForLabel(blockPacket.State);
             }
 
             plot.Add(blockPacket);
+            if (blockPacket.Count > 0)
+            {
+                float scaledValue = blockPacket.BlockData[blockPacket.Count - 1].Channel[0] * ChannelScale;
+
+                lock (_lock)
+                    _latestValues[blockPacket.State] = scaledValue;
+            }
         }
 
         protected override void Init()
@@ -63,19 +72,22 @@ namespace TeensyMonitor.Plotter.UserControls
             _labelAreaRenderer?.Shutdown();
         }
 
-        
+
         private void CreateTextBlocksForLabel(uint state)
         {
             if (font == null) return;
 
             string labelText = $": {state.Description()}";
 
-            float yPos = MyGL.Height - 70 - (_blocks.Count*50);
+            lock (_lock)
+            {
+                float yPos = MyGL.Height - 70 - _blocks.Count * 50;
 
-            var labelBlock = new TextBlock(labelText, 106, yPos, font);
-            var valueBlock = new TextBlock("0.00", 100 , yPos, font, TextAlign.Right);
-            
-            _blocks[state] = Tuple.Create(labelBlock, valueBlock);
+                var labelBlock = new TextBlock(labelText, 106, yPos, font);
+                var valueBlock = new TextBlock("0.00", 100, yPos, font, TextAlign.Right);
+
+                _blocks[state] = Tuple.Create(labelBlock, valueBlock);
+            }
         }
 
         protected override void DrawText()
@@ -84,21 +96,22 @@ namespace TeensyMonitor.Plotter.UserControls
 
             _textBlocksToRender.Clear();
             // 1. Populate the list of blocks to render and flag if their content has changed.
-            foreach (var key in _latestValues.Keys)
-            {
-                if (_blocks.TryGetValue(key, out var tuple))
+            lock (_lock)
+                foreach (var key in _latestValues.Keys)
                 {
-                    ref var item = ref CollectionsMarshal.GetValueRefOrNullRef(_latestValues, key);
+                    if (_blocks.TryGetValue(key, out var tuple))
+                    {
+                        ref var item = ref CollectionsMarshal.GetValueRefOrNullRef(_latestValues, key);
 
-                    if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref item)) continue;
+                        if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref item)) continue;
 
-                    // Check
-                    tuple.Item2.SetValue(item, "F2");
+                        // Check
+                        tuple.Item2.SetValue(item, "F2");
 
-                    _textBlocksToRender.Add(tuple.Item1);
-                    _textBlocksToRender.Add(tuple.Item2);
+                        _textBlocksToRender.Add(tuple.Item1);
+                        _textBlocksToRender.Add(tuple.Item2);
+                    }
                 }
-            }
 
             if (!_textBlocksToRender.Any()) return;
             
@@ -123,8 +136,6 @@ namespace TeensyMonitor.Plotter.UserControls
             }
 
             fontRenderer.RenderText(_textBlocksToRender);
-
-
         }
 
         // Return this helper method inside the MyChart class

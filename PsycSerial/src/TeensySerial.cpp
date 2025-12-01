@@ -12,18 +12,36 @@ namespace PsycSerial
 
 	TeensySerial::!TeensySerial()
 	{
+		m_isDisposing = true;
+		
 		if (m_handshakeTask != nullptr && !m_handshakeTask->IsCompleted)
 		{
 			m_handshakeCts->Cancel();
+			m_handshakeEvent->Set();
 			m_handshakeTask->Wait(1000);
+			m_handshakeTask = nullptr;
 		}
 	}
 
 	bool TeensySerial::Open(String^ portName)
 	{
-		if (m_handshakeTask != nullptr && !m_handshakeTask->IsCompleted) { RaiseErrorOccurredEvent(gcnew System::Exception("Previous handshake still running")); return false; }
-		if (!SerialHelper::Open(portName, BAUDRATE)) { RaiseErrorOccurredEvent(gcnew System::Exception("Failed to open port")); return false; }
+		if (m_disposed || m_isDisposing) return false;
 
+		if (m_handshakeTask != nullptr && !m_handshakeTask->IsCompleted) {
+			m_handshakeCts->Cancel();
+			m_handshakeTask->Wait(1000);
+			if (m_disposed || m_isDisposing) return false;
+
+			if (!m_handshakeTask->IsCompleted) {
+				RaiseErrorOccurredEvent(gcnew System::Exception("Previous handshake still running"));
+				return false;
+			}
+
+			if (!m_handshakeCts->TryReset()) 
+				m_handshakeCts = gcnew CancellationTokenSource();
+		}
+
+		if (!SerialHelper::Open(portName, BAUDRATE)) { RaiseErrorOccurredEvent(gcnew System::Exception("Failed to open port")); return false; }
 
 		m_handshakeTask = Task::Run(gcnew Func<Task^>(this, &TeensySerial::PerformHandshake));
 		return true;
@@ -42,14 +60,22 @@ namespace PsycSerial
 			// Simulate handshake process
 			while (!token.IsCancellationRequested)
 			{
+				if (!IsOpen)
+				{
+					Task::Delay(200, token)->Wait();
+					continue;
+				}
+				
 				Clear();
 				Write(HOST_ACKNOWLEDGE);
 
 				bool devAck = false;
 				bool received = true;
 				while (!devAck && received && !token.IsCancellationRequested) {
-					received = m_handshakeEvent->WaitOne(500);
-					if (received)
+
+					received = m_handshakeEvent->WaitOne(500);  // handshake event fired on close as well
+
+					if (received && !token.IsCancellationRequested)
 						devAck = TestHandshakeResponse(DEVICE_ACKNOWLEDGE);
 				}
 
@@ -75,7 +101,7 @@ namespace PsycSerial
 				Task::Delay(2000, token)->Wait();
 			}
 
-			m_connectionState = ConnectionState::Disconnected;
+			m_connectionState = IsOpen ? ConnectionState::Connected : ConnectionState::Disconnected;
 
 			return Task::FromResult(true);
 		}

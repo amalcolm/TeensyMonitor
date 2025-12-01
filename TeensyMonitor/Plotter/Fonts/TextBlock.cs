@@ -6,13 +6,13 @@ namespace TeensyMonitor.Plotter.Fonts
 
     public class TextBlock : IDisposable
     {
-        public TextBlock(string text, float x, float y, FontFile? font, TextAlign textAlign = TextAlign.Left)
+        public TextBlock(ReadOnlySpan<char> text, float x, float y, FontFile? font, TextAlign textAlign = TextAlign.Left)
         {
             _font  = font ?? FontFile.Default;
             _x     = x;
             _y     = y;
             _align = textAlign;
-            SetValue(text.AsSpan());
+            SetValue(text);
         }
         
 

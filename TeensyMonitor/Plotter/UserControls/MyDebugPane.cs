@@ -37,7 +37,7 @@ namespace TeensyMonitor.Plotter.UserControls
     class Log
     {
         public const int Margin = 8;
-        public const float LineSpacing = 1.2f;
+        public const double LineSpacing = 1.2;
 
         public Log(MyGLControl control)
         {
@@ -51,27 +51,27 @@ namespace TeensyMonitor.Plotter.UserControls
             };
         }
         readonly ArrayPool<FontVertex> pool = ArrayPool<FontVertex>.Shared;
-        float lineHeight;
+        int lineHeight;
         public void Init()
         {
             var fr = _control.fontRenderer;
-            lineHeight = fr.Font.LineHeight * fr.Scaling * LineSpacing;
+            lineHeight = (int)(fr.Font.LineHeight * fr.Scaling * LineSpacing);
 
-            MaxNumberOfLines = (int)Math.Round((_control.Height - 2 * Margin) / lineHeight);
+            MaxNumberOfLines = (_control.Height - 2 * Margin) / lineHeight + 1;
             LineBuffers = new LineVertices[MaxNumberOfLines];
 
             baseHeight = -PrecisionBoundary;
-            nextHeight = baseHeight + _control.Height - Margin - lineHeight;
+            nextHeight =  baseHeight + _control.Height - Margin - lineHeight;
             
             _control.AutoClear = false;
         }
 
         private int MaxNumberOfLines;  // number of lines that fit in the control
-        private float nextHeight = 0;  // height of the next line to add
-        private float baseHeight = 0;  // base height offset for scrolling
+        private volatile int nextHeight = 0;  // height of the next line to add
+        private volatile int baseHeight = 0;  // base height offset for scrolling
         private int UsedLines = 0;     // total number of lines added so far
 
-        private const float PrecisionBoundary = 0x200000;
+        private const int PrecisionBoundary = 0x200000;
         private LineVertices[] LineBuffers = [];
 
         struct LineVertices
@@ -97,11 +97,11 @@ namespace TeensyMonitor.Plotter.UserControls
             var buf = pool.Rent(str.Length * 6);
 
             var fr = _control.fontRenderer;
-
-
             var numVerts = FontVertex.BuildString(buf, 0, str.Buffer.AsSpan(), FontFile.Default, 0, nextHeight, fr.Scaling, TextAlign.Left);
+            
             qLinesToAdd.Enqueue(new LineVertices { Vertices = buf, Length = numVerts });
-            nextHeight -= lineHeight;
+
+            Interlocked.Add(ref nextHeight, -lineHeight);
         }
 
         public void Render()

@@ -14,11 +14,11 @@ namespace TeensyMonitor.Plotter.Helpers
 
         private static readonly CancellationTokenSource cancellationTokenSource = new();
 
-        public static TeensySerial? IO { get; set; }
+        public static TeensySerial? SP { get; set; }
 
         public static void StartListening()
         {
-            if (IO == null) throw new InvalidOperationException("IO must be set before starting the listener.");
+            if (SP == null) throw new InvalidOperationException("IO must be set before starting the listener.");
 
             // Run the listener on a background thread
             Task.Run(async () =>
@@ -52,14 +52,14 @@ namespace TeensyMonitor.Plotter.Helpers
                 case "DISCONNECT":
                     // Your logic to close the serial port
                     Debug.WriteLine("Received DISCONNECT. Closing port.");
-                    if (IO?.IsOpen == true)
-                        await IO.CloseAsync();
+                    if (SP?.IsOpen == true)
+                        await SP.CloseAsync();
                     break;
                 case "RECONNECT":
                     // Your logic to try reopening the serial port
                     Debug.WriteLine("Received RECONNECT. Attempting to open port.");
-                    if (IO?.IsOpen == false)
-                        await IO.OpenAsync();
+                    if (SP?.IsOpen == false)
+                        await SP.OpenAsync();
                     break;
             }
         }
