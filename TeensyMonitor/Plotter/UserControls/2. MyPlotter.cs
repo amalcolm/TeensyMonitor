@@ -8,6 +8,8 @@ namespace TeensyMonitor.Plotter.UserControls
     public partial class MyPlotter : MyPlotterBase
     {
         protected Dictionary<uint, MyPlot> Plots = [];
+        protected readonly object PlotsLock = new();
+
         public float TimeWindowSeconds  { get; set; } = 10.0f;
         public float Yscale             { get; set; } =  1.0f;
 
@@ -54,18 +56,19 @@ namespace TeensyMonitor.Plotter.UserControls
 
 
             int colorLocation = GL.GetUniformLocation(_plotShaderProgram, "uColor");
-            foreach (var key in Plots.Keys)
-            {
-                ref var plot = ref CollectionsMarshal.GetValueRefOrNullRef(Plots, key);
-                if (plot.Yscale == 0.0f)
-                    plot.Yscale = Yscale;
+            lock (PlotsLock)
+                foreach (var key in Plots.Keys)
+                {
+                    ref var plot = ref CollectionsMarshal.GetValueRefOrNullRef(Plots, key);
+                    if (plot.Yscale == 0.0f)
+                        plot.Yscale = Yscale;
 
-                if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref plot)) continue;
-                
-                // Chec
-                GL.Uniform4(colorLocation, plot.Colour);
-                plot.Render();
-            }
+                    if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref plot)) continue;
+
+                    // Chec
+                    GL.Uniform4(colorLocation, plot.Colour);
+                    plot.Render();
+                }
 
  //           Debug = $"Plots: {Plots.Count}, Time: {_maxTime:F2}, Window: {TimeWindowSeconds}s";
         }

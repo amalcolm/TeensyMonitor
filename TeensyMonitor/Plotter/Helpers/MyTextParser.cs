@@ -7,13 +7,16 @@ namespace TeensyMonitor.Plotter.Helpers
     internal static class MyTextParser
     {
         // Caller supplies (and reuses) the dictionary so we don’t keep a big static one alive.
-        public static void Parse(AString text, Dictionary<string, double> target)
+        public static bool Parse(AString text, Dictionary<string, double> target)
         {
             target.Clear();                     // caller decides whether to clear
-
+ 
             var buffer = text.Buffer;
-            if (buffer == null || buffer.Length == 0) return;    
+            if (buffer == null || buffer.Length == 0) return false;
+
             ReadOnlySpan<char> span = buffer.AsSpan(0, text.Length);
+            
+            if (span.IndexOf('\t') < 0) return false;                   // not our format
 
             while (!span.IsEmpty)
             {
@@ -33,6 +36,8 @@ namespace TeensyMonitor.Plotter.Helpers
                 if (tab < 0) break;
                 span = span[(tab + 1)..];
             }
+
+            return true;
         }
     }
 

@@ -101,31 +101,28 @@ namespace TeensyMonitor.Plotter.Fonts
         override public string ToString() => $"{Span} ({X}, {Y}) [{Font.Face} {Font.Size}] {Align}";
         override public bool Equals(object? obj)
         {
-            if (obj is TextBlock other)
-                return Span.SequenceEqual(other.Span);
-            return false;
+            if (obj is not TextBlock other) return false;
+
+            return Span.SequenceEqual(other.Span);
         }
 
         private FontVertex[] _vertices = [];
         private int _vertexCount = 0;
 
-        public ReadOnlySpan<FontVertex> GetVertices(float scaling = 0.5f)
+        public ReadOnlySpan<FontVertex> GetVertices(float scaling = 1.0f)
         {
             if (_hasChanged)
             {
-                // Ensure our internal array is big enough for the text.
                 int requiredCount = _length * 6; // 6 vertices per character
                 if (_vertices.Length < requiredCount)
                     Array.Resize(ref _vertices, requiredCount);
 
-                // Build the vertex data directly into our array.
                 _vertexCount = FontVertex.BuildString(_vertices, 0, Span, Font, X, Y, scaling, Align);
 
-                // Recalculate bounds since the vertices have changed.
                 Bounds = CalculateBoundsFromVertices();
                 _hasChanged = false;
             }
-            // Return a zero-allocation slice of the array.
+      
             return _vertices.AsSpan(0, _vertexCount);
         }
 

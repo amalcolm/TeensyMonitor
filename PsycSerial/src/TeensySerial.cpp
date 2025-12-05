@@ -66,22 +66,26 @@ namespace PsycSerial
 					continue;
 				}
 				
-				Clear();
 				Write(HOST_ACKNOWLEDGE);
 
 				bool devAck = false;
-				bool received = true;
-				while (!devAck && received && !token.IsCancellationRequested) {
-
+				bool received = false;
+				for (int count = 50; devAck == false && count > 0 && !token.IsCancellationRequested; count--) 
+				{
 					received = m_handshakeEvent->WaitOne(500);  // handshake event fired on close as well
+
+					if (!received)
+						break;
 
 					if (received && !token.IsCancellationRequested)
 						devAck = TestHandshakeResponse(DEVICE_ACKNOWLEDGE);
+
+				
 				}
 
 				if (devAck)
 				{
-					Clear();
+//					Clear();
 					Write(m_programVersion);
 					received = m_handshakeEvent->WaitOne(500);
 					if (received)
@@ -89,7 +93,7 @@ namespace PsycSerial
 						m_deviceVersion = GetHandshakeResponse();
  						m_connectionState = ConnectionState::HandshakeSuccessful;
 
-						Clear();
+//						Clear();
 						RaiseConnectionChangedEvent(m_connectionState);
 
 						return Task::FromResult(true);

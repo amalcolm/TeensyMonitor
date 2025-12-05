@@ -233,6 +233,10 @@ bool CSerial::SetPort(const std::string& portName, DataHandler dataHandler, void
     }
 
     m_readThread = std::thread(&CSerial::ReadLoop, this);
+
+    while (!m_isClosing && m_readLoopRunning.load(std::memory_order_acquire) == false)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
     InvokeConnectionChanged(true);
     return true;
 }
@@ -242,7 +246,7 @@ void CSerial::ReadLoop()
 {
     m_readLoopRunning.store(true, std::memory_order_release);
     // Create an auto-reset event for the read OVERLAPPED
-    HANDLE hEvent = CreateEvent(nullptr, /*bManualReset*/ FALSE, /*bInitialState*/ FALSE, nullptr);
+	HANDLE hEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (hEvent == nullptr) {
         const DWORD le = GetLastError();
         std::ostringstream os; os << "CreateEvent failed in ReadLoop. Error: " << le;
@@ -401,7 +405,6 @@ void CSerial::ReadLoop()
     // Silent exit: SetPort/Close handle connection state notifications
     CloseHandle(hEvent);
 	m_readLoopRunning.store(false, std::memory_order_release);
-
 }
 
 
@@ -430,9 +433,6 @@ bool CSerial::Write(const BYTE* data, DWORD offset, DWORD count)
         InvokeErrorOccurred(std::runtime_error("Write attempted on closed or invalid port."));
         return false;
     }
-
-    if (m_readLoopRunning.load(std::memory_order_acquire) == false)
-        m_readThread = std::thread(&CSerial::ReadLoop, this);
 
     if (count == 0)
         return true; // nothing to do
@@ -550,6 +550,8 @@ void CSerial::Clear()
             return !m_clearRequested.load(std::memory_order_acquire) ||
                 !m_readLoopRunning.load(std::memory_order_acquire);
             });
+
+        m_clearRequested.store(false, std::memory_order_release);
     } 
 
     {
@@ -564,6 +566,8 @@ void CSerial::Clear()
 
 bool CSerial::Close()
 {
+    m_isClosing = true;
+
     // Tell the read thread to stop as soon as possible
     m_stopReadLoop.store(true, std::memory_order_release);
 

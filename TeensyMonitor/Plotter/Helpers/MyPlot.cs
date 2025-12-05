@@ -7,6 +7,7 @@ namespace TeensyMonitor.Plotter.Helpers
     public class MyPlot
     {
         public float  LastX   { get; private set; } = 0;
+        public float  LastY   { get; private set; } = 0;
         public double Yscale  { get; set;         } = 0.0; // overridden by MyPlotter if 0.0.  If not overridden, use 1.0.
         public Color  Colour  { get; set;         } = MyColours.GetNextColour();
         public double XCounter { get; set;        } = -Math.Pow(2, 20) + 2; // X value counter, for signals without timestamps
@@ -126,7 +127,7 @@ namespace TeensyMonitor.Plotter.Helpers
                     _vertexData[_writeIndex * 3 + 2] = 0.0f;
 
                     LastX = fX;
-
+                    LastY = fY;
                     _writeIndex++;
                 }
             }

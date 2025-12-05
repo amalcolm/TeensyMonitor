@@ -1,9 +1,10 @@
-﻿using OpenTK.Graphics.OpenGL4;
-using OpenTK.Mathematics;
-using PsycSerial;
-using System.ComponentModel;
-using System.Net.Sockets;
+﻿using System.ComponentModel;
 using System.Runtime.InteropServices;
+
+using OpenTK.Graphics.OpenGL4;
+using OpenTK.Mathematics;
+
+using PsycSerial;
 using TeensyMonitor.Plotter.Backgrounds;
 using TeensyMonitor.Plotter.Fonts;
 using TeensyMonitor.Plotter.Helpers;
@@ -21,7 +22,7 @@ namespace TeensyMonitor.Plotter.UserControls
         private const int WindowSize = 1200;
 
         private readonly Dictionary<uint, double> _latestValues = [];
-        private readonly Dictionary<uint, Tuple<TextBlock, TextBlock>> _blocks = [];
+        private readonly SortedDictionary<uint, Tuple<TextBlock, TextBlock>> _blocks = [];
         private readonly List<TextBlock> _textBlocksToRender = [];
 
         private LabelAreaRenderer? _labelAreaRenderer;
@@ -37,6 +38,25 @@ namespace TeensyMonitor.Plotter.UserControls
             SP.DataReceived += IO_DataReceived;
         }
 
+        public void AddData(Dictionary<string, double> data)
+        {
+            lock (PlotsLock)
+            {
+                foreach (var key in data.Keys)
+                    if (string.IsNullOrWhiteSpace(key) == false)
+                    {
+                        uint stateHash = (uint)key.GetHashCode();
+                        if (Plots.TryGetValue(stateHash, out var plot) == false)
+                        {
+                            plot = new MyPlot(WindowSize, this);
+                            Plots[stateHash] = plot;
+                            CreateTextBlocksForLabel(stateHash, key);
+                        }
+
+                        _latestValues[stateHash] = data[key];
+                    }
+            }
+        }
 
 
         private void IO_DataReceived(IPacket packet)
@@ -46,17 +66,18 @@ namespace TeensyMonitor.Plotter.UserControls
             if (Plots.TryGetValue(blockPacket.State, out var plot) == false)
             {
                 plot = new MyPlot(WindowSize, this);
-                Plots[blockPacket.State] = plot;
+                lock (PlotsLock)
+                    Plots[blockPacket.State] = plot;
                 CreateTextBlocksForLabel(blockPacket.State);
             }
 
             plot.Add(blockPacket);
             if (blockPacket.Count > 0)
             {
-                float scaledValue = blockPacket.BlockData[blockPacket.Count - 1].Channel[0] * ChannelScale;
+                float val = blockPacket.BlockData[blockPacket.Count - 1].Channel[0] * ChannelScale;
 
                 lock (_lock)
-                    _latestValues[blockPacket.State] = scaledValue;
+                    _latestValues[blockPacket.State] = val;
             }
         }
 
@@ -74,10 +95,13 @@ namespace TeensyMonitor.Plotter.UserControls
 
 
         private void CreateTextBlocksForLabel(uint state)
+            => CreateTextBlocksForLabel(state, state.Description());
+
+        private void CreateTextBlocksForLabel(uint state, string label)
         {
             if (font == null) return;
 
-            string labelText = $": {state.Description()}";
+            string labelText = $": {label}";
 
             lock (_lock)
             {

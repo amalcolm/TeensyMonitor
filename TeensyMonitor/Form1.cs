@@ -3,6 +3,7 @@
 namespace TeensyMonitor
 {
     using PsycSerial;
+    using System.Security.Policy;
     using TeensyMonitor.Plotter.Helpers;
 
     public partial class Form1 : Form
@@ -59,13 +60,17 @@ namespace TeensyMonitor
                 dbg.Log(str);
         }
 
-        private void DataReceived(IPacket packet)
+        Dictionary<string, double> parsedValues = [];
 
+        private void DataReceived(IPacket packet)
         {
             if (IsHandleCreated == false) return;
             if (packet is TextPacket textPacket == false) return;
 
-            dbg.Log(AString.FromString(textPacket.Text + Environment.NewLine));
+            if (MyTextParser.Parse(textPacket.Text, parsedValues))
+                chart.AddData(parsedValues);
+            else
+                dbg.Log(textPacket.Text);
         }
 
         private void cbPorts_SelectedIndexChanged(object sender, EventArgs e)

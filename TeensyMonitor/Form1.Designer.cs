@@ -57,9 +57,9 @@
             dbg.AutoClear = true;
             dbg.BackColor = Color.WhiteSmoke;
             dbg.BorderStyle = BorderStyle.FixedSingle;
-            dbg.Location = new Point(12, 609);
+            dbg.Location = new Point(12, 578);
             dbg.Name = "dbg";
-            dbg.Size = new Size(1160, 351);
+            dbg.Size = new Size(1160, 382);
             dbg.TabIndex = 5;
             // 
             // chart
@@ -85,6 +85,7 @@
             Controls.Add(labPorts);
             Controls.Add(cbPorts);
             Name = "Form1";
+            StartPosition = FormStartPosition.CenterScreen;
             Text = "Form1";
             FormClosing += Form1_FormClosing;
             Load += Form1_Load;

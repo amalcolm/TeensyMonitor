@@ -66,6 +66,7 @@ private:
 
     HandleGuard m_hSerial;
     bool m_isOpen;
+	bool m_isClosing{ false };
     int m_baudRate;
     mutable std::mutex m_mutex;
 

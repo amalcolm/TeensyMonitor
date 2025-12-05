@@ -57,7 +57,7 @@ namespace TeensyMonitor.Plotter.UserControls
             var fr = _control.fontRenderer;
             lineHeight = (int)(fr.Font.LineHeight * fr.Scaling * LineSpacing);
 
-            MaxNumberOfLines = (_control.Height - 2 * Margin) / lineHeight + 1;
+            MaxNumberOfLines = (_control.Height - 2 * Margin) / lineHeight;
             LineBuffers = new LineVertices[MaxNumberOfLines];
 
             baseHeight = -PrecisionBoundary;
