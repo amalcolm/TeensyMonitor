@@ -51,9 +51,10 @@ public:
     }
 
     static const int DEFAULT_BAUDRATE = 57600 * 16;
+
 private:
-    static const int READ_BUFFER_SIZE = 4096;
-    static const DWORD IO_OPERATION_TIMEOUT = 16;
+    static const int   READ_BUFFER_SIZE     = 4096;
+    static const DWORD IO_OPERATION_TIMEOUT = 100;
 
     void ReadLoop();
     std::thread m_readThread;

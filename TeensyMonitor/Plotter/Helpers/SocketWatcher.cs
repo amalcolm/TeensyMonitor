@@ -12,7 +12,7 @@ namespace TeensyMonitor.Plotter.Helpers
         private const int Port = 11000;
 
 
-        private static readonly CancellationTokenSource cancellationTokenSource = new();
+        private static readonly CancellationTokenSource cts = new();
 
         public static TeensySerial? SP { get; set; }
 
@@ -28,10 +28,12 @@ namespace TeensyMonitor.Plotter.Helpers
                     listener = new UdpClient(Port);
                     IPEndPoint groupEP = new(IPAddress.Any, Port);
 
-                    while (true)
+                    while (cts.IsCancellationRequested == false)
                     {
-                        byte[] bytes = listener.Receive(ref groupEP);
-                        string message = Encoding.ASCII.GetString(bytes, 0, bytes.Length);
+                        var result = await listener.ReceiveAsync(cts.Token);
+                        if (cts.IsCancellationRequested || result.Buffer.Length == 0)
+                            continue;
+                        string message = Encoding.ASCII.GetString(result.Buffer, 0, result.Buffer.Length);
 
                         await ProcessCommand(message);
                     }
@@ -41,7 +43,7 @@ namespace TeensyMonitor.Plotter.Helpers
                     // Handle exceptions, e.g., socket closed
                     Debug.WriteLine(ex.Message);
                 }
-            }, cancellationTokenSource.Token);
+            }, cts.Token);
         }
 
         // This method runs on the UI thread
@@ -68,7 +70,7 @@ namespace TeensyMonitor.Plotter.Helpers
         public static void StopListening()
         {
             listener?.Close();
-            cancellationTokenSource.Cancel();
+            cts.Cancel();
         }
     }
 }

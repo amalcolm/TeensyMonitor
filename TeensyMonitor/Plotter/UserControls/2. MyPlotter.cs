@@ -1,4 +1,5 @@
 ﻿using OpenTK.Graphics.OpenGL4;
+using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using TeensyMonitor.Plotter.Helpers;
@@ -7,7 +8,7 @@ namespace TeensyMonitor.Plotter.UserControls
     [ToolboxItem(false)]
     public partial class MyPlotter : MyPlotterBase
     {
-        protected Dictionary<uint, MyPlot> Plots = [];
+        protected ConcurrentDictionary<uint, MyPlot> Plots = [];
         protected readonly object PlotsLock = new();
 
         public float TimeWindowSeconds  { get; set; } = 10.0f;
@@ -37,7 +38,8 @@ namespace TeensyMonitor.Plotter.UserControls
             if (Plots.Count == 0) return;
 
             // 1. Get the latest time from all plots
-            _maxTime = Plots.Values.Max(p => p?.LastX ?? float.MinValue);
+            lock (PlotsLock)
+                _maxTime = Plots.Values.Max(p => p?.LastX ?? float.MinValue);
             if (_maxTime == float.MinValue) return; // work around synchronization issue
 
             // 2. Define the target for the right edge of our viewport.
@@ -59,13 +61,11 @@ namespace TeensyMonitor.Plotter.UserControls
             lock (PlotsLock)
                 foreach (var key in Plots.Keys)
                 {
-                    ref var plot = ref CollectionsMarshal.GetValueRefOrNullRef(Plots, key);
+                    var plot = Plots[key]; if (plot == null) continue;
+
                     if (plot.Yscale == 0.0f)
                         plot.Yscale = Yscale;
 
-                    if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref plot)) continue;
-
-                    // Chec
                     GL.Uniform4(colorLocation, plot.Colour);
                     plot.Render();
                 }

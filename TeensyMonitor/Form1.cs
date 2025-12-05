@@ -14,6 +14,12 @@ namespace TeensyMonitor
         {
             InitializeComponent();
 
+            if (Environment.MachineName == "BOX")
+            {
+                this.StartPosition = FormStartPosition.Manual;
+                this.Location = new Point(-1280, 1100);
+            }
+
             if (SP == null) return;
 
             SP.DataReceived += DataReceived;
@@ -60,15 +66,19 @@ namespace TeensyMonitor
                 dbg.Log(str);
         }
 
-        Dictionary<string, double> parsedValues = [];
-
+        readonly MyPool<Dictionary<string, double>> parsedPool = new();
+        
         private void DataReceived(IPacket packet)
         {
             if (IsHandleCreated == false) return;
             if (packet is TextPacket textPacket == false) return;
 
+            var parsedValues = parsedPool.Rent();
             if (MyTextParser.Parse(textPacket.Text, parsedValues))
+            {
                 chart.AddData(parsedValues);
+                parsedPool.Return(parsedValues);
+            }
             else
                 dbg.Log(textPacket.Text);
         }

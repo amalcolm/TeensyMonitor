@@ -1,4 +1,5 @@
 ﻿using PsycSerial;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
@@ -45,7 +46,7 @@ namespace TeensyMonitor.Plotter.Helpers
     public class OptimizedStringStorage
     {
         // A dictionary mapping a hash code to a list of strings that share that hash code.
-        private static readonly Dictionary<int, List<string>> _buckets = [];
+        private static readonly ConcurrentDictionary<int, List<string>> _buckets = [];
 
         /// <summary>
         /// Retrieves a cached string matching the span, or creates and caches a new one.

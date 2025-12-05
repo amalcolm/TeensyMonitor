@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 
 using OpenTK.Graphics.OpenGL4;
@@ -21,9 +22,12 @@ namespace TeensyMonitor.Plotter.UserControls
 
         private const int WindowSize = 1200;
 
-        private readonly Dictionary<uint, double> _latestValues = [];
-        private readonly SortedDictionary<uint, Tuple<TextBlock, TextBlock>> _blocks = [];
+        private readonly ConcurrentDictionary<uint, double> _latestValues = [];
+        private readonly ConcurrentDictionary<uint, Tuple<TextBlock, TextBlock>> _blocks = [];
         private readonly List<TextBlock> _textBlocksToRender = [];
+
+        private volatile int labelCount = 0;
+        private readonly ConcurrentDictionary<uint, bool> _pendingStates = [];
 
         private LabelAreaRenderer? _labelAreaRenderer;
 
@@ -40,38 +44,45 @@ namespace TeensyMonitor.Plotter.UserControls
 
         public void AddData(Dictionary<string, double> data)
         {
-            lock (PlotsLock)
-            {
-                foreach (var key in data.Keys)
-                    if (string.IsNullOrWhiteSpace(key) == false)
+            foreach (var key in data.Keys)
+                if (string.IsNullOrWhiteSpace(key) == false)
+                {
+                    uint stateHash = (uint)key.GetHashCode();
+                    if (Plots.TryGetValue(stateHash, out var plot) == false)
                     {
-                        uint stateHash = (uint)key.GetHashCode();
-                        if (Plots.TryGetValue(stateHash, out var plot) == false)
-                        {
-                            plot = new MyPlot(WindowSize, this);
+                        if (TestAndSetPending(stateHash)) continue;
+
+                        plot = new(WindowSize, this) { Yscale = 1.0 };
+                        lock (PlotsLock)
                             Plots[stateHash] = plot;
-                            CreateTextBlocksForLabel(stateHash, key);
-                        }
-
-                        _latestValues[stateHash] = data[key];
+                        CreateTextBlocksForLabel(stateHash, key);
                     }
-            }
-        }
+                    else
+                        plot.Add(data[key]);
 
+                    lock (_lock)
+                            _latestValues[stateHash] = data[key];
+                }
+        }
 
         private void IO_DataReceived(IPacket packet)
         {
             if (packet is BlockPacket blockPacket == false) return;
             if (blockPacket.Count == 0) return;
-            if (Plots.TryGetValue(blockPacket.State, out var plot) == false)
+            lock (PlotsLock)
             {
-                plot = new MyPlot(WindowSize, this);
-                lock (PlotsLock)
-                    Plots[blockPacket.State] = plot;
-                CreateTextBlocksForLabel(blockPacket.State);
-            }
+                if (Plots.TryGetValue(blockPacket.State, out var plot) == false)
+                    if (TestAndSetPending(blockPacket.State) == false)
+                    {
+                        plot = new MyPlot(WindowSize, this);
+                        Plots[blockPacket.State] = plot;
+                        CreateTextBlocksForLabel(blockPacket.State);
+                    }
+                    else
+                        return;
 
-            plot.Add(blockPacket);
+                plot.Add(blockPacket);
+            }
             if (blockPacket.Count > 0)
             {
                 float val = blockPacket.BlockData[blockPacket.Count - 1].Channel[0] * ChannelScale;
@@ -81,6 +92,15 @@ namespace TeensyMonitor.Plotter.UserControls
             }
         }
 
+        private bool TestAndSetPending(uint state)
+        {
+            lock (_lock)
+            {
+                if (_pendingStates.ContainsKey(state)) return true;
+                _pendingStates[state] = true;
+                return false;
+            }
+        }
         protected override void Init()
         {
             base.Init();
@@ -105,13 +125,15 @@ namespace TeensyMonitor.Plotter.UserControls
 
             lock (_lock)
             {
-                float yPos = MyGL.Height - 70 - _blocks.Count * 50;
+                Interlocked.Increment(ref labelCount);
+                float yPos = MyGL.Height - 20 - labelCount * 50;
 
                 var labelBlock = new TextBlock(labelText, 106, yPos, font);
                 var valueBlock = new TextBlock("0.00", 100, yPos, font, TextAlign.Right);
 
                 _blocks[state] = Tuple.Create(labelBlock, valueBlock);
             }
+            _pendingStates.TryRemove(state, out _);
         }
 
         protected override void DrawText()
@@ -121,13 +143,12 @@ namespace TeensyMonitor.Plotter.UserControls
             _textBlocksToRender.Clear();
             // 1. Populate the list of blocks to render and flag if their content has changed.
             lock (_lock)
+            {
                 foreach (var key in _latestValues.Keys)
                 {
                     if (_blocks.TryGetValue(key, out var tuple))
                     {
-                        ref var item = ref CollectionsMarshal.GetValueRefOrNullRef(_latestValues, key);
-
-                        if (System.Runtime.CompilerServices.Unsafe.IsNullRef(ref item)) continue;
+                        var item = _latestValues[key];
 
                         // Check
                         tuple.Item2.SetValue(item, "F2");
@@ -136,7 +157,7 @@ namespace TeensyMonitor.Plotter.UserControls
                         _textBlocksToRender.Add(tuple.Item2);
                     }
                 }
-
+            }
             if (!_textBlocksToRender.Any()) return;
             
             // 2. Calculate the total bounding box for all visible labels.
@@ -194,7 +215,7 @@ namespace TeensyMonitor.Plotter.UserControls
                 textBlocks.Item2.Dispose(); // Return value buffer to pool
             }
 
-            _latestValues.Remove(key);
+            _latestValues.TryRemove(key, out _);
         }
 
     }
