@@ -6,12 +6,12 @@ namespace TeensyMonitor.Plotter.Helpers
 {
     public class MyPlot
     {
-        public float  LastX   { get; private set; } = 0;
-        public float  LastY   { get; private set; } = 0;
-        public double Yscale  { get; set;         } = 0.0; // overridden by MyPlotter if 0.0.  If not overridden, use 1.0.
-        public Color  Colour  { get; set;         } = MyColours.GetNextColour();
-        public double XCounter { get; set;        } = -Math.Pow(2, 20) + 2; // X value counter, for signals without timestamps
-                                                                            // Starts at a large negative value to avoid issues with float precision with ++;
+        public float  LastX    { get; private set; } = 0;
+        public float  LastY    { get; private set; } = 0;
+        public double Yscale   { get; set;         } = 0.0; // overridden by MyPlotter if 0.0.  If not overridden, use 1.0.
+        public Color  Colour   { get; set;         } = MyColours.GetNextColour();
+        public double XCounter { get; set;         } = -Math.Pow(2, 20) + 2; // X value counter, for signals without timestamps
+                                                                             // Starts at a large negative value to avoid issues with float precision with ++;
 
         private readonly object _lock = new();
 
@@ -99,7 +99,9 @@ namespace TeensyMonitor.Plotter.Helpers
             }
         }
 
-        public void Add(BlockPacket packet)
+        public enum DataToShow { Channel0, Offset1, Offset2, Gain }
+
+        public void Add(BlockPacket packet, DataToShow dataType = DataToShow.Channel0)
         {
             lock (_lock)
             {
@@ -108,7 +110,13 @@ namespace TeensyMonitor.Plotter.Helpers
                 {
                     ref var item = ref packet.BlockData[i];
                     double x = (packet.TimeStamp - today).TotalSeconds;
-                    double y = item.Channel[0] * Yscale;
+                    double y = dataType switch {
+                        DataToShow.Channel0 => item.Channel[0] * Yscale,
+                        DataToShow.Offset1  => item.Offset1,
+                        DataToShow.Offset2  => item.Offset2,
+                        DataToShow.Gain     => item.Gain,
+                        _ => 0.0
+                    };
 
                     // When the buffer is full, copy the last block of data to the start.
                     if (_writeIndex >= _bufferCapacity)

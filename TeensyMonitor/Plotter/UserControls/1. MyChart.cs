@@ -65,10 +65,22 @@ namespace TeensyMonitor.Plotter.UserControls
                 }
         }
 
+        const uint maskOffset1 = 0b00010000000000000000000000000000;
+        const uint maskOffset2 = 0b00100000000000000000000000000000;
+        const uint maskGain    = 0b00110000000000000000000000000000;
+
         private void IO_DataReceived(IPacket packet)
         {
             if (packet is BlockPacket blockPacket == false) return;
             if (blockPacket.Count == 0) return;
+
+            uint state = blockPacket.State;
+
+            uint offset1State = state | maskOffset1;
+            uint offset2State = state | maskOffset2;
+            uint    gainState = state | maskGain;
+
+            
             lock (PlotsLock)
             {
                 if (Plots.TryGetValue(blockPacket.State, out var plot) == false)
@@ -76,19 +88,41 @@ namespace TeensyMonitor.Plotter.UserControls
                     {
                         plot = new MyPlot(WindowSize, this);
                         Plots[blockPacket.State] = plot;
+
+                        Plots[offset1State] = new MyPlot(WindowSize, this);
+                        Plots[offset2State] = new MyPlot(WindowSize, this);
+                        Plots[   gainState] = new MyPlot(WindowSize, this);
+
                         CreateTextBlocksForLabel(blockPacket.State);
+                        CreateTextBlocksForLabel(     offset1State, blockPacket.State.Description() + " Offset1");
+                        CreateTextBlocksForLabel(     offset2State, blockPacket.State.Description() + " Offset2");
+                        CreateTextBlocksForLabel(        gainState, blockPacket.State.Description() + " Gain");
                     }
                     else
                         return;
 
                 plot.Add(blockPacket);
+                Plots[offset1State].Add(blockPacket, MyPlot.DataToShow.Offset1);
+                Plots[offset2State].Add(blockPacket, MyPlot.DataToShow.Offset2);
+                Plots[   gainState].Add(blockPacket, MyPlot.DataToShow.Gain   );
             }
+
             if (blockPacket.Count > 0)
             {
-                float val = blockPacket.BlockData[blockPacket.Count - 1].Channel[0] * ChannelScale;
+                ref DataPacket data = ref blockPacket.BlockData[blockPacket.Count-1];
+
+                float c0   = data.Channel[0] * ChannelScale;
+                float off1 = data.Offset1;
+                float off2 = data.Offset2;
+                float gain = data.Gain;
 
                 lock (_lock)
-                    _latestValues[blockPacket.State] = val;
+                {
+                    _latestValues[blockPacket.State] = c0;
+                    _latestValues[     offset1State] = off1;
+                    _latestValues[     offset2State] = off2;
+                    _latestValues[        gainState] = gain;
+                }
             }
         }
 
@@ -158,6 +192,7 @@ namespace TeensyMonitor.Plotter.UserControls
                     }
                 }
             }
+
             if (!_textBlocksToRender.Any()) return;
             
             // 2. Calculate the total bounding box for all visible labels.

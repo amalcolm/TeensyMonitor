@@ -47,7 +47,8 @@ namespace TeensyMonitor.Plotter.Helpers
             _thread = new(Run)
             {
                 IsBackground = true,
-                Name = "MyGLThread"
+                Name = "MyGLThread",
+                Priority = ThreadPriority.AboveNormal
             };
 
             _glControl.HandleCreated += (s,e) =>

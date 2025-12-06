@@ -55,6 +55,11 @@ namespace PsycSerial
         property UInt32         HardwareState;
         property array<UInt32>^ Channel;
 
+        property Byte SequenceNumber { Byte get() { return  HardwareState >> 24;         }}
+		property Byte Offset1        { Byte get() { return (HardwareState >> 16) & 0xFF; }}
+		property Byte Offset2        { Byte get() { return (HardwareState >>  8) & 0xFF; }}
+		property Byte Gain           { Byte get() { return  HardwareState        & 0xFF; }}
+
     protected:
 		DataPacket();
         static ConcurrentQueue<DataPacket^>^ s_pool = gcnew ConcurrentQueue<DataPacket^>();

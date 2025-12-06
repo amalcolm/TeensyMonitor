@@ -35,7 +35,7 @@ namespace TeensyMonitor.Plotter.UserControls
                 lastTime = DateTime.Now;
             }
 
-            if (Plots.Count == 0) return;
+            if (Plots.IsEmpty) return;
 
             // 1. Get the latest time from all plots
             lock (PlotsLock)
