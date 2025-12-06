@@ -42,12 +42,13 @@ namespace TeensyMonitor
                     await Task.Delay(200, cts.Token);
                     if (cts.Token.IsCancellationRequested) return;
 
-                    this.Invoker(() =>
-                    {
-                        cbPorts.Items.Clear();
-                        cbPorts.Items.AddRange(ports);
-                        cbPorts.SelectedIndex = cbPorts.Items.Count - 1;
-                    });
+                    if (SP?.IsOpen == false) // check again before opening
+                        this.Invoker(() =>
+                        {
+                            cbPorts.Items.Clear();
+                            cbPorts.Items.AddRange(ports);
+                            cbPorts.SelectedIndex = cbPorts.Items.Count - 1;
+                        });
                 }
             }
         }
@@ -55,15 +56,15 @@ namespace TeensyMonitor
         {
             AString? str = state switch
             {
-                ConnectionState.Connected => AString.FromString("Connected " + SP?.PortName),
-                ConnectionState.HandshakeInProgress => AString.FromString("Handshake in progress"),
-                ConnectionState.Disconnected => AString.FromString("Disconnected"),
-                ConnectionState.HandshakeSuccessful => AString.FromString("Handshake successful"),
+                ConnectionState.Connected           => AString.FromString("Connected " + SP?.PortName),
+                ConnectionState.HandshakeInProgress => AString.FromString("Handshake in progress"    ),
+                ConnectionState.Disconnected        => AString.FromString("Disconnected"             ),
+                ConnectionState.HandshakeSuccessful => null,  // string comes from the device
                 _ => null
             };
 
             if (str != null)
-                dbg.Log(str);
+               dbg.Log(str);
         }
 
         readonly MyPool<Dictionary<string, double>> parsedPool = new();

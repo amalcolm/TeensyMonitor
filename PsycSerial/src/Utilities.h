@@ -24,5 +24,7 @@ namespace PsycSerial
         virtual int GetHashCode(IntPtr obj)     { return obj.GetHashCode(); }
     };
 
+	Exception^ SafeWait(DWORD milliseconds, System::Threading::CancellationToken token);
+
 };
 

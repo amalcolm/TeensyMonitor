@@ -138,6 +138,12 @@ void CSerial::InvokeDataReceived(CPacket& packet) {
 }
 
 bool CSerial::SetPort(const std::string& portName, DataHandler dataHandler, void* userData, int baudRate) {
+
+    static constexpr int RETRIES = 10;
+    static constexpr int TOTALWAIT = 3000; // ms
+
+    static constexpr int RETRY_DELAY = TOTALWAIT / (RETRIES-1);
+
     // Close any existing connection first (this is fine outside the lock)
     if (IsOpen()) {
         Close();
@@ -151,21 +157,43 @@ bool CSerial::SetPort(const std::string& portName, DataHandler dataHandler, void
         // --- Port Opening and Configuration ---
 
         std::string fullPortName = "\\\\.\\" + portName;
+        
+        for (int i = 10; i > 0; i--)
+        {
+            hSerial = CreateFileA(
+                fullPortName.c_str(),
+                GENERIC_READ | GENERIC_WRITE,
+                0,
+                NULL,
+                OPEN_EXISTING,
+                FILE_FLAG_OVERLAPPED,
+                NULL
+            );
 
-        hSerial = CreateFileA(
-            fullPortName.c_str(),
-            GENERIC_READ | GENERIC_WRITE,
-            0,
-            NULL,
-            OPEN_EXISTING,
-            FILE_FLAG_OVERLAPPED,
-            NULL
-        );
+            if (hSerial == INVALID_HANDLE_VALUE) {
+                DWORD err = GetLastError();
+                if (err == ERROR_FILE_NOT_FOUND) {
+                    if (i > 1)
+                        std::this_thread::sleep_for(std::chrono::milliseconds(RETRY_DELAY));
+                    continue;   // try again
+                }
+                else {
+                    failStage = "CreateFileA failed to open serial port.";
+                    break;      // bail out, non-retryable
+                }
+            }
 
-        if (hSerial == INVALID_HANDLE_VALUE) {
-            failStage = "CreateFileA failed to open serial port.";
+            // Success: break early
             break;
         }
+
+
+        if (hSerial == INVALID_HANDLE_VALUE && failStage == nullptr)
+            failStage = "Serial port not found.";
+
+        if (failStage != nullptr)
+            break;  // exits outer while
+
 
         DCB dcbSerialParams = { 0 };
         dcbSerialParams.DCBlength = sizeof(dcbSerialParams);

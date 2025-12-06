@@ -36,8 +36,8 @@ namespace PsycSerial
         CancellationTokenSource^ m_handshakeCts;
 
 		static const int BAUDRATE = 115200*8;
-        static array<Byte>^ HOST_ACKNOWLEDGE = System::Text::Encoding::UTF8->GetBytes("HOST_ACK"); 
-		static array<Byte>^ DEVICE_ACKNOWLEDGE = System::Text::Encoding::UTF8->GetBytes("DEVICE_ACK");
+        static array<Byte>^ HOST_ACKNOWLEDGE   = System::Text::Encoding::UTF8->GetBytes(">HOST_ACK"  ); 
+		static array<Byte>^ DEVICE_ACKNOWLEDGE = System::Text::Encoding::UTF8->GetBytes("<DEVICE_ACK");
 
 		bool m_isDisposing = false;
     };

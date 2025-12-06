@@ -5,6 +5,7 @@ using TeensyMonitor.Plotter.Fonts;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.Diagnostics;
 
 
 namespace TeensyMonitor.Plotter.UserControls
@@ -34,36 +35,24 @@ namespace TeensyMonitor.Plotter.UserControls
 
     }
 
-    class Log
+    class Log(MyGLControl control)
     {
         public const int Margin = 8;
         public const double LineSpacing = 1.2;
-
-        public Log(MyGLControl control)
-        {
-            _control = control;
-            control.LoadedChanged += (s, isLoaded) =>
-            {
-                if (isLoaded)
-                    while (qStringsToAdd.TryDequeue(out AString? str))
-                        if (str != null)
-                            Add(str);
-            };
-        }
         readonly ArrayPool<FontVertex> pool = ArrayPool<FontVertex>.Shared;
         int lineHeight;
         public void Init()
         {
-            var fr = _control.fontRenderer;
+            var fr = control.fontRenderer;
             lineHeight = (int)(fr.Font.LineHeight * fr.Scaling * LineSpacing);
 
-            MaxNumberOfLines = (_control.Height - 2 * Margin) / lineHeight;
+            MaxNumberOfLines = (control.Height - 2 * Margin) / lineHeight;
             LineBuffers = new LineVertices[MaxNumberOfLines];
 
             baseHeight = -PrecisionBoundary;
-            nextHeight =  baseHeight + _control.Height - Margin - lineHeight;
-            
-            _control.AutoClear = false;
+            nextHeight =  baseHeight + control.Height - Margin - lineHeight;
+
+            control.AutoClear = false;
         }
 
         private int MaxNumberOfLines;  // number of lines that fit in the control
@@ -86,26 +75,24 @@ namespace TeensyMonitor.Plotter.UserControls
 
         public void Add(AString str)
         {
-            if (str.Length == 0) return;
-
-            if (_control.IsLoaded == false)
-            {
+            if (str.Length > 0)
                 qStringsToAdd.Enqueue(str);
-                return;
-            }
-
-            var buf = pool.Rent(str.Length * 6);
-
-            var fr = _control.fontRenderer;
-            var numVerts = FontVertex.BuildString(buf, 0, str.Buffer.AsSpan(), FontFile.Default, 0, nextHeight, fr.Scaling, TextAlign.Left);
-            
-            qLinesToAdd.Enqueue(new LineVertices { Vertices = buf, Length = numVerts });
-
-            Interlocked.Add(ref nextHeight, -lineHeight);
         }
 
         public void Render()
         {
+            while (qStringsToAdd.TryDequeue(out AString? str))
+            {
+                var buf = pool.Rent(str.Length * 6);
+
+                var numVerts = FontVertex.BuildString(buf, 0, str.Buffer.AsSpan(), FontFile.Default, 0, nextHeight, control.fontRenderer.Scaling, TextAlign.Left);
+
+                qLinesToAdd.Enqueue(new LineVertices { Vertices = buf, Length = numVerts });
+
+                Interlocked.Add(ref nextHeight, -lineHeight);
+
+            }
+
             bool needUpdate = false;
             while (qLinesToAdd.TryDequeue(out LineVertices newLine))
             {
@@ -125,21 +112,19 @@ namespace TeensyMonitor.Plotter.UserControls
 
             if (!needUpdate) return;
 
-            _control.ClearViewport();
+            control.ClearViewport();
 
-            var fr = _control.fontRenderer;
+            var fr = control.fontRenderer;
             float fMargin = Margin;
 
             fr.ProjectionMatrix = Matrix4.CreateOrthographicOffCenter(
-                -fMargin, _control.Width - fMargin,
-                fMargin + baseHeight, fMargin + _control.Height + baseHeight,
+                -fMargin, control.Width - fMargin,
+                fMargin + baseHeight, fMargin + control.Height + baseHeight,
                 -1, 1);
 
             foreach (ref var line in LineBuffers.AsSpan())
                 fr.RenderText(line.Vertices, line.Length);
         }
-
-        private MyGLControl _control;
 
 
         private void ManageScrolling()
@@ -153,7 +138,7 @@ namespace TeensyMonitor.Plotter.UserControls
                 {
                     // reset base height to avoid float precision issues
                     baseHeight = -PrecisionBoundary;
-                    nextHeight = baseHeight + _control.Height - Margin - lineHeight;
+                    nextHeight = baseHeight + control.Height - Margin - lineHeight;
                     nextHeight = (MaxNumberOfLines - 1) * lineHeight;
 
                     float offset = 2 * PrecisionBoundary;

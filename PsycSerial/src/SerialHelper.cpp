@@ -357,9 +357,15 @@ namespace PsycSerial
 
         if (wrapper != nullptr && !wrapper->m_disposed) {
             try {
-//                if (wrapper->m_connectionState == ConnectionState::HandshakeInProgress && packet.kind == PacketKind::Text)\
-//					wrapper->OnHandshakeReceived(packet.text);
-//                else
+                bool isHandshakePacket =
+                    (wrapper->m_connectionState == ConnectionState::HandshakeInProgress) &&
+                    (packet.kind == PacketKind::Text)                                    &&
+                    (packet.text.length > 1)                                             &&
+                    (packet.text.utf8Bytes[0] == '<');
+
+                if (isHandshakePacket)
+					wrapper->OnHandshakeReceived(packet.text);
+                else
                     wrapper->OnDataReceived(packet);
             }
             catch (Exception^ ex) {

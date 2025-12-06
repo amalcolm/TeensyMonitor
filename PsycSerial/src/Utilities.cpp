@@ -5,9 +5,40 @@
 using namespace System;
 using namespace System::Diagnostics; // For Debug::WriteLine
 using namespace System::Runtime::InteropServices; // For Marshal
-
+using namespace System::Threading::Tasks;
 namespace PsycSerial
 {
+#pragma warning(push)
+#pragma warning(disable:4286)  // Suppress warning about TaskCancelled exceptions being caught by OperationCanceledException
+
+    Exception^ SafeWait(DWORD milliseconds, System::Threading::CancellationToken token)
+    {
+        try
+        {
+            // Wait for the delay task, respecting cancellation
+            Task::Delay(milliseconds, token)->Wait();
+        }
+        catch (AggregateException^ ag)
+        {
+            if (ag->InnerExceptions != nullptr)
+                for each(Exception ^ e in ag->InnerExceptions)
+                    if (e->GetType() == OperationCanceledException::typeid ||
+                        e->GetType() == TaskCanceledException::typeid)
+                    {
+                        return nullptr;
+                    }
+
+            // Unexpected inner exception: return the aggregate itself
+            return ag;
+        }
+        catch (OperationCanceledException^) { return nullptr; }
+        catch (TaskCanceledException^)      { return nullptr; }
+        catch (Exception^ ex)               { return ex;      }
+
+        // Completed without error
+        return nullptr;
+    }
+#pragma warning(pop)
 
     String^ ConvertStdString(const std::string& str) {
         // Simple conversion using marshal_as

@@ -1,8 +1,9 @@
 #include "TeensySerial.h"
+#include "Utilities.h"
 
 namespace PsycSerial
 {
-	TeensySerial::TeensySerial(String^ version) : m_programVersion(version + "\n"), SerialHelper(CallbackPolicy::ThreadPool)
+	TeensySerial::TeensySerial(String^ version) : m_programVersion(version), SerialHelper(CallbackPolicy::Direct)
 	{
 	}
 
@@ -55,6 +56,8 @@ namespace PsycSerial
 		
 		m_handshakeCts = gcnew CancellationTokenSource();
 		CancellationToken token = m_handshakeCts->Token;
+
+		bool result = false;
 		try
 		{
 			// Simulate handshake process
@@ -62,15 +65,21 @@ namespace PsycSerial
 			{
 				if (!IsOpen)
 				{
-					Task::Delay(200, token)->Wait();
+					Exception^ ex = SafeWait(200, token);
+					if (ex != nullptr) {
+						RaiseErrorOccurredEvent(ex);
+					}
 					continue;
 				}
+
+				if (token.IsCancellationRequested)
+					break;
 				
 				Write(HOST_ACKNOWLEDGE);
 
 				bool devAck = false;
 				bool received = false;
-				for (int count = 50; devAck == false && count > 0 && !token.IsCancellationRequested; count--) 
+				for (int count = 5; devAck == false && count > 0 && !token.IsCancellationRequested; count--) 
 				{
 					received = m_handshakeEvent->WaitOne(500);  // handshake event fired on close as well
 
@@ -79,42 +88,49 @@ namespace PsycSerial
 
 					if (received && !token.IsCancellationRequested)
 						devAck = TestHandshakeResponse(DEVICE_ACKNOWLEDGE);
-
-				
 				}
 
 				if (devAck)
 				{
 //					Clear();
-					Write(m_programVersion);
+					Write(">" + m_programVersion + "\n");
+
 					received = m_handshakeEvent->WaitOne(500);
 					if (received)
 					{
-						m_deviceVersion = GetHandshakeResponse();
- 						m_connectionState = ConnectionState::HandshakeSuccessful;
+						m_deviceVersion = GetHandshakeResponse()->TrimStart('<');
 
+						m_connectionState = ConnectionState::HandshakeSuccessful;
 //						Clear();
-						RaiseConnectionChangedEvent(m_connectionState);
-
-						return Task::FromResult(true);
+						break;
 					}
 				}
 				else
 					OutputDebugString(L"No response after sending host acknowledge.\r\n");
 
-				Task::Delay(2000, token)->Wait();
+
+				Exception^ ex = SafeWait(5000, token);
+				if (ex != nullptr) {
+					RaiseErrorOccurredEvent(ex);
+				}
 			}
 
-			m_connectionState = IsOpen ? ConnectionState::Connected : ConnectionState::Disconnected;
-
-			return Task::FromResult(true);
+			result = true;
 		}
 		catch (Exception^ ex)
 		{
 			RaiseErrorOccurredEvent(ex);
-			return Task::FromResult(false);
+			result = false;
 		}
-	} 
+		finally
+		{
+			if (!IsOpen)
+				m_connectionState = ConnectionState::Disconnected;
+
+			RaiseConnectionChangedEvent(m_connectionState);
+		}
+		return Task::FromResult(result);
+	}
 
 	
 	Task<bool>^ TeensySerial::OpenAsync(String^ portName)

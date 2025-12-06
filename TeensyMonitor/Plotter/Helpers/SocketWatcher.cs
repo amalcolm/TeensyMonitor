@@ -37,6 +37,8 @@ namespace TeensyMonitor.Plotter.Helpers
 
                         await ProcessCommand(message);
                     }
+
+                    Debugger.Break();
                 }
                 catch (SocketException ex)
                 {
@@ -69,8 +71,11 @@ namespace TeensyMonitor.Plotter.Helpers
         // Call this when your application closes
         public static void StopListening()
         {
-            listener?.Close();
             cts.Cancel();
+
+            Thread.Sleep(100); 
+
+            listener?.Close();
         }
     }
 }
