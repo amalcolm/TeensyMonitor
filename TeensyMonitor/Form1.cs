@@ -29,6 +29,8 @@ namespace TeensyMonitor
 
         private async void SerialPort_ErrorOccurred(Exception exception)
         {
+            if (IsHandleCreated == false) return;
+
             dbg.Log(AString.FromString(exception.Message + Environment.NewLine));
 
             while (!cts.Token.IsCancellationRequested && SP?.IsOpen == false) // null check here
@@ -54,6 +56,8 @@ namespace TeensyMonitor
         }
         private void SerialPort_ConnectionChanged(ConnectionState state)
         {
+            if (IsHandleCreated == false) return;
+
             AString? str = state switch
             {
                 ConnectionState.Connected           => AString.FromString("Connected " + SP?.PortName),
@@ -62,6 +66,11 @@ namespace TeensyMonitor
                 ConnectionState.HandshakeSuccessful => null,  // string comes from the device
                 _ => null
             };
+
+            bool enableDropdown = state == ConnectionState.Disconnected;
+
+            if (cbPorts.Enabled != enableDropdown)
+                this.Invoker(() => cbPorts.Enabled = enableDropdown );
 
             if (str != null)
                dbg.Log(str);

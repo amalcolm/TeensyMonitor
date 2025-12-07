@@ -1,6 +1,7 @@
 ﻿using OpenTK.GLControl;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace TeensyMonitor.Plotter.Helpers
 {
@@ -48,7 +49,7 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 IsBackground = true,
                 Name = "MyGLThread",
-                Priority = ThreadPriority.AboveNormal
+                Priority = ThreadPriority.Highest
             };
 
             _glControl.HandleCreated += (s,e) =>
@@ -65,6 +66,8 @@ namespace TeensyMonitor.Plotter.Helpers
                 _thread.Start();
             };
         }
+
+        [DllImport("dwmapi.dll")] private static extern void DwmFlush();
 
         //// <summary>
         /// Starts the rendering thread with a specific action to be performed each frame.
@@ -106,6 +109,7 @@ namespace TeensyMonitor.Plotter.Helpers
                 _glControl.MakeCurrent();                                     if (_glControl.Context == null) throw new InvalidOperationException("GLControl context is not initialized.");
                 _glControl.Context.SwapInterval = 0;
 
+                double frameTime = 0;
                 while (!_cts.IsCancellationRequested)
                 {
                     _frameDone.Reset();
@@ -114,6 +118,8 @@ namespace TeensyMonitor.Plotter.Helpers
                     try
                     {
                         RenderAction?.Invoke();
+                        DwmFlush();
+
                         nTotalFrames++;
                         nFramesThisSecond++;
                         do
@@ -121,12 +127,15 @@ namespace TeensyMonitor.Plotter.Helpers
                             while (_taskQueue.TryDequeue(out var action))
                                 action.Invoke();
                         }
-                        while (stopwatch.Elapsed.TotalMilliseconds < targetFrameTime && !_cts.IsCancellationRequested);
+                        while ((frameTime = stopwatch.Elapsed.TotalMilliseconds) < targetFrameTime && !_cts.IsCancellationRequested);
+
+                        _glControl.SwapBuffers();
 
                         int currentSeconds = (int)mainTimer.Elapsed.TotalSeconds;
                         if (currentSeconds != second)
                         {
                             second = currentSeconds;   // Debug.WriteLine($"[MyGLThread] FPS: {nFramesThisSecond}");
+                        //    Debug.WriteLine($"[MyGLThread] Total Frames: {nTotalFrames}, FPS: {nFramesThisSecond}, Frame Time: {frameTime:F5} ms");
                             nFramesThisSecond = 0;
                         }
                     }

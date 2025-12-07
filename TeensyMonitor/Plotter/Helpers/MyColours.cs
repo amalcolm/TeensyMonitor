@@ -37,5 +37,10 @@ namespace TeensyMonitor.Plotter.Helpers
             _colourIndex %= BaseColours.Count;
             return BaseColours[_colourIndex++];
         }
+
+        public static void Reset()
+        {
+            _colourIndex = 0;
+        }
     }
 }

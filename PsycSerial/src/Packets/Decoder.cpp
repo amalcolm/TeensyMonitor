@@ -13,7 +13,7 @@ namespace PsycSerial
 			{
 				DataPacket^ pkt = DataPacket::Rent();
 
-				pkt->TimeStamp     = DateTime::Today.AddMilliseconds(nativePacket.data.timeStamp);
+				pkt->TimeStamp     = nativePacket.data.timeStamp;
 				pkt->State         = nativePacket.data.state;
 				pkt->HardwareState = nativePacket.data.hardwareState;
 				for (size_t i = 0; i < CDataPacket::A2D_NUM_CHANNELS; ++i)
@@ -27,7 +27,7 @@ namespace PsycSerial
 			{
 				BlockPacket^ blockPkt = BlockPacket::Rent();
 
-				blockPkt->TimeStamp = DateTime::Today.AddMilliseconds(nativePacket.block.timeStamp);
+				blockPkt->TimeStamp = nativePacket.block.timeStamp;
 				blockPkt->State     = nativePacket.block.state;
 
 				blockPkt->Count		= nativePacket.block.count;
@@ -40,7 +40,7 @@ namespace PsycSerial
 					else
 						dataPkt->Reset();
 
-					dataPkt->TimeStamp     = DateTime::Today.AddMilliseconds(nativePacket.block.blockData[i].timeStamp);
+					dataPkt->TimeStamp     = nativePacket.block.blockData[i].timeStamp;
 					dataPkt->State         = nativePacket.block.blockData[i].state;
 					dataPkt->HardwareState = nativePacket.block.blockData[i].hardwareState;
 					for (size_t ch = 0; ch < CDataPacket::A2D_NUM_CHANNELS; ++ch)
@@ -58,7 +58,7 @@ namespace PsycSerial
 				TextPacket^ textPkt = TextPacket::Rent();
 				const uint8_t* utf8Bytes = nativePacket.text.utf8Bytes;
 
-				textPkt->TimeStamp  = DateTime::Today.AddMilliseconds(nativePacket.text.timeStamp);
+				textPkt->TimeStamp  = nativePacket.text.timeStamp;
 				textPkt->State      = 0;
 				textPkt->Text       = AString::FromUtf8(utf8Bytes, 0, nativePacket.text.length);
 				textPkt->Length		= textPkt->Text->Length;

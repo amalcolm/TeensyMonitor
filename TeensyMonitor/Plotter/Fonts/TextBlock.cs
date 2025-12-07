@@ -6,12 +6,13 @@ namespace TeensyMonitor.Plotter.Fonts
 
     public class TextBlock : IDisposable
     {
-        public TextBlock(ReadOnlySpan<char> text, float x, float y, FontFile? font, TextAlign textAlign = TextAlign.Left)
+        public TextBlock(ReadOnlySpan<char> text, float x, float y, FontFile? font, TextAlign textAlign = TextAlign.Left, string valueFormat = "F2")
         {
-            _font  = font ?? FontFile.Default;
-            _x     = x;
-            _y     = y;
-            _align = textAlign;
+            _font        = font ?? FontFile.Default;
+            _x           = x;
+            _y           = y;
+            _align       = textAlign;
+            _valueFormat = valueFormat;
             SetValue(text);
         }
         
@@ -34,8 +35,13 @@ namespace TeensyMonitor.Plotter.Fonts
             Changed("Text");
         }
 
-        public void SetValue(double value, string format = "F2")
+        public void SetValue(double value, string? format = null)
         {
+            if (string.IsNullOrEmpty(format))
+                format = _valueFormat;
+            else
+                _valueFormat = format;
+
             char[] tempBuffer = CharPool.Rent();
             if (value.TryFormat(tempBuffer, out int charsWritten, format))
             {
@@ -80,6 +86,7 @@ namespace TeensyMonitor.Plotter.Fonts
         private float     _x;
         private float     _y;
         private TextAlign _align;
+        private string    _valueFormat;
 
         public int hashCode { get; private set; } = 0;
         private void Changed(string _)

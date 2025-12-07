@@ -1,13 +1,16 @@
 ﻿using OpenTK.Graphics.OpenGL4;
+using PsycSerial;
 using System.Collections.Concurrent;
 using System.ComponentModel;
-using System.Runtime.InteropServices;
+using System.Diagnostics;
 using TeensyMonitor.Plotter.Helpers;
 namespace TeensyMonitor.Plotter.UserControls
 {
     [ToolboxItem(false)]
     public partial class MyPlotter : MyPlotterBase
     {
+        protected TeensySerial? SP = Program.serialPort;
+
         protected ConcurrentDictionary<uint, MyPlot> Plots = [];
         protected readonly object PlotsLock = new();
 
@@ -19,10 +22,17 @@ namespace TeensyMonitor.Plotter.UserControls
         {
             base.Init();
             MyGL.MouseWheel += MyGL_MouseWheel;
+
+            if (SP == null) return;
+
+            SP.ConnectionChanged += SP_ConnectionChanged;
         }
 
         private float _currentViewRight = 0.0f;
         private float _maxTime = 0.0f;
+
+        private readonly Stopwatch SW = new();
+        private double _watchOffset = 0.0;
 
         private DateTime lastTime = DateTime.Now;
         private readonly TimeSpan timeBetweenDebug = TimeSpan.MaxValue;
@@ -42,15 +52,24 @@ namespace TeensyMonitor.Plotter.UserControls
                 _maxTime = Plots.Values.Max(p => p?.LastX ?? float.MinValue);
             if (_maxTime == float.MinValue) return; // work around synchronization issue
 
+            if (SW.IsRunning == false)
+            {
+                _watchOffset = _maxTime + (TimeWindowSeconds * 0.05);
+                SW.Start();
+            }
+            
+
             // 2. Define the target for the right edge of our viewport.
             //    This includes a small buffer for the gap.
-            float targetViewRight = _maxTime + (TimeWindowSeconds * 0.05f); // 5% buffer
+            _currentViewRight = (float)(SW.ElapsedMilliseconds / 1000.0 + _watchOffset);
 
-            // 3. Smoothly interpolate the current view position towards the target.
-            //    The `0.1f` is the "smoothing factor". A smaller value gives
-            //    a smoother, but more "laggy" scroll. A larger value is more
-            //    responsive but can be more jittery. You can tune this.
-            _currentViewRight = _currentViewRight * 0.9f + targetViewRight * 0.1f;
+            if (_maxTime > _currentViewRight)
+            {
+                // If new data has arrived that is beyond our current view, jump the view forward.
+                _watchOffset = _maxTime - TimeWindowSeconds * 0.05;
+                _currentViewRight = (float)(_maxTime + TimeWindowSeconds * 0.05);
+                SW.Restart();
+            }
 
             // 4. Define the viewport based on the smoothed position.
             float viewLeft = _currentViewRight - TimeWindowSeconds;
@@ -71,6 +90,23 @@ namespace TeensyMonitor.Plotter.UserControls
                 }
 
  //           Debug = $"Plots: {Plots.Count}, Time: {_maxTime:F2}, Window: {TimeWindowSeconds}s";
+        }
+
+        protected virtual void SP_ConnectionChanged(ConnectionState state)
+        {
+            switch (state)
+            {
+                case ConnectionState.Connected:
+                    // Handle connection established
+                    break;
+                case ConnectionState.Disconnected:
+                    lock (PlotsLock)
+                    {
+                        Plots.Clear();
+                    }
+                    break;
+            }
+            SW.Reset();
         }
 
         protected override void DrawText()

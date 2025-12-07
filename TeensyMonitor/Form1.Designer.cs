@@ -37,7 +37,7 @@
             // cbPorts
             // 
             cbPorts.FormattingEnabled = true;
-            cbPorts.Location = new Point(84, 18);
+            cbPorts.Location = new Point(1050, 6);
             cbPorts.Name = "cbPorts";
             cbPorts.Size = new Size(121, 23);
             cbPorts.TabIndex = 3;
@@ -46,7 +46,7 @@
             // labPorts
             // 
             labPorts.AutoSize = true;
-            labPorts.Location = new Point(15, 21);
+            labPorts.Location = new Point(981, 9);
             labPorts.Name = "labPorts";
             labPorts.Size = new Size(63, 15);
             labPorts.TabIndex = 4;
@@ -67,13 +67,12 @@
             chart.AutoClear = true;
             chart.BackColor = Color.PapayaWhip;
             chart.BorderStyle = BorderStyle.FixedSingle;
-            chart.ChannelScale = 0.05F;
             chart.Location = new Point(12, 47);
             chart.Name = "chart";
             chart.Size = new Size(1160, 525);
             chart.TabIndex = 6;
-            chart.TimeWindowSeconds = 5F;
-            chart.Yscale = 0.01F;
+            chart.TimeWindowSeconds = 0.5F;
+            chart.Yscale = 1F;
             // 
             // Form1
             // 

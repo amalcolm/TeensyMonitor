@@ -188,8 +188,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
             RenderText();
 
-            if (GLThread != null && !GLThread._shutdownRequested)
-                MyGL.SwapBuffers();
+            // Do not swap buffers here - let GLThread handle it
         }
 
         private void RenderText()

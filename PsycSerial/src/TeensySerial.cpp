@@ -3,7 +3,7 @@
 
 namespace PsycSerial
 {
-	TeensySerial::TeensySerial(String^ version) : m_programVersion(version), SerialHelper(CallbackPolicy::Direct)
+	TeensySerial::TeensySerial(String^ version) : m_programVersion(version), SerialHelper(CallbackPolicy::Queued)
 	{
 	}
 

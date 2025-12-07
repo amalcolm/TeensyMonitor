@@ -10,14 +10,16 @@ namespace
 {
     constexpr size_t kFrameSize = sizeof(Frame);
 
-    constexpr size_t kBlockHeaderSize      = 12u; // state(4) + timeStamp(4) + count(4)
+    constexpr size_t kBlockHeaderSize      = sizeof(uint32_t)                                  // block state
+                                           + sizeof(double)                                    // block timeStamp
+                                           + sizeof(uint32_t);                                 // block count
     constexpr size_t kBlockStateOffset     =  0u;
-    constexpr size_t kBlockTimeStampOffset =  4u;
-    constexpr size_t kBlockCountOffset     =  8u;
+    constexpr size_t kBlockTimeStampOffset = sizeof(uint32_t); // after state ;
+    constexpr size_t kBlockCountOffset     = sizeof(uint32_t) + sizeof(double); // after state + timeStamp
 
 	// this is the size of the incoming data for each block item.
     // It does not include the state field, (as it's the same for the whole block).
-    constexpr size_t kBlockItemSize        = sizeof(uint32_t)                                  // timeStamp
+    constexpr size_t kBlockItemSize        = sizeof(double)                                    // timeStamp
                                            + sizeof(uint32_t)                                  // hardwareState
                                            + CDataPacket::A2D_NUM_CHANNELS * sizeof(uint32_t); // channel data
 
@@ -34,6 +36,7 @@ namespace
     };
 
     FrameParseResult readU32         (const uint8_t* payload, uint32_t& v) noexcept;
+	FrameParseResult readDouble      (const uint8_t* payload, double& v) noexcept;
     FrameParseResult readDataPayload (const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept;
     FrameParseResult readBlockPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept;
     FrameParseResult readTextPayload (const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept;
@@ -240,6 +243,11 @@ namespace
         return FrameParseResult::ValidPacket; 
     }
 
+    FrameParseResult readDouble(const uint8_t* payload, double& out) noexcept {
+        memcpy(&out, payload, sizeof(double));
+        return FrameParseResult::ValidPacket; 
+	}
+
     FrameParseResult readDataPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept
     {
                                                                                                 		if (payloadBytes < sizeof(CDataPacket)) return FrameParseResult::IncompletePacket;
@@ -254,9 +262,9 @@ namespace
     FrameParseResult readBlockPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept
     {
                                                                                                         if (payloadBytes < kBlockHeaderSize) return FrameParseResult::IncompleteHeader;
-        uint32_t state = 0; readU32(payload + kBlockStateOffset,     state);
-        uint32_t ts    = 0; readU32(payload + kBlockTimeStampOffset, ts   );
-		uint32_t count = 0; readU32(payload + kBlockCountOffset,     count);                            if (count > CBlockPacket::MAX_BLOCK_SIZE && _DEBUG) ::OutputDebugString(L"CDecoder: Block count exceeds maximum allowed size.");
+        uint32_t state = 0; readU32   (payload + kBlockStateOffset,     state);
+        double   ts    = 0; readDouble(payload + kBlockTimeStampOffset, ts   );
+		uint32_t count = 0; readU32   (payload + kBlockCountOffset,     count);                         if (count > CBlockPacket::MAX_BLOCK_SIZE && _DEBUG) ::OutputDebugString(L"CDecoder: Block count exceeds maximum allowed size.");
 
         const size_t itemsBytes = static_cast<size_t>(count) * kBlockItemSize;
         const size_t need = kBlockHeaderSize + itemsBytes;                                              if (payloadBytes < need) return FrameParseResult::IncompletePacket;
@@ -272,17 +280,17 @@ namespace
         // Copy the packed Data items
         const uint8_t* rP = payload + kBlockHeaderSize;
 
+
         for (uint32_t i = 0; i < actualCount; ++i)
         {
             CDataPacket& dp = bp.blockData[i];
             dp.state = state; // shared block state
 
-            readU32(rP + 0, dp.timeStamp);
-            readU32(rP + sizeof(uint32_t), dp.hardwareState);
-            for (size_t ch = 0; ch < CDataPacket::A2D_NUM_CHANNELS; ++ch)
-                readU32(rP + 8 + ch * 4, dp.channel[ch]);
+			readDouble(rP, dp.timeStamp    ); rP += sizeof(double  );
+            readU32   (rP, dp.hardwareState); rP += sizeof(uint32_t);
 
-            rP += kBlockItemSize;
+            for (size_t ch = 0; ch < CDataPacket::A2D_NUM_CHANNELS; ++ch, rP += sizeof(uint32_t))
+                readU32(rP, dp.channel[ch]);
         }
 
         consumed = need;

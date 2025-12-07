@@ -31,7 +31,7 @@ namespace PsycSerial
 
     void Packet::Reset()
     {
-        Timestamp = DateTime::MaxValue;
+        Timestamp = 0.0;
 		// Data array is reused, and no need to clean it.
         BytesRead = 0;
     }
@@ -63,7 +63,7 @@ namespace PsycSerial
     void DataPacket::Reset()
     {
         State = 0;
-        TimeStamp = DateTime::MinValue;
+        TimeStamp = 0.0;
         HardwareState = 0;
 		// Channel array is reused, and no need to clean it.
     }
@@ -95,7 +95,7 @@ namespace PsycSerial
     void BlockPacket::Reset()
     {
         State = 0;
-        TimeStamp = DateTime::MinValue;
+        TimeStamp = 0.0;
         Count = 0;
         // BlockData array is reused, no need to clean it.
 	}
@@ -127,7 +127,7 @@ namespace PsycSerial
     {
         State = 0;
 		Length = 0;
-        TimeStamp = DateTime::MinValue;
+        TimeStamp = 0.0;
         // release Text
      
     }

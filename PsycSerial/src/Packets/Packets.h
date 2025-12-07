@@ -24,7 +24,7 @@ namespace PsycSerial
         void Reset();
 
         // Payload
-        property DateTime Timestamp;
+        property double Timestamp;
         property array<Byte>^ Data;
         property UInt32 BytesRead;
 
@@ -35,7 +35,7 @@ namespace PsycSerial
 
     public interface class IPacket
     {
-        property DateTime TimeStamp;
+        property double   TimeStamp;
         property UInt32   State;
     };
 
@@ -50,7 +50,7 @@ namespace PsycSerial
 		void Reset();
 
         virtual property UInt32 State;
-        virtual property DateTime TimeStamp;
+        virtual property double TimeStamp;
 
         property UInt32         HardwareState;
         property array<UInt32>^ Channel;
@@ -76,7 +76,7 @@ namespace PsycSerial
 		void Reset();
 
         virtual property UInt32      State;
-        virtual property DateTime    TimeStamp;
+        virtual property double      TimeStamp;
 
         property UInt32              Count;
         property array<DataPacket^>^ BlockData;
@@ -98,7 +98,7 @@ namespace PsycSerial
         void Reset();
         
         virtual property UInt32   State;
-        virtual property DateTime TimeStamp;
+        virtual property double   TimeStamp;
 
         property AString^   Text;
 		property UInt32    Length;

@@ -12,7 +12,7 @@ using Frame = uint32_t;
 
 // ----------------------------- Native carrier --------------------------------
 struct CPacket {
-    uint32_t              timestamp{};  // arrival time (optional)
+    double                timestamp{};  // arrival time (optional)
     std::vector<BYTE>     data{};       // raw bytes from device
     uint32_t              bytesRead{};  // valid byte count in data
 
@@ -30,9 +30,12 @@ struct CDataPacket
     static constexpr Frame frameEnd   = 0xEDD2FAB4; // "RD-" end   marker
 
     uint32_t state{};
-    uint32_t timeStamp{};
+    double   timeStamp{};
     uint32_t hardwareState{};
     uint32_t channel[A2D_NUM_CHANNELS]{};
+
+    static constexpr uint32_t STATE_UNSET = 0b10000000000000000000000000000000;
+
 };
 
 struct CBlockPacket
@@ -43,7 +46,7 @@ struct CBlockPacket
     static constexpr Frame frameEnd   = 0xEDB2FAB4; // "QK-" end   marker
 
     uint32_t state{};
-    uint32_t timeStamp{};
+    double   timeStamp{};
     uint32_t count{}; // number of valid entries in blockData
     CDataPacket   blockData[MAX_BLOCK_SIZE]{};
 };
@@ -64,11 +67,11 @@ static_assert(std::is_trivially_copyable_v<CDataPacket> , "CDataPacket must be P
 static_assert(std::is_trivially_copyable_v<CBlockPacket>, "CBlockPacket must be POD");
 
 static_assert(sizeof(CDataPacket) ==
-    (3u + CDataPacket::A2D_NUM_CHANNELS) * sizeof(uint32_t),
+    sizeof(uint32_t) + sizeof(double) + sizeof(uint32_t) + CDataPacket::A2D_NUM_CHANNELS * sizeof(uint32_t),
     "Unexpected CDataPacket layout/packing");
 
 static_assert(offsetof(CBlockPacket, blockData) ==
-    sizeof(uint32_t) * 3u,
+	sizeof(uint32_t) + sizeof(double) + sizeof(uint32_t),
     "Unexpected CBlockPacket header layout");
 
 // ----------------------------- Tagged result ---------------------------------

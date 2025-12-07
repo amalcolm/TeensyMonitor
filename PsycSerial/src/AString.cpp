@@ -34,8 +34,9 @@ namespace PsycSerial
         if (buffer == nullptr)
             return;
 
-        // If you ever allocate different sizes, you can skip pooling them:
-        // if (buffer->Length != BufferSize) return;
+        if (buffer->Length != BufferSize) return;
+
+        Array::Clear(buffer);;
 
         s_pool->Add(buffer);
     }

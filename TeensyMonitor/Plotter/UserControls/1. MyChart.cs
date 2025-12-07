@@ -16,9 +16,6 @@ namespace TeensyMonitor.Plotter.UserControls
     [ToolboxItem(true)]
     public partial class MyChart : MyPlotter
     {
-        public TeensySerial? SP = Program.serialPort;
-
-        public float ChannelScale { get; set; } = 0.05f;
 
         private const int WindowSize = 1200;
 
@@ -39,8 +36,10 @@ namespace TeensyMonitor.Plotter.UserControls
 
             if (SP == null) return;
 
-            SP.DataReceived += IO_DataReceived;
+            SP.DataReceived += SP_DataReceived;
+            SP.ConnectionChanged += SP_ConnectionChanged;
         }
+
 
         public void AddData(Dictionary<string, double> data)
         {
@@ -68,8 +67,11 @@ namespace TeensyMonitor.Plotter.UserControls
         const uint maskOffset1 = 0b00010000000000000000000000000000;
         const uint maskOffset2 = 0b00100000000000000000000000000000;
         const uint maskGain    = 0b00110000000000000000000000000000;
+        const uint maskUser1   = 0b01000000000000000000000000000000;
 
-        private void IO_DataReceived(IPacket packet)
+        private RunningAverage ra = new (20);
+
+        private void SP_DataReceived(IPacket packet)
         {
             if (packet is BlockPacket blockPacket == false) return;
             if (blockPacket.Count == 0) return;
@@ -79,8 +81,8 @@ namespace TeensyMonitor.Plotter.UserControls
             uint offset1State = state | maskOffset1;
             uint offset2State = state | maskOffset2;
             uint    gainState = state | maskGain;
+            uint   user1State = state | maskUser1;
 
-            
             lock (PlotsLock)
             {
                 if (Plots.TryGetValue(blockPacket.State, out var plot) == false)
@@ -92,26 +94,31 @@ namespace TeensyMonitor.Plotter.UserControls
                         Plots[offset1State] = new MyPlot(WindowSize, this);
                         Plots[offset2State] = new MyPlot(WindowSize, this);
                         Plots[   gainState] = new MyPlot(WindowSize, this);
+                        Plots[  user1State] = new MyPlot(WindowSize, this);
 
-                        CreateTextBlocksForLabel(blockPacket.State);
-                        CreateTextBlocksForLabel(     offset1State, blockPacket.State.Description() + " Offset1");
-                        CreateTextBlocksForLabel(     offset2State, blockPacket.State.Description() + " Offset2");
-                        CreateTextBlocksForLabel(        gainState, blockPacket.State.Description() + " Gain");
+                        string description = blockPacket.State.Description();
+                        
+                        CreateTextBlocksForLabel(blockPacket.State, description + " A2D %"  , "0.0000%");
+                        CreateTextBlocksForLabel(     offset1State, description + " Offset1");
+                        CreateTextBlocksForLabel(     offset2State, description + " Offset2");
+                        CreateTextBlocksForLabel(        gainState, description + " Gain"   );
                     }
                     else
                         return;
 
-                plot.Add(blockPacket);
-                Plots[offset1State].Add(blockPacket, MyPlot.DataToShow.Offset1);
-                Plots[offset2State].Add(blockPacket, MyPlot.DataToShow.Offset2);
-                Plots[   gainState].Add(blockPacket, MyPlot.DataToShow.Gain   );
+
+                Plots[       state].Add(blockPacket, MyPlot.DataToShow.Channel0, false, ref ra);
+                Plots[offset1State].Add(blockPacket, MyPlot.DataToShow.Offset1 , false, ref ra);
+                Plots[offset2State].Add(blockPacket, MyPlot.DataToShow.Offset2 , false, ref ra);
+                Plots[   gainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
+                Plots[  user1State].Add(blockPacket, MyPlot.DataToShow.Channel0, true , ref ra);
             }
 
             if (blockPacket.Count > 0)
             {
                 ref DataPacket data = ref blockPacket.BlockData[blockPacket.Count-1];
 
-                float c0   = data.Channel[0] * ChannelScale;
+                float c0   = data.Channel[0] / 4660100.0f;
                 float off1 = data.Offset1;
                 float off2 = data.Offset2;
                 float gain = data.Gain;
@@ -147,11 +154,7 @@ namespace TeensyMonitor.Plotter.UserControls
             _labelAreaRenderer?.Shutdown();
         }
 
-
-        private void CreateTextBlocksForLabel(uint state)
-            => CreateTextBlocksForLabel(state, state.Description());
-
-        private void CreateTextBlocksForLabel(uint state, string label)
+        private void CreateTextBlocksForLabel(uint state, string label, string valueFormat = "F0")
         {
             if (font == null) return;
 
@@ -162,8 +165,8 @@ namespace TeensyMonitor.Plotter.UserControls
                 Interlocked.Increment(ref labelCount);
                 float yPos = MyGL.Height - 20 - labelCount * 50;
 
-                var labelBlock = new TextBlock(labelText, 106, yPos, font);
-                var valueBlock = new TextBlock("0.00", 100, yPos, font, TextAlign.Right);
+                var labelBlock = new TextBlock(labelText, 126, yPos, font);
+                var valueBlock = new TextBlock("0.00", 120, yPos, font, TextAlign.Right, valueFormat);
 
                 _blocks[state] = Tuple.Create(labelBlock, valueBlock);
             }
@@ -185,7 +188,7 @@ namespace TeensyMonitor.Plotter.UserControls
                         var item = _latestValues[key];
 
                         // Check
-                        tuple.Item2.SetValue(item, "F2");
+                        tuple.Item2.SetValue(item);
 
                         _textBlocksToRender.Add(tuple.Item1);
                         _textBlocksToRender.Add(tuple.Item2);
@@ -218,6 +221,8 @@ namespace TeensyMonitor.Plotter.UserControls
             fontRenderer.RenderText(_textBlocksToRender);
         }
 
+        RectangleF maxBounds = RectangleF.Empty;
+
         // Return this helper method inside the MyChart class
         private RectangleF CalculateTotalBounds()
         {
@@ -232,26 +237,28 @@ namespace TeensyMonitor.Plotter.UserControls
                 else
                     totalBounds = RectangleF.Union(totalBounds, block.Bounds);
             }
-        
-            return totalBounds;
+
+            if (maxBounds.Width < totalBounds.Width)
+                maxBounds = totalBounds;
+
+            return maxBounds;
         }
 
-        // Add cleanup logic when plots are removed to prevent memory leaks from the pool.
-        private void RemovePlot(uint key)
+        protected override void SP_ConnectionChanged(ConnectionState state)
         {
-            if (Plots.Remove(key, out var plot))
-            {
-                plot.Shutdown(); // Release OpenGL resources
-            }
+            base.SP_ConnectionChanged(state);
 
-            if (_blocks.Remove(key, out var textBlocks))
-            {
-                textBlocks.Item1.Dispose(); // Return state buffer to pool
-                textBlocks.Item2.Dispose(); // Return value buffer to pool
-            }
-
-            _latestValues.TryRemove(key, out _);
+            if (state == ConnectionState.Disconnected)
+                lock (_lock)
+                {
+                    _blocks.Clear();
+                    _latestValues.Clear();
+                    _pendingStates.Clear();
+                    Interlocked.Exchange(ref labelCount, 0);
+                    MyColours.Reset();
+                }
         }
+
 
     }
 }

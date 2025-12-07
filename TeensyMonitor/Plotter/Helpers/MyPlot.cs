@@ -6,6 +6,8 @@ namespace TeensyMonitor.Plotter.Helpers
 {
     public class MyPlot
     {
+        public float ChannelScale { get; set; } = 0.0002f;
+
         public float  LastX    { get; private set; } = 0;
         public float  LastY    { get; private set; } = 0;
         public double Yscale   { get; set;         } = 0.0; // overridden by MyPlotter if 0.0.  If not overridden, use 1.0.
@@ -27,12 +29,13 @@ namespace TeensyMonitor.Plotter.Helpers
         private readonly float[] _vertexData;
         private int _writeIndex = 0; // Where to write the next data point
 
+
         public MyPlot(int historyLength, MyGLControl myGL)
         {
             _historyLength = historyLength;
 
             // Make the buffer larger than the history to avoid copying every single frame
-            _bufferCapacity = historyLength * 8;
+            _bufferCapacity = historyLength * 8 + Random.Shared.Next(0, historyLength);  // stagger refreshes
             
             _vertexData = new float[_bufferCapacity * 3];
 
@@ -64,15 +67,19 @@ namespace TeensyMonitor.Plotter.Helpers
 
             // Unbind the VAO to prevent accidental changes
             GL.BindVertexArray(0);
+
         }
 
         public void Add(double y) => Add(XCounter++, y);
 
+        private bool first = true;
         /// <summary>
         /// Adds a new Y data point to the plot. The X value is automatically incremented.
         /// </summary>
         public void Add(double x, double y)
         {
+            if (first) { first = false; return; }
+
             double scale = Yscale == 0.0 ? 1.0 : Yscale;
 
             lock (_lock)
@@ -94,6 +101,7 @@ namespace TeensyMonitor.Plotter.Helpers
                 _vertexData[_writeIndex * 3 + 2] = 0.0f;
 
                 LastX = fX;
+                LastY = fY;
 
                 _writeIndex++;
             }
@@ -101,17 +109,21 @@ namespace TeensyMonitor.Plotter.Helpers
 
         public enum DataToShow { Channel0, Offset1, Offset2, Gain }
 
-        public void Add(BlockPacket packet, DataToShow dataType = DataToShow.Channel0)
+        public void Add(BlockPacket packet, DataToShow dataType, bool useRA, ref RunningAverage ra)
         {
+            if (first) { first = false; return; }
+
             lock (_lock)
             {
+                double scale = Yscale == 0.0 ? 1.0 : Yscale;
+
                 var today = DateTime.Today;
                 for (int i = 0; i < packet.Count; i++)
                 {
                     ref var item = ref packet.BlockData[i];
-                    double x = (packet.TimeStamp - today).TotalSeconds;
+                    double x = packet.BlockData[i].TimeStamp;
                     double y = dataType switch {
-                        DataToShow.Channel0 => item.Channel[0] * Yscale,
+                        DataToShow.Channel0 => item.Channel[0] * ChannelScale,
                         DataToShow.Offset1  => item.Offset1,
                         DataToShow.Offset2  => item.Offset2,
                         DataToShow.Gain     => item.Gain,
@@ -128,14 +140,23 @@ namespace TeensyMonitor.Plotter.Helpers
                     }
 
                     float fX = (float)x;
-                    float fY = (float)y;
+                    float fY = (float)(y * scale);
+                   
+
+                    if (useRA)
+                    {
+                        ra.Add(fY);
+                        fY = (fY - (float)ra.Average) * 10 + 512f; // Centered and scaled for visibility
+                    }
 
                     _vertexData[_writeIndex * 3 + 0] = fX;
                     _vertexData[_writeIndex * 3 + 1] = fY;
                     _vertexData[_writeIndex * 3 + 2] = 0.0f;
 
+                    
                     LastX = fX;
                     LastY = fY;
+
                     _writeIndex++;
                 }
             }
@@ -152,7 +173,7 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 GL.BindBuffer(BufferTarget.ArrayBuffer, _vboHandle);
                 // We only need to upload the part of the buffer that contains valid data
-                GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, _writeIndex * 3 * sizeof(float), _vertexData);
+                GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, 3 * _writeIndex * sizeof(float), _vertexData);
 
                 GL.BindVertexArray(_vaoHandle);
 

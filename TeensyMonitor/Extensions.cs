@@ -18,6 +18,8 @@ namespace TeensyMonitor
         {
             switch (state)
             {
+                case 0b00000000_00000000_00000000_00000000: return "OFF";
+
                 case 0b00000000_00000000_00000000_00000001: return "RED1";
                 case 0b00000000_00000000_00000000_00000010: return "RED2";
                 case 0b00000000_00000000_00000000_00000100: return "RED3";
@@ -37,6 +39,8 @@ namespace TeensyMonitor
                 case 0b00000000_01000000_00000000_00000000: return "IR7";
                 case 0b00000000_10000000_00000000_00000000: return "IR8";
                 case 0b00000001_00000000_00000000_00000000: return "IR9";
+
+                case 0b10000000_00000000_00000000_00000000: return "UNSET"; // Should be discarded at decoding stage
             }
 
             state &= 0b01111111_11111111_11111111_11111111; // Mask off error bit, if set
