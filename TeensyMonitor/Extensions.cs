@@ -14,8 +14,10 @@ namespace TeensyMonitor
             control.Invoke( action );
         }
 
-        public static string Description(this uint state)
+        public static string Description(this PsycSerial.HeadState headState)
         {
+            uint state = (uint)headState;
+
             switch (state)
             {
                 case 0b00000000_00000000_00000000_00000000: return "OFF";

@@ -62,7 +62,7 @@ namespace PsycSerial
 
     void DataPacket::Reset()
     {
-        State = 0;
+        State = HeadState::None;
         TimeStamp = 0.0;
         HardwareState = 0;
 		// Channel array is reused, and no need to clean it.
@@ -94,7 +94,7 @@ namespace PsycSerial
 
     void BlockPacket::Reset()
     {
-        State = 0;
+        State = HeadState::None;
         TimeStamp = 0.0;
         Count = 0;
         // BlockData array is reused, no need to clean it.
@@ -125,7 +125,7 @@ namespace PsycSerial
     
     void TextPacket::Reset()
     {
-        State = 0;
+        State = HeadState::None;
 		Length = 0;
         TimeStamp = 0.0;
         // release Text

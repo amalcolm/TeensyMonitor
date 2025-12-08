@@ -16,7 +16,6 @@ namespace TeensyMonitor.Plotter.UserControls
     [ToolboxItem(true)]
     public partial class MyChart : MyPlotter
     {
-
         private const int WindowSize = 1200;
 
         private readonly ConcurrentDictionary<uint, double> _latestValues = [];
@@ -36,7 +35,6 @@ namespace TeensyMonitor.Plotter.UserControls
 
             if (SP == null) return;
 
-            SP.DataReceived += SP_DataReceived;
             SP.ConnectionChanged += SP_ConnectionChanged;
         }
 
@@ -64,54 +62,74 @@ namespace TeensyMonitor.Plotter.UserControls
                 }
         }
 
+
         const uint maskOffset1 = 0b00010000000000000000000000000000;
         const uint maskOffset2 = 0b00100000000000000000000000000000;
         const uint maskGain    = 0b00110000000000000000000000000000;
         const uint maskUser1   = 0b01000000000000000000000000000000;
 
+        //                          3         2         1         0
+        //                         10987654321098765432109876543210
+
+        const uint maskPreGain  = 0b0000000000000000100000000000000;
+        const uint maskPostGain = 0b0000000000000001000000000000000;
+
         private RunningAverage ra = new (20);
 
-        private void SP_DataReceived(IPacket packet)
+        public void SP_DataReceived(IPacket packet)
         {
             if (packet is BlockPacket blockPacket == false) return;
             if (blockPacket.Count == 0) return;
 
-            uint state = blockPacket.State;
+            uint state = (uint)blockPacket.State;
 
-            uint offset1State = state | maskOffset1;
-            uint offset2State = state | maskOffset2;
-            uint    gainState = state | maskGain;
-            uint   user1State = state | maskUser1;
+            uint  offset1State = state | maskOffset1;
+            uint  offset2State = state | maskOffset2;
+            uint     gainState = state | maskGain;
+            uint    user1State = state | maskUser1;
+            uint  preGainState = state | maskPreGain;
+            uint postGainState = state | maskPostGain;
 
             lock (PlotsLock)
             {
-                if (Plots.TryGetValue(blockPacket.State, out var plot) == false)
-                    if (TestAndSetPending(blockPacket.State) == false)
+                if (Plots.TryGetValue(state, out var plot) == false)
+                    if (TestAndSetPending(state) == false)
                     {
                         plot = new MyPlot(WindowSize, this);
-                        Plots[blockPacket.State] = plot;
+                        Plots[state] = plot;
 
-                        Plots[offset1State] = new MyPlot(WindowSize, this);
-                        Plots[offset2State] = new MyPlot(WindowSize, this);
-                        Plots[   gainState] = new MyPlot(WindowSize, this);
-                        Plots[  user1State] = new MyPlot(WindowSize, this);
+                        Plots[ offset1State] = new MyPlot(WindowSize, this);
+                        Plots[ offset2State] = new MyPlot(WindowSize, this);
+                        Plots[    gainState] = new MyPlot(WindowSize, this);
+                        Plots[ preGainState] = new MyPlot(WindowSize, this);
+                        Plots[postGainState] = new MyPlot(WindowSize, this);
+
+                        Plots[   user1State] = new MyPlot(WindowSize, this);
 
                         string description = blockPacket.State.Description();
-                        
-                        CreateTextBlocksForLabel(blockPacket.State, description + " A2D %"  , "0.0000%");
-                        CreateTextBlocksForLabel(     offset1State, description + " Offset1");
-                        CreateTextBlocksForLabel(     offset2State, description + " Offset2");
-                        CreateTextBlocksForLabel(        gainState, description + " Gain"   );
+
+                        CreateTextBlocksForLabel(        state, description + " A2D %"   , "0.0000%");
+                        CreateTextBlocksForLabel( offset1State, description + " Offset1" );
+                        CreateTextBlocksForLabel( offset2State, description + " Offset2" );
+                        CreateTextBlocksForLabel(    gainState, description + " Gain"    );
+                        CreateTextBlocksForLabel( preGainState, description + " preGain" );
+                        CreateTextBlocksForLabel(postGainState, description + " postGain");
+
+                        // no label for user1State
                     }
                     else
                         return;
 
 
-                Plots[       state].Add(blockPacket, MyPlot.DataToShow.Channel0, false, ref ra);
-                Plots[offset1State].Add(blockPacket, MyPlot.DataToShow.Offset1 , false, ref ra);
-                Plots[offset2State].Add(blockPacket, MyPlot.DataToShow.Offset2 , false, ref ra);
-                Plots[   gainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
-                Plots[  user1State].Add(blockPacket, MyPlot.DataToShow.Channel0, true , ref ra);
+                Plots[        state].Add(blockPacket, MyPlot.DataToShow.Channel0, false, ref ra);
+                Plots[ offset1State].Add(blockPacket, MyPlot.DataToShow.Offset1 , false, ref ra);
+                Plots[ offset2State].Add(blockPacket, MyPlot.DataToShow.Offset2 , false, ref ra);
+                Plots[    gainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
+                Plots[ preGainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
+                Plots[postGainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
+
+                Plots[   user1State].Add(blockPacket, MyPlot.DataToShow.Channel0, true , ref ra); // plot to show difference from running average
+
             }
 
             if (blockPacket.Count > 0)
@@ -123,12 +141,18 @@ namespace TeensyMonitor.Plotter.UserControls
                 float off2 = data.Offset2;
                 float gain = data.Gain;
 
+                float preGain = data.preGainSensor;
+                float postGain = data.postGainSensor;
+
                 lock (_lock)
                 {
-                    _latestValues[blockPacket.State] = c0;
-                    _latestValues[     offset1State] = off1;
-                    _latestValues[     offset2State] = off2;
-                    _latestValues[        gainState] = gain;
+                    _latestValues[        state] = c0;
+                    _latestValues[ offset1State] = off1;
+                    _latestValues[ offset2State] = off2;
+                    _latestValues[    gainState] = gain;
+                    _latestValues[ preGainState] = preGain;
+                    _latestValues[postGainState] = postGain;
+                    // do not show user1State value as label
                 }
             }
         }

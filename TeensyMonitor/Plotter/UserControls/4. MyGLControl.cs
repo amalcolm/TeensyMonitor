@@ -88,9 +88,16 @@ namespace TeensyMonitor.Plotter.UserControls
 
             GLThread = new(MyGL);
 
-            this.Load += (s,e) => GLThread.Enqueue(GL_Load, shutdownAction:GL_Shutdown);
             this.Resize += (s,e) => GLThread.Enqueue(GL_Resize);
             GLThread.RenderAction = RenderLoop;
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+
+            if (!DesignMode && GLThread != null)
+                GLThread.Enqueue(GL_Load, shutdownAction: GL_Shutdown);
         }
 
         /// <summary>
@@ -120,8 +127,6 @@ namespace TeensyMonitor.Plotter.UserControls
 
             if (ParentForm != null)
                 ParentForm.FormClosing += (s, e) => IsLoaded = false;
-
-
 
             Init();
             IsLoaded = true;

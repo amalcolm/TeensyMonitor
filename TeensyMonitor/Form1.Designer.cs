@@ -31,7 +31,7 @@
             cbPorts = new ComboBox();
             labPorts = new Label();
             dbg = new TeensyMonitor.Plotter.UserControls.MyDebugPane();
-            chart = new TeensyMonitor.Plotter.UserControls.MyChart();
+            chart0 = new TeensyMonitor.Plotter.UserControls.MyChart();
             SuspendLayout();
             // 
             // cbPorts
@@ -54,32 +54,34 @@
             // 
             // dbg
             // 
+            dbg.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             dbg.AutoClear = true;
             dbg.BackColor = Color.WhiteSmoke;
             dbg.BorderStyle = BorderStyle.FixedSingle;
-            dbg.Location = new Point(12, 578);
+            dbg.Location = new Point(12, 585);
             dbg.Name = "dbg";
             dbg.Size = new Size(1160, 382);
             dbg.TabIndex = 5;
             // 
-            // chart
+            // chart0
             // 
-            chart.AutoClear = true;
-            chart.BackColor = Color.PapayaWhip;
-            chart.BorderStyle = BorderStyle.FixedSingle;
-            chart.Location = new Point(12, 47);
-            chart.Name = "chart";
-            chart.Size = new Size(1160, 525);
-            chart.TabIndex = 6;
-            chart.TimeWindowSeconds = 0.5F;
-            chart.Yscale = 1F;
+            chart0.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            chart0.AutoClear = true;
+            chart0.BackColor = Color.PapayaWhip;
+            chart0.BorderStyle = BorderStyle.FixedSingle;
+            chart0.Location = new Point(12, 47);
+            chart0.Name = "chart0";
+            chart0.Size = new Size(1160, 525);
+            chart0.TabIndex = 6;
+            chart0.TimeWindowSeconds = 0.5F;
+            chart0.Yscale = 1F;
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1184, 972);
-            Controls.Add(chart);
+            ClientSize = new Size(1184, 979);
+            Controls.Add(chart0);
             Controls.Add(dbg);
             Controls.Add(labPorts);
             Controls.Add(cbPorts);
@@ -88,6 +90,7 @@
             Text = "Form1";
             FormClosing += Form1_FormClosing;
             Load += Form1_Load;
+            Shown += Form1_Shown;
             ResumeLayout(false);
             PerformLayout();
         }
@@ -96,6 +99,6 @@
         private ComboBox cbPorts;
         private Label labPorts;
         private Plotter.UserControls.MyDebugPane dbg;
-        private Plotter.UserControls.MyChart chart;
+        private Plotter.UserControls.MyChart chart0;
     }
 }

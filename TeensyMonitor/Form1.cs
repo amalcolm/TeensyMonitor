@@ -3,13 +3,15 @@
 namespace TeensyMonitor
 {
     using PsycSerial;
-    using System.Security.Policy;
     using TeensyMonitor.Plotter.Helpers;
+    using TeensyMonitor.Plotter.UserControls;
 
     public partial class Form1 : Form
     {
         readonly TeensySerial? SP = Program.serialPort;
         readonly CancellationTokenSource cts = new();
+
+        readonly Dictionary<HeadState, MyChart> charts = [];
         public Form1()
         {
             InitializeComponent();
@@ -17,17 +19,55 @@ namespace TeensyMonitor
             if (Environment.MachineName == "BOX")
             {
                 this.StartPosition = FormStartPosition.Manual;
-                this.Location = new Point(-1280, 1100);
+                this.Location = new Point(-1280, -100);
             }
 
             if (SP == null) return;
 
-            SP.DataReceived += DataReceived;
-            SP.ConnectionChanged += SerialPort_ConnectionChanged;
-            SP.ErrorOccurred += SerialPort_ErrorOccurred;
+            SP.DataReceived += SP_DataReceived;
+            SP.ConnectionChanged += SP_ConnectionChanged;
+            SP.ErrorOccurred += SP_ErrorOccurred;
         }
 
-        private async void SerialPort_ErrorOccurred(Exception exception)
+
+        readonly MyPool<Dictionary<string, double>> parsedPool = new();
+
+        private void SP_DataReceived(IPacket packet)
+        {
+            if (IsHandleCreated == false) return;
+
+
+            if (packet is BlockPacket blockPacket)
+            {
+                if (charts.Count == 0)
+                    charts[blockPacket.State] = chart0;
+
+                if (charts.TryGetValue(blockPacket.State, out MyChart? chart) && chart != null)
+                    chart.SP_DataReceived(blockPacket);
+                else
+                {
+                    MyChart newChart = new() { TimeWindowSeconds = chart0.TimeWindowSeconds };
+                    charts[blockPacket.State] = newChart;
+                    newChart.SP_DataReceived(blockPacket);
+
+                    AddNewChart(newChart);
+                }
+            }
+
+            if (packet is TextPacket textPacket == false) return;
+
+            var parsedValues = parsedPool.Rent();
+            if (MyTextParser.Parse(textPacket.Text, parsedValues))
+            {
+                chart0.AddData(parsedValues);
+                parsedPool.Return(parsedValues);
+            }
+            else
+                dbg.Log(textPacket.Text);
+        }
+
+
+        private async void SP_ErrorOccurred(Exception exception)
         {
             if (IsHandleCreated == false) return;
 
@@ -54,15 +94,15 @@ namespace TeensyMonitor
                 }
             }
         }
-        private void SerialPort_ConnectionChanged(ConnectionState state)
+        private void SP_ConnectionChanged(ConnectionState state)
         {
             if (IsHandleCreated == false) return;
 
             AString? str = state switch
             {
-                ConnectionState.Connected           => AString.FromString("Connected " + SP?.PortName),
-                ConnectionState.HandshakeInProgress => AString.FromString("Handshake in progress"    ),
-                ConnectionState.Disconnected        => AString.FromString("Disconnected"             ),
+                ConnectionState.Connected => AString.FromString("Connected " + SP?.PortName),
+                ConnectionState.HandshakeInProgress => AString.FromString("Handshake in progress"),
+                ConnectionState.Disconnected => AString.FromString("Disconnected"),
                 ConnectionState.HandshakeSuccessful => null,  // string comes from the device
                 _ => null
             };
@@ -70,28 +110,13 @@ namespace TeensyMonitor
             bool enableDropdown = state == ConnectionState.Disconnected;
 
             if (cbPorts.Enabled != enableDropdown)
-                this.Invoker(() => cbPorts.Enabled = enableDropdown );
+                this.Invoker(() => cbPorts.Enabled = enableDropdown);
 
             if (str != null)
-               dbg.Log(str);
+                dbg.Log(str);
         }
 
-        readonly MyPool<Dictionary<string, double>> parsedPool = new();
         
-        private void DataReceived(IPacket packet)
-        {
-            if (IsHandleCreated == false) return;
-            if (packet is TextPacket textPacket == false) return;
-
-            var parsedValues = parsedPool.Rent();
-            if (MyTextParser.Parse(textPacket.Text, parsedValues))
-            {
-                chart.AddData(parsedValues);
-                parsedPool.Return(parsedValues);
-            }
-            else
-                dbg.Log(textPacket.Text);
-        }
 
         private void cbPorts_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -99,6 +124,7 @@ namespace TeensyMonitor
 
             SP?.Open(cbPorts.SelectedItem.ToString());
         }
+
 
         private void Form1_Load(object sender, EventArgs e)
         {
@@ -115,12 +141,39 @@ namespace TeensyMonitor
                 cbPorts.Items.AddRange(ports);
                 cbPorts.SelectedIndex = cbPorts.Items.Count - 1;
             }
+        }
 
+
+
+        private void AddNewChart(MyChart newChart)
+        {
+            if (IsHandleCreated == false) return;
+
+            this.Invoker(() =>
+            {
+                SuspendLayout();
+
+                int dbgTop = this.ClientSize.Height - dbg.Location.Y;
+
+                this.ClientSize = new Size(this.ClientSize.Width, this.ClientSize.Height + chart0.Height + 10);
+
+                newChart.Location = new Point(chart0.Location.X, chart0.Location.Y + (chart0.Height + 10) * (charts.Count - 1));
+                newChart.Size = chart0.Size;
+
+                Controls.Add(newChart);
+
+                dbg.Location = new Point(dbg.Location.X, this.ClientSize.Height - dbgTop);
+
+                ResumeLayout(true);
+
+                this.Focus();
+            });
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            cts.Cancel();
-        }
+            => cts.Cancel();
+
+        private void Form1_Shown(object sender, EventArgs e)
+            => this.Focus();
     }
 }

@@ -8,6 +8,12 @@ using namespace System::Collections::Concurrent;
 
 namespace PsycSerial
 {
+    public enum class HeadState : System::UInt32
+    {
+        None = 0,
+		UNSET = 1U << 31,
+    };
+
     ref struct Packet
     {
     internal:
@@ -35,8 +41,8 @@ namespace PsycSerial
 
     public interface class IPacket
     {
-        property double   TimeStamp;
-        property UInt32   State;
+        property double    TimeStamp;
+        property HeadState State;
     };
 
     public ref struct DataPacket : IPacket
@@ -49,17 +55,21 @@ namespace PsycSerial
 
 		void Reset();
 
-        virtual property UInt32 State;
-        virtual property double TimeStamp;
+        virtual property HeadState State;
+        virtual property double    TimeStamp;
 
         property UInt32         HardwareState;
+        property UInt32         SensorState;
         property array<UInt32>^ Channel;
 
-        property Byte SequenceNumber { Byte get() { return  HardwareState >> 24;         }}
-		property Byte Offset1        { Byte get() { return (HardwareState >> 16) & 0xFF; }}
-		property Byte Offset2        { Byte get() { return (HardwareState >>  8) & 0xFF; }}
-		property Byte Gain           { Byte get() { return  HardwareState        & 0xFF; }}
+        property Byte SequenceNumber   { Byte get() { return (HardwareState >> 24);         }}
+		property Byte Offset1          { Byte get() { return (HardwareState >> 16) & 0xFF; }}
+		property Byte Offset2          { Byte get() { return (HardwareState >>  8) & 0xFF; }}
+		property Byte Gain             { Byte get() { return (HardwareState      ) & 0xFF; }}
 
+        property UInt32  preGainSensor { UInt32 get() { return (SensorState >> 16) & 0xFFFF; }}
+		property UInt32 postGainSensor { UInt32 get() { return (SensorState      ) & 0xFFFF; }}
+    
     protected:
 		DataPacket();
         static ConcurrentQueue<DataPacket^>^ s_pool = gcnew ConcurrentQueue<DataPacket^>();
@@ -75,8 +85,8 @@ namespace PsycSerial
 
 		void Reset();
 
-        virtual property UInt32      State;
-        virtual property double      TimeStamp;
+        virtual property HeadState State;
+        virtual property double    TimeStamp;
 
         property UInt32              Count;
         property array<DataPacket^>^ BlockData;
@@ -96,9 +106,9 @@ namespace PsycSerial
         !TextPacket();
         
         void Reset();
-        
-        virtual property UInt32   State;
-        virtual property double   TimeStamp;
+
+        virtual property HeadState State;
+        virtual property double    TimeStamp;
 
         property AString^   Text;
 		property UInt32    Length;

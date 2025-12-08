@@ -14,13 +14,14 @@ namespace
                                            + sizeof(double)                                    // block timeStamp
                                            + sizeof(uint32_t);                                 // block count
     constexpr size_t kBlockStateOffset     =  0u;
-    constexpr size_t kBlockTimeStampOffset = sizeof(uint32_t); // after state ;
+    constexpr size_t kBlockTimeStampOffset = sizeof(uint32_t);                  // after state
     constexpr size_t kBlockCountOffset     = sizeof(uint32_t) + sizeof(double); // after state + timeStamp
 
 	// this is the size of the incoming data for each block item.
     // It does not include the state field, (as it's the same for the whole block).
     constexpr size_t kBlockItemSize        = sizeof(double)                                    // timeStamp
                                            + sizeof(uint32_t)                                  // hardwareState
+                                           + sizeof(uint32_t)                                  // sensorState
                                            + CDataPacket::A2D_NUM_CHANNELS * sizeof(uint32_t); // channel data
 
 	constexpr uint8_t kFrameStart[2] = {0xB4, 0xFA}; // common start bytes of all framing
@@ -288,6 +289,7 @@ namespace
 
 			readDouble(rP, dp.timeStamp    ); rP += sizeof(double  );
             readU32   (rP, dp.hardwareState); rP += sizeof(uint32_t);
+            readU32   (rP, dp.sensorState  ); rP += sizeof(uint32_t);
 
             for (size_t ch = 0; ch < CDataPacket::A2D_NUM_CHANNELS; ++ch, rP += sizeof(uint32_t))
                 readU32(rP, dp.channel[ch]);
