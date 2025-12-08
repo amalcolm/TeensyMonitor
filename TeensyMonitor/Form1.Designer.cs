@@ -73,7 +73,7 @@
             chart0.Name = "chart0";
             chart0.Size = new Size(1160, 525);
             chart0.TabIndex = 6;
-            chart0.TimeWindowSeconds = 0.5F;
+            chart0.TimeWindowSeconds = 3F;
             chart0.Yscale = 1F;
             // 
             // Form1

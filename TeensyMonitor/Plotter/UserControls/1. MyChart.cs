@@ -105,20 +105,7 @@ namespace TeensyMonitor.Plotter.UserControls
                         Plots[postGainState] = new MyPlot(WindowSize, this);
 
                         Plots[   user1State] = new MyPlot(WindowSize, this);
-
-                        string description = blockPacket.State.Description();
-
-                        CreateTextBlocksForLabel(        state, description + " A2D %"   , "0.0000%");
-                        CreateTextBlocksForLabel( offset1State, description + " Offset1" );
-                        CreateTextBlocksForLabel( offset2State, description + " Offset2" );
-                        CreateTextBlocksForLabel(    gainState, description + " Gain"    );
-                        CreateTextBlocksForLabel( preGainState, description + " preGain" );
-                        CreateTextBlocksForLabel(postGainState, description + " postGain");
-
-                        // no label for user1State
                     }
-                    else
-                        return;
 
 
                 Plots[        state].Add(blockPacket, MyPlot.DataToShow.Channel0, false, ref ra);
@@ -128,9 +115,27 @@ namespace TeensyMonitor.Plotter.UserControls
                 Plots[ preGainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
                 Plots[postGainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
 
-                Plots[   user1State].Add(blockPacket, MyPlot.DataToShow.Channel0, true , ref ra); // plot to show difference from running average
-
+//              Plots[   user1State].Add(blockPacket, MyPlot.DataToShow.Channel0, true , ref ra); // plot to show difference from running average
             }
+
+
+            if (font == null) return;  // packet received before GL is initialized
+
+            if (_blocks.ContainsKey(state) == false)
+            {
+                string description = blockPacket.State.Description();
+
+                CreateTextBlocksForLabel(        state, description + " A2D %"   , "0.0000%");
+                CreateTextBlocksForLabel( offset1State, description + " Offset1" );
+                CreateTextBlocksForLabel( offset2State, description + " Offset2" );
+                CreateTextBlocksForLabel(    gainState, description + " Gain"    );
+                CreateTextBlocksForLabel( preGainState, description + " preGain" );
+                CreateTextBlocksForLabel(postGainState, description + " postGain");
+
+                // no label for user1State
+            }
+
+
 
             if (blockPacket.Count > 0)
             {
@@ -152,7 +157,7 @@ namespace TeensyMonitor.Plotter.UserControls
                     _latestValues[    gainState] = gain;
                     _latestValues[ preGainState] = preGain;
                     _latestValues[postGainState] = postGain;
-                    // do not show user1State value as label
+                  // do not show user1State value as label
                 }
             }
         }
