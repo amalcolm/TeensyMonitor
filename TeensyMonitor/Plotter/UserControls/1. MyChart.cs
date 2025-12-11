@@ -18,6 +18,9 @@ namespace TeensyMonitor.Plotter.UserControls
     {
         private const int WindowSize = 1200;
 
+        public bool EnablePlots  { get; set; } = true;
+        public bool EnableLabels { get; set; } = true;
+
         private readonly ConcurrentDictionary<uint, double> _latestValues = [];
         private readonly ConcurrentDictionary<uint, Tuple<TextBlock, TextBlock>> _blocks = [];
         private readonly List<TextBlock> _textBlocksToRender = [];
@@ -27,7 +30,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
         private LabelAreaRenderer? _labelAreaRenderer;
 
-        private object _lock = new();
+        private readonly object _lock = new();
 
         public MyChart()
         {
@@ -90,36 +93,37 @@ namespace TeensyMonitor.Plotter.UserControls
             uint  preGainState = state | maskPreGain;
             uint postGainState = state | maskPostGain;
 
-            lock (PlotsLock)
-            {
-                if (Plots.TryGetValue(state, out var plot) == false)
-                    if (TestAndSetPending(state) == false)
-                    {
-                        plot = new MyPlot(WindowSize, this);
-                        Plots[state] = plot;
+            if (EnableLabels)
+                lock (PlotsLock)
+                {
+                    if (Plots.ContainsKey(state) == false)
+                        if (TestAndSetPending(state) == false)
+                        {
+                            Plots[        state] = new MyPlot(WindowSize, this);
 
-                        Plots[ offset1State] = new MyPlot(WindowSize, this);
-                        Plots[ offset2State] = new MyPlot(WindowSize, this);
-                        Plots[    gainState] = new MyPlot(WindowSize, this);
-                        Plots[ preGainState] = new MyPlot(WindowSize, this);
-                        Plots[postGainState] = new MyPlot(WindowSize, this);
+                            Plots[ offset1State] = new MyPlot(WindowSize, this);
+                            Plots[ offset2State] = new MyPlot(WindowSize, this);
+                            Plots[    gainState] = new MyPlot(WindowSize, this);
+                            Plots[ preGainState] = new MyPlot(WindowSize, this);
+                            Plots[postGainState] = new MyPlot(WindowSize, this);
 
-                        Plots[   user1State] = new MyPlot(WindowSize, this);
-                    }
+                            Plots[   user1State] = new MyPlot(WindowSize, this);
+                        }
+                        else
+                            return;
+
+                            Plots[state].Add(blockPacket, MyPlot.DataToShow.Channel0, false, ref ra);
+                    Plots[ offset1State].Add(blockPacket, MyPlot.DataToShow.Offset1 , false, ref ra);
+                    Plots[ offset2State].Add(blockPacket, MyPlot.DataToShow.Offset2 , false, ref ra);
+                    Plots[    gainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
+                    Plots[ preGainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
+                    Plots[postGainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
+
+    //              Plots[   user1State].Add(blockPacket, MyPlot.DataToShow.Channel0, true , ref ra); // plot to show difference from running average
+                }
 
 
-                Plots[        state].Add(blockPacket, MyPlot.DataToShow.Channel0, false, ref ra);
-                Plots[ offset1State].Add(blockPacket, MyPlot.DataToShow.Offset1 , false, ref ra);
-                Plots[ offset2State].Add(blockPacket, MyPlot.DataToShow.Offset2 , false, ref ra);
-                Plots[    gainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
-                Plots[ preGainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
-                Plots[postGainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
-
-//              Plots[   user1State].Add(blockPacket, MyPlot.DataToShow.Channel0, true , ref ra); // plot to show difference from running average
-            }
-
-
-            if (font == null) return;  // packet received before GL is initialized
+            if (EnableLabels == false || font == null) return;  // packet received before GL is initialized
 
             if (_blocks.ContainsKey(state) == false)
             {
@@ -228,7 +232,7 @@ namespace TeensyMonitor.Plotter.UserControls
             if (!_textBlocksToRender.Any()) return;
             
             // 2. Calculate the total bounding box for all visible labels.
-            RectangleF totalBounds = CalculateTotalBounds();
+            RectangleF totalBounds = _textBlocksToRender.CalculateTotalBounds(ref maxBounds);
 
             // 3. Render the background with padding.
             if (!totalBounds.IsEmpty)
@@ -253,25 +257,6 @@ namespace TeensyMonitor.Plotter.UserControls
         RectangleF maxBounds = RectangleF.Empty;
 
         // Return this helper method inside the MyChart class
-        private RectangleF CalculateTotalBounds()
-        {
-            RectangleF totalBounds = RectangleF.Empty;
-
-            foreach (ref var block in CollectionsMarshal.AsSpan(_textBlocksToRender))
-            {
-                if (block.Bounds.IsEmpty) continue;
-
-                if (totalBounds.IsEmpty)
-                    totalBounds = block.Bounds;
-                else
-                    totalBounds = RectangleF.Union(totalBounds, block.Bounds);
-            }
-
-            if (maxBounds.Width < totalBounds.Width)
-                maxBounds = totalBounds;
-
-            return maxBounds;
-        }
 
         protected override void SP_ConnectionChanged(ConnectionState state)
         {

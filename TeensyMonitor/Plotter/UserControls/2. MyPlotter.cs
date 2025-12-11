@@ -14,7 +14,7 @@ namespace TeensyMonitor.Plotter.UserControls
         protected ConcurrentDictionary<uint, MyPlot> Plots = [];
         protected readonly object PlotsLock = new();
 
-        public float TimeWindowSeconds  { get; set; } = 10.0f;
+        public static float Window  { get; set; } = 10.0f;
         public float Yscale             { get; set; } =  1.0f;
 
         protected string Debug = string.Empty;
@@ -33,6 +33,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
         private readonly Stopwatch SW = new();
         private double _watchOffset = 0.0;
+        private readonly double RightEdgeBufferSeconds = 0.04;
 
         private DateTime lastTime = DateTime.Now;
         private readonly TimeSpan timeBetweenDebug = TimeSpan.MaxValue;
@@ -40,7 +41,7 @@ namespace TeensyMonitor.Plotter.UserControls
         {
             if (DateTime.Now - lastTime > timeBetweenDebug)
             {
-                System.Diagnostics.Debug.WriteLine($"[MyPlotter] Plots: {Plots.Count}, TimeWindow: {TimeWindowSeconds:F1}s, MaxTime: {_maxTime:F3}s");
+                System.Diagnostics.Debug.WriteLine($"[MyPlotter] Plots: {Plots.Count}, TimeWindow: {Window:F1}s, MaxTime: {_maxTime:F3}s");
 
                 lastTime = DateTime.Now;
             }
@@ -54,7 +55,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
             if (SW.IsRunning == false)
             {
-                _watchOffset = _maxTime + (TimeWindowSeconds * 0.05);
+                _watchOffset = _maxTime + RightEdgeBufferSeconds;
                 SW.Start();
             }
             
@@ -63,17 +64,17 @@ namespace TeensyMonitor.Plotter.UserControls
             //    This includes a small buffer for the gap.
             _currentViewRight = (float)(SW.ElapsedMilliseconds / 1000.0 + _watchOffset);
 
-            if (_maxTime > _currentViewRight)
+            if (_maxTime > _currentViewRight + 0.5)
             {
                 // If new data has arrived that is beyond our current view, jump the view forward.
-                _watchOffset = _maxTime - TimeWindowSeconds * 0.05;
-                _currentViewRight = (float)(_maxTime + TimeWindowSeconds * 0.05);
+                _watchOffset = _maxTime - RightEdgeBufferSeconds;
+                _currentViewRight = (float)(_maxTime + RightEdgeBufferSeconds);
                 SW.Restart();
             }
 
             // 4. Define the viewport based on the smoothed position.
-            float viewLeft = _currentViewRight - TimeWindowSeconds;
-            ViewPort = new RectangleF(viewLeft, -6, TimeWindowSeconds, 1030);
+            float viewLeft = _currentViewRight - Window;
+            ViewPort = new RectangleF(viewLeft, -6, Window, 1030);
 
 
             int colorLocation = GL.GetUniformLocation(_plotShaderProgram, "uColor");
@@ -120,13 +121,13 @@ namespace TeensyMonitor.Plotter.UserControls
             float newTimeWindow;
 
             if (e.Delta > 0)
-                newTimeWindow = TimeWindowSeconds / zoomFactor;
+                newTimeWindow = Window / zoomFactor;
             else
-                newTimeWindow = TimeWindowSeconds * zoomFactor;
+                newTimeWindow = Window * zoomFactor;
 
             newTimeWindow = Math.Clamp(newTimeWindow, 0.1f, 10.0f);
 
-            GLThread.Enqueue(() => { TimeWindowSeconds = newTimeWindow; });
+            GLThread.Enqueue(() => { Window = newTimeWindow; });
         }
 
 

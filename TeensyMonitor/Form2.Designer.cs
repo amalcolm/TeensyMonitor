@@ -39,7 +39,6 @@
             myChart1.Name = "myChart1";
             myChart1.Size = new Size(776, 426);
             myChart1.TabIndex = 0;
-            myChart1.TimeWindowSeconds = 1000f;
             // 
             // Form2
             // 

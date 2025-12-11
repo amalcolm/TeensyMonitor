@@ -5,7 +5,6 @@ using TeensyMonitor.Plotter.Fonts;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.ComponentModel;
-using System.Diagnostics;
 
 
 namespace TeensyMonitor.Plotter.UserControls

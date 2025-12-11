@@ -1,0 +1,129 @@
+﻿using OpenTK.Graphics.OpenGL4;
+using OpenTK.Mathematics;
+
+using PsycSerial;
+
+using System.Collections.Concurrent;
+using TeensyMonitor.Plotter.Backgrounds;
+using TeensyMonitor.Plotter.Fonts;
+
+namespace TeensyMonitor.Plotter.UserControls
+{
+    public partial class MyTelemetryPane : MyGLControl
+    {
+
+        private readonly ConcurrentDictionary<uint, double> _latestValues = [];
+        private readonly ConcurrentDictionary<uint, Tuple<TextBlock, TextBlock>> _blocks = [];
+        private readonly List<TextBlock> _textBlocksToRender = [];
+
+        private volatile int labelCount = 0;
+        private readonly ConcurrentDictionary<uint, bool> _pendingStates = [];
+
+        private LabelAreaRenderer? _labelAreaRenderer;
+
+        private readonly object _lock = new();
+
+        public MyTelemetryPane()
+        {
+            InitializeComponent();
+        }
+        public void SP_DataReceived(IPacket packet)
+        {
+            if (font == null) return;
+
+            if (packet is TelemetryPacket telePacket == false) return;
+            var key = telePacket.Key; if (key == 0) return;
+
+            if (_blocks.TryGetValue(key, out var tuple) == false)
+                if (TestAndSetPending(key) == false)
+                    CreateTextBlocksForLabel(key, telePacket, "0.00");
+
+            _latestValues[key] = telePacket.Value;
+        }
+
+        private bool TestAndSetPending(uint state)
+        {
+            lock (_lock)
+            {
+                if (_pendingStates.ContainsKey(state)) return true;
+                _pendingStates[state] = true;
+                return false;
+            }
+        }
+
+        private void CreateTextBlocksForLabel(uint key, TelemetryPacket telePacket, string valueFormat)
+        {
+
+            string labelText = $": {telePacket.Description()}";
+
+            lock (_lock)
+            {
+                Interlocked.Increment(ref labelCount);
+                float yPos = MyGL.Height - 20 - labelCount * 50;
+
+                var labelBlock = new TextBlock(labelText, 126, yPos, font);
+                var valueBlock = new TextBlock("0.00"   , 120, yPos, font, TextAlign.Right, valueFormat);
+
+                _blocks[key] = Tuple.Create(labelBlock, valueBlock);
+            }
+            _pendingStates.TryRemove(key, out _);
+        }
+
+        protected override void Init()
+        {
+            base.Init();
+            _labelAreaRenderer = new(this, "Resources/Backgrounds/LabelArea.png");
+        }
+
+        protected override void DrawText()
+        {
+            if (font == null) return;
+
+            _textBlocksToRender.Clear();
+            // 1. Populate the list of blocks to render and flag if their content has changed.
+            lock (_lock)
+            {
+                foreach (var key in _latestValues.Keys)
+                {
+                    if (_blocks.TryGetValue(key, out var tuple))
+                    {
+                        var item = _latestValues[key];
+
+                        // Check
+                        tuple.Item2.SetValue(item);
+
+                        _textBlocksToRender.Add(tuple.Item1);
+                        _textBlocksToRender.Add(tuple.Item2);
+                    }
+                }
+            }
+
+            if (!_textBlocksToRender.Any()) return;
+
+            // 2. Calculate the total bounding box for all visible labels.
+            RectangleF totalBounds = _textBlocksToRender.CalculateTotalBounds(ref maxBounds);
+
+            // 3. Render the background with padding.
+            if (!totalBounds.IsEmpty)
+            {
+                float padding = 10f;
+                var paddedBounds = new RectangleF(
+                    totalBounds.X - padding,
+                    totalBounds.Y - padding,
+                    totalBounds.Width + (padding * 2),
+                    totalBounds.Height + (padding * 2)
+                );
+                var projection = Matrix4.CreateOrthographicOffCenter(0, MyGL.ClientSize.Width, 0, MyGL.ClientSize.Height, -1.0f, 1.0f);
+
+                _labelAreaRenderer?.Render(paddedBounds, projection);
+
+                GL.UseProgram(_textShaderProgram);
+            }
+
+            fontRenderer.RenderText(_textBlocksToRender);
+        }
+        RectangleF maxBounds = RectangleF.Empty;
+
+
+    }
+}

@@ -5,6 +5,7 @@ using OpenTK.Windowing.Common;
 
 using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 using TeensyMonitor.Plotter.Fonts;
@@ -17,6 +18,7 @@ namespace TeensyMonitor.Plotter.UserControls
         static int InstanceCount = 0;
 
         public bool AutoClear { get; set; } = true;
+        public static bool IsPaused { get; set; } = false;
 
         public MyGLThread? GLThread { get; private set; } = default!;
         public void Setup(Action? initAction, Action? shutdownAction = null) 
@@ -89,7 +91,12 @@ namespace TeensyMonitor.Plotter.UserControls
             GLThread = new(MyGL);
 
             this.Resize += (s,e) => GLThread.Enqueue(GL_Resize);
+            MyGL.MouseDown += (s,e) => IsPaused = true;
+            MyGL.MouseUp += (s,e) => IsPaused = false;
+
             GLThread.RenderAction = RenderLoop;
+
+            CalcFPS = _CalcFPS();
         }
 
         protected override void OnHandleCreated(EventArgs e)
@@ -112,7 +119,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
             GL.Viewport(0, 0, MyGL.ClientSize.Width, MyGL.ClientSize.Height);
 
-            GL.ClearColor(Color.Gainsboro);
+            GL.ClearColor(BackColor);
 
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
@@ -179,12 +186,12 @@ namespace TeensyMonitor.Plotter.UserControls
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
         }
 
-        /// <summary>
+
         /// The main render loop..
         /// </summary>
         private void RenderLoop()
         {
-            if (!IsLoaded || IsDisposed) return;
+            if (IsPaused || !IsLoaded || IsDisposed) return;
 
             if (AutoClear)
                 GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -192,6 +199,8 @@ namespace TeensyMonitor.Plotter.UserControls
             Render();
 
             RenderText();
+
+            CalcFPS();
 
             // Do not swap buffers here - let GLThread handle it
         }
@@ -277,6 +286,35 @@ namespace TeensyMonitor.Plotter.UserControls
             this.BackColor = Color.PapayaWhip;
             this.BorderStyle = BorderStyle.FixedSingle;
 
+        }
+
+        public double FPS { get; private set; }
+
+        private readonly Action CalcFPS = default!;
+
+        Action _CalcFPS()
+        {
+            Stopwatch swFPS = Stopwatch.StartNew();
+            double lastFrameTime = 0;
+            double fpsUpdateTimer = 0;
+            int frameCount = 0;
+
+            return () =>
+            {
+                double now = swFPS.Elapsed.TotalSeconds;
+
+                frameCount++;
+                fpsUpdateTimer += now - lastFrameTime;
+                lastFrameTime = now;
+
+                if (fpsUpdateTimer >= 0.5)
+                {
+                    FPS = frameCount / fpsUpdateTimer;
+                    frameCount = 0;
+                    fpsUpdateTimer = 0;
+                }
+
+            };
         }
     }
 }

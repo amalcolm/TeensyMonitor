@@ -23,7 +23,18 @@ namespace PsycSerial
             if (m_target->m_disposed) return;
 
             try { m_target->RaiseDataReceivedEvent(m_packet); }
-            catch (Exception^ ex) { Debug::WriteLine(String::Format("DataEventRaiser::Raise Exception: {0}", ex->Message)); }
+            catch (Exception^ ex) 
+            {
+                if (Debugger::IsAttached || IsDebuggerPresent())
+                {
+                    Debugger::Break;;
+
+
+                }
+                Debug::WriteLine(String::Format("DataEventRaiser::Raise Exception: {0}", ex->Message));
+                Debug::WriteLine(ex->StackTrace);
+            }
+                
         }
     };
 

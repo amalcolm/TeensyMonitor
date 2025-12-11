@@ -58,17 +58,17 @@ namespace PsycSerial
         virtual property HeadState State;
         virtual property double    TimeStamp;
 
-        property UInt32         HardwareState;
-        property UInt32         SensorState;
-        property array<UInt32>^ Channel;
+        property int         HardwareState;
+        property int         SensorState;
+        property array<int>^ Channel;
 
-        property Byte SequenceNumber   { Byte get() { return (HardwareState >> 24);         }}
-		property Byte Offset1          { Byte get() { return (HardwareState >> 16) & 0xFF; }}
-		property Byte Offset2          { Byte get() { return (HardwareState >>  8) & 0xFF; }}
-		property Byte Gain             { Byte get() { return (HardwareState      ) & 0xFF; }}
+        property int SequenceNumber { int get() { return (HardwareState >> 24);         }}
+		property int Offset1        { int get() { return (HardwareState >> 16) & 0xFF; }}
+		property int Offset2        { int get() { return (HardwareState >>  8) & 0xFF; }}
+		property int Gain           { int get() { return (HardwareState      ) & 0xFF; }}
 
-        property UInt32  preGainSensor { UInt32 get() { return (SensorState >> 16) & 0xFFFF; }}
-		property UInt32 postGainSensor { UInt32 get() { return (SensorState      ) & 0xFFFF; }}
+        property int  preGainSensor { int get() { return (SensorState   >> 16) & 0xFFFF; }}
+		property int postGainSensor { int get() { return (SensorState        ) & 0xFFFF; }}
     
     protected:
 		DataPacket();
@@ -88,7 +88,7 @@ namespace PsycSerial
         virtual property HeadState State;
         virtual property double    TimeStamp;
 
-        property UInt32              Count;
+        property int                 Count;
         property array<DataPacket^>^ BlockData;
 
 	protected:
@@ -111,11 +111,47 @@ namespace PsycSerial
         virtual property double    TimeStamp;
 
         property AString^   Text;
-		property UInt32    Length;
+		property int        Length;
 
     protected:
         TextPacket();
         static ConcurrentQueue<TextPacket^>^ s_pool = gcnew ConcurrentQueue<TextPacket^>();
+	};
+
+    public ref struct TelemetryPacket : IPacket
+	{
+    public:
+        enum class TeleGroup : System::Byte
+        {
+			NONE     = 0x00,
+            Program  = 0x01,
+
+            A2D      = 0x11,
+            Hardware = 0x12,
+            USB      = 0x13,
+            Head     = 0x14,
+
+			UNSET    = 0xFF,
+		};
+
+        static TelemetryPacket^ Rent();
+      
+        ~TelemetryPacket();
+        !TelemetryPacket();
+        
+        void Reset();
+        virtual property HeadState State;
+        virtual property double    TimeStamp;
+
+		property TeleGroup Group;
+        property int       SubGroup;
+        property int       ID;
+        property float     Value;
+
+        property UInt32    Key;
+    protected:
+        TelemetryPacket();
+        static ConcurrentQueue<TelemetryPacket^>^ s_pool = gcnew ConcurrentQueue<TelemetryPacket^>();
 	};
 }
 

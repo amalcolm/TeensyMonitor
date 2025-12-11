@@ -69,6 +69,19 @@ namespace PsycSerial
 				return textPkt;
 			}
 
+			case PacketKind::Telemetry:
+			{
+				TelemetryPacket^ telePkt = TelemetryPacket::Rent();
+				telePkt->TimeStamp = nativePacket.telemetry.timeStamp;
+				telePkt->State     = HeadState::None;
+				telePkt->Group     = static_cast<TelemetryPacket::TeleGroup>(nativePacket.telemetry.group);
+				telePkt->SubGroup  = nativePacket.telemetry.subGroup;
+				telePkt->ID        = nativePacket.telemetry.id;
+				telePkt->Value     = nativePacket.telemetry.value;
+				telePkt->Key       = nativePacket.telemetry.key;
+				return telePkt;
+			}
+
 		default:
 			// Unknown packet type
 			return nullptr;

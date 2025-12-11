@@ -24,6 +24,12 @@ namespace
                                            + sizeof(uint32_t)                                  // sensorState
                                            + CDataPacket::A2D_NUM_CHANNELS * sizeof(uint32_t); // channel data
 
+    constexpr size_t kTelemetryPayloadSize = sizeof(double)   // timeStamp
+                                           + sizeof(uint8_t)  // group
+                                           + sizeof(uint8_t)  // subGroup
+                                           + sizeof(uint16_t) // id
+                                           + sizeof(float);   // value
+
 	constexpr uint8_t kFrameStart[2] = {0xB4, 0xFA}; // common start bytes of all framing
 
     enum class FrameParseResult {
@@ -36,17 +42,28 @@ namespace
         ValidPacket         // full valid frame; out.kind set, usedBytes set
     };
 
-    FrameParseResult readU32         (const uint8_t* payload, uint32_t& v) noexcept;
-	FrameParseResult readDouble      (const uint8_t* payload, double& v) noexcept;
+
+    // Template forward declaration
+    template <typename T>
+           FrameParseResult readValue (const uint8_t* payload, T& out) noexcept;
+
+    inline FrameParseResult readU8    (const uint8_t* payload, uint8_t& out) noexcept;
+    inline FrameParseResult readU16   (const uint8_t* payload, uint16_t& out) noexcept;
+    inline FrameParseResult readU32   (const uint8_t* payload, uint32_t& out) noexcept;
+	inline FrameParseResult readU64   (const uint8_t* payload, uint64_t& out) noexcept;
+    inline FrameParseResult readDouble(const uint8_t* payload, double& out) noexcept;
+
     FrameParseResult readDataPayload (const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept;
     FrameParseResult readBlockPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept;
     FrameParseResult readTextPayload (const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept;
+	FrameParseResult readTelePayload (const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept;
 
 
 
     FrameParseResult quickFrameCheck   (const uint8_t* buf, size_t len, CDecodedPacket& out, size_t& usedBytes) noexcept;
     FrameParseResult tryParseDataFrame (const uint8_t* buf, size_t len, CDecodedPacket& out, size_t& usedBytes) noexcept;
     FrameParseResult tryParseBlockFrame(const uint8_t* buf, size_t len, CDecodedPacket& out, size_t& usedBytes) noexcept;
+	FrameParseResult tryParseTeleFrame(const uint8_t* buf, size_t len, CDecodedPacket& out, size_t& usedBytes) noexcept;
 
     static PacketKind classify(const uint8_t* buf, size_t n) noexcept;
 
@@ -166,8 +183,9 @@ namespace
 
         switch (start)
         {
-            case CDataPacket::frameStart: return PacketKind::Data;
-            case CBlockPacket::frameStart: return PacketKind::Block;
+            case      CDataPacket::frameStart: return PacketKind::Data;
+            case     CBlockPacket::frameStart: return PacketKind::Block;
+            case CTelemetryPacket::frameStart: return PacketKind::Telemetry;
             default: return PacketKind::Unknown;
         }
     }
@@ -189,9 +207,10 @@ namespace
         // All good
         switch (classify(buf, len))
         {
-            case PacketKind::Data   : return tryParseDataFrame (buf, len, out, usedBytes);
-            case PacketKind::Block  : return tryParseBlockFrame(buf, len, out, usedBytes);
-            default                 : return FrameParseResult::InvalidHeader;
+            case PacketKind::Data     : return tryParseDataFrame (buf, len, out, usedBytes);
+            case PacketKind::Block    : return tryParseBlockFrame(buf, len, out, usedBytes);
+            case PacketKind::Telemetry: return tryParseTeleFrame (buf, len, out, usedBytes); 
+            default                   : return FrameParseResult::InvalidHeader;
         }
     }
 
@@ -236,18 +255,33 @@ namespace
         return result;
     }
 
+    FrameParseResult tryParseTeleFrame(const uint8_t* buf, size_t n, CDecodedPacket& out, size_t& usedBytes) noexcept
+    {
+        usedBytes = 0;
+        constexpr size_t need = kFrameSize + kTelemetryPayloadSize + kFrameSize;                        if (n < need) return FrameParseResult::IncompletePacket;
+        uint32_t start = 0; readU32(buf + 0, start);                                                    if (start != CTelemetryPacket::frameStart) return FrameParseResult::InvalidHeader;
+		uint32_t end   = 0; readU32(buf + kFrameSize + kTelemetryPayloadSize, end);                     if (end != CTelemetryPacket::frameEnd) return FrameParseResult::InvalidFooter;
 
+        FrameParseResult result = readTelePayload(buf + kFrameSize, kTelemetryPayloadSize, out, usedBytes);
 
+        if (result == FrameParseResult::ValidPacket)
+            usedBytes = kFrameSize + usedBytes + kFrameSize;
 
-    FrameParseResult readU32(const uint8_t* payload, uint32_t& out) noexcept {
-        memcpy(&out, payload, sizeof(uint32_t));
-        return FrameParseResult::ValidPacket; 
+        return result;
     }
 
-    FrameParseResult readDouble(const uint8_t* payload, double& out) noexcept {
-        memcpy(&out, payload, sizeof(double));
-        return FrameParseResult::ValidPacket; 
-	}
+template <typename T>
+inline FrameParseResult readValue(const uint8_t* payload, T& out) noexcept {
+    std::memcpy(&out, payload, sizeof(T));
+    return FrameParseResult::ValidPacket;
+}
+
+inline FrameParseResult readU8    (const uint8_t* payload, uint8_t & out) noexcept { return readValue(payload, out); }
+inline FrameParseResult readU16   (const uint8_t* payload, uint16_t& out) noexcept { return readValue(payload, out); }
+inline FrameParseResult readU32   (const uint8_t* payload, uint32_t& out) noexcept { return readValue(payload, out); }
+inline FrameParseResult readU64   (const uint8_t* payload, uint64_t& out) noexcept { return readValue(payload, out); }
+inline FrameParseResult readFloat (const uint8_t* payload, float   & out) noexcept { return readValue(payload, out); }
+inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexcept { return readValue(payload, out); }
 
     FrameParseResult readDataPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept
     {
@@ -268,21 +302,25 @@ namespace
 		uint32_t count = 0; readU32   (payload + kBlockCountOffset,     count);                         if (count > CBlockPacket::MAX_BLOCK_SIZE && _DEBUG) ::OutputDebugString(L"CDecoder: Block count exceeds maximum allowed size.");
 
         const size_t itemsBytes = static_cast<size_t>(count) * kBlockItemSize;
-        const size_t need = kBlockHeaderSize + itemsBytes;                                              if (payloadBytes < need) return FrameParseResult::IncompletePacket;
+        const size_t need = kBlockHeaderSize + itemsBytes;
+        
+        if (payloadBytes < need) return FrameParseResult::IncompletePacket;
 
 		CBlockPacket bp{};
 
-		auto actualCount = std::min<uint32_t>(count, CBlockPacket::MAX_BLOCK_SIZE);
+        if (count > CBlockPacket::MAX_BLOCK_SIZE)
+			count = CBlockPacket::MAX_BLOCK_SIZE; // clamp to max size
+
 
         bp.state     = state;
         bp.timeStamp = ts;
-        bp.count     = actualCount;
+        bp.count     = count;
 
         // Copy the packed Data items
         const uint8_t* rP = payload + kBlockHeaderSize;
 
 
-        for (uint32_t i = 0; i < actualCount; ++i)
+        for (uint32_t i = 0; i < count; ++i)
         {
             CDataPacket& dp = bp.blockData[i];
             dp.state = state; // shared block state
@@ -318,6 +356,24 @@ namespace
         return FrameParseResult::ValidPacket;
     }
 
+	FrameParseResult readTelePayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept
+    {
+                                                                                                        if (payloadBytes < kTelemetryPayloadSize) return FrameParseResult::IncompletePacket;
+        CTelemetryPacket tp{};
+        size_t offset = 0, storedOffset = 0;
+		readDouble(payload + offset, tp.timeStamp); offset += sizeof(double); storedOffset = offset;
+        readU8    (payload + offset, tp.group    ); offset += sizeof(uint8_t);
+		readU8    (payload + offset, tp.subGroup ); offset += sizeof(uint8_t);
+        readU16   (payload + offset, tp.id       ); offset += sizeof(uint16_t);
+        readFloat (payload + offset, tp.value    ); offset += sizeof(float);
+
+		readU32(payload + storedOffset, tp.key); // includes group, subGroup, id, not value
+
+        consumed = offset;
+        out.telemetry = tp;
+        out.kind = PacketKind::Telemetry;
+        return FrameParseResult::ValidPacket;
+	}
 
 }
 

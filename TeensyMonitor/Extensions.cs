@@ -1,9 +1,12 @@
-﻿using System;
+﻿using PsycSerial;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using TeensyMonitor.Plotter.Fonts;
 
 namespace TeensyMonitor
 {
@@ -14,7 +17,7 @@ namespace TeensyMonitor
             control.Invoke( action );
         }
 
-        public static string Description(this PsycSerial.HeadState headState)
+        public static string Description(this HeadState headState)
         {
             uint state = (uint)headState;
 
@@ -79,5 +82,39 @@ namespace TeensyMonitor
 
             return sb.ToString();
         }
+
+        public static string Description(this TelemetryPacket packet)
+        {
+            StringBuilder sb = new();
+
+            sb.Append(packet.Group.ToString());
+            sb.Append('.');
+            sb.Append(packet.SubGroup.ToString("X2"));
+            sb.Append('.');
+            sb.Append(packet.ID.ToString("X4"));
+
+            return sb.ToString();
+        }
+
+        public static RectangleF CalculateTotalBounds(this List<TextBlock> textBlocks, ref RectangleF maxBounds)
+        {
+            RectangleF totalBounds = RectangleF.Empty;
+
+            foreach (ref var block in CollectionsMarshal.AsSpan(textBlocks))
+            {
+                if (block.Bounds.IsEmpty) continue;
+
+                if (totalBounds.IsEmpty)
+                    totalBounds = block.Bounds;
+                else
+                    totalBounds = RectangleF.Union(totalBounds, block.Bounds);
+            }
+
+            if (maxBounds.Width < totalBounds.Width)
+                maxBounds = totalBounds;
+
+            return maxBounds;
+        }
+
     }
 }

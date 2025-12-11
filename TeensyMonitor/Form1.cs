@@ -3,6 +3,7 @@
 namespace TeensyMonitor
 {
     using PsycSerial;
+    using System.Text;
     using TeensyMonitor.Plotter.Helpers;
     using TeensyMonitor.Plotter.UserControls;
 
@@ -12,16 +13,33 @@ namespace TeensyMonitor
         readonly CancellationTokenSource cts = new();
 
         readonly Dictionary<HeadState, MyChart> charts = [];
+
+        readonly System.Windows.Forms.Timer uiTimer = new() { Interval = 1000 / 20, Enabled = true };
+
         public Form1()
         {
             InitializeComponent();
 
-            if (Environment.MachineName == "BOX")
+            switch (Environment.MachineName)
             {
-                this.StartPosition = FormStartPosition.Manual;
-                this.Location = new Point(-1280, -100);
+                case "BOX":
+                    this.StartPosition = FormStartPosition.Manual;
+                    this.Location = new Point(-1280, -100);
+                    break;
+
+                case "PSYC-ANDREW":
+                    this.StartPosition = FormStartPosition.Manual;
+                    this.Location = new Point(180, 100);
+                    break;
             }
 
+            uiTimer.Tick += (s, e) =>
+            {
+                StringBuilder sb = new();
+                foreach (var chart in charts.Values)
+                    sb.Append($"{chart.Tag}: {chart.FPS:00.000} FPS   ");
+                Text = sb.ToString();
+            };
             if (SP == null) return;
 
             SP.DataReceived += SP_DataReceived;
@@ -36,26 +54,41 @@ namespace TeensyMonitor
         {
             if (IsHandleCreated == false) return;
 
+            if (packet is BlockPacket blockPacket) { AddBlockPacket(blockPacket); return; }
 
-            if (packet is BlockPacket blockPacket)
+            if (packet is TextPacket textPacket) { AddTextPacket(textPacket); return; }
+
+            if (packet is TelemetryPacket telePacket) { AddTelePacket(telePacket); return; }
+
+        }
+
+        private void AddBlockPacket(BlockPacket blockPacket)
+        {
+            if (charts.Count == 0)
             {
-                if (charts.Count == 0)
-                    charts[blockPacket.State] = chart0;
-
-                if (charts.TryGetValue(blockPacket.State, out MyChart? chart) && chart != null)
-                    chart.SP_DataReceived(blockPacket);
-                else
-                {
-                    MyChart newChart = new() { TimeWindowSeconds = chart0.TimeWindowSeconds };
-                    charts[blockPacket.State] = newChart;
-                    newChart.SP_DataReceived(blockPacket);
-
-                    AddNewChart(newChart);
-                }
+                charts[blockPacket.State] = chart0;
+                chart0.Tag = blockPacket.State.Description();
             }
+            if (charts.TryGetValue(blockPacket.State, out MyChart? chart) && chart != null)
+                chart.SP_DataReceived(blockPacket);
+            else
+            {
+                MyChart newChart = new()
+                {
+                    BackColor = chart0.BackColor,
+                    Dock      = chart0.Dock,
+                    Tag       = blockPacket.State.Description(),
+                };
 
-            if (packet is TextPacket textPacket == false) return;
+                charts[blockPacket.State] = newChart;
+                newChart.SP_DataReceived(blockPacket);
 
+                AddNewChart(newChart);
+            }
+        }
+
+        private void AddTextPacket(TextPacket textPacket)
+        {
             var parsedValues = parsedPool.Rent();
             if (MyTextParser.Parse(textPacket.Text, parsedValues))
             {
@@ -66,6 +99,10 @@ namespace TeensyMonitor
                 dbg.Log(textPacket.Text);
         }
 
+        private void AddTelePacket(TelemetryPacket telePacket)
+        {
+            myTelemetryPane1.SP_DataReceived(telePacket);
+        }
 
         private async void SP_ErrorOccurred(Exception exception)
         {
@@ -153,16 +190,9 @@ namespace TeensyMonitor
             {
                 SuspendLayout();
 
-                int dbgTop = this.ClientSize.Height - dbg.Location.Y;
-
-                this.ClientSize = new Size(this.ClientSize.Width, this.ClientSize.Height + chart0.Height + 10);
-
-                newChart.Location = new Point(chart0.Location.X, chart0.Location.Y + (chart0.Height + 10) * (charts.Count - 1));
-                newChart.Size = chart0.Size;
-
-                Controls.Add(newChart);
-
-                dbg.Location = new Point(dbg.Location.X, this.ClientSize.Height - dbgTop);
+                tlpCharts.RowCount += 1;
+                tlpCharts.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                tlpCharts.Controls.Add(newChart, 0, tlpCharts.RowCount - 1);
 
                 ResumeLayout(true);
 

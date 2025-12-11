@@ -41,7 +41,7 @@ namespace PsycSerial
 
     DataPacket::DataPacket()
     {
-        Channel = gcnew array<UInt32>(8);
+        Channel = gcnew array<int>(8);
         Reset();
     }
 
@@ -129,6 +129,38 @@ namespace PsycSerial
 		Length = 0;
         TimeStamp = 0.0;
         // release Text
-     
     }
+
+    
+
+    TelemetryPacket::TelemetryPacket()
+    {
+        Reset();
+	}
+    TelemetryPacket^ TelemetryPacket::Rent()
+    {
+        TelemetryPacket^ p; if (s_pool->TryDequeue(p)) return p;
+        return gcnew TelemetryPacket();
+    }
+    
+    TelemetryPacket::~TelemetryPacket()
+    {
+        // Deterministic cleanup path (Dispose)
+        Reset();
+        s_pool->Enqueue(this);
+        GC::SuppressFinalize(this);
+    }
+    
+    TelemetryPacket::!TelemetryPacket() {}
+
+    void TelemetryPacket::Reset()
+    {
+        State = HeadState::None;
+        TimeStamp = 0.0;
+        Group = TeleGroup::NONE;
+		SubGroup = 0;
+        ID = 0;
+        Value = 0.0f;
+        Key = 0;
+	}
 }

@@ -26,8 +26,8 @@ struct CDataPacket
 {
     static constexpr uint8_t A2D_NUM_CHANNELS = 8;
 
-    static constexpr Frame frameStart = 0xEDD1FAB4;
-    static constexpr Frame frameEnd   = 0xEDD2FAB4; // "RD-" end   marker
+	static constexpr Frame frameStart = 0xEDD1FAB4;  // D1/D2 = Data Packet
+    static constexpr Frame frameEnd   = 0xEDD2FAB4;
 
     uint32_t state{};
     double   timeStamp{};
@@ -43,8 +43,8 @@ struct CBlockPacket
 {
     static constexpr size_t MAX_BLOCK_SIZE = 64;
 
-    static constexpr Frame frameStart = 0xEDB1FAB4; // "QK+" start marker
-    static constexpr Frame frameEnd   = 0xEDB2FAB4; // "QK-" end   marker
+	static constexpr Frame frameStart = 0xEDB1FAB4;  // B1/B2 = Block Packet
+    static constexpr Frame frameEnd   = 0xEDB2FAB4;
 
     uint32_t state{};
     double   timeStamp{};
@@ -59,6 +59,20 @@ struct CTextPacket
 	uint32_t timeStamp{};
 	uint32_t length{}; // number of valid bytes in text
     uint8_t  utf8Bytes[MAX_TEXT_SIZE]{};
+};
+
+struct CTelemetryPacket
+{
+	static constexpr Frame frameStart = 0xED71FAB4;  // 71/72 = Telemetry Packet
+    static constexpr Frame frameEnd   = 0xED72FAB4;
+  
+    double   timeStamp{};
+	uint8_t  group{};
+	uint8_t  subGroup{};
+    uint16_t id{};
+    float    value{};
+
+    uint32_t key{};
 };
 
 #pragma pack(pop)
@@ -76,35 +90,20 @@ static_assert(offsetof(CBlockPacket, blockData) ==
     "Unexpected CBlockPacket header layout");
 
 // ----------------------------- Tagged result ---------------------------------
-enum class PacketKind : uint8_t { Unknown = 0, Data = 1, Block = 2, Text = 3 };
+enum class PacketKind : uint8_t { Unknown = 0, Data = 1, Block = 2, Telemetry = 3, Text = 4 };
 
 struct CDecodedPacket
 {
     PacketKind kind{ PacketKind::Unknown };
     union {
-        CDataPacket  data;
-        CBlockPacket block;
-        CTextPacket  text;
+        CDataPacket      data;
+        CBlockPacket     block;
+        CTextPacket      text;
+		CTelemetryPacket telemetry;
     };
 
     CDecodedPacket() noexcept {} // POD; union members are zero-inited by caller when used
 };
 
-// ----------------------------- Helpers ---------------------------------------
-constexpr size_t DataFramePayloadSize() noexcept {
-    return sizeof(CDataPacket); // 1 x data wire struct
-}
-
-constexpr size_t DataFrameSize() noexcept {
-    return sizeof(Frame) + DataFramePayloadSize() + sizeof(Frame);
-}
-
-constexpr size_t BlockFramePayloadSize(uint32_t count) noexcept {
-    return sizeof(uint32_t) * 3u + sizeof(CDataPacket) * count; // state,timestamp,count + items
-}
-
-constexpr size_t BlockFrameSize(uint32_t count) noexcept {
-    return sizeof(Frame) + BlockFramePayloadSize(count) + sizeof(Frame);
-}
 
 #pragma managed(pop)
