@@ -63,7 +63,7 @@
             dbg.BorderStyle = BorderStyle.FixedSingle;
             dbg.Location = new Point(12, 585);
             dbg.Name = "dbg";
-            dbg.Size = new Size(1160, 382);
+            dbg.Size = new Size(1100, 382);
             dbg.TabIndex = 5;
             // 
             // chart0
@@ -76,7 +76,7 @@
             chart0.EnablePlots = true;
             chart0.Location = new Point(3, 3);
             chart0.Name = "chart0";
-            chart0.Size = new Size(1157, 530);
+            chart0.Size = new Size(1094, 530);
             chart0.TabIndex = 6;
             chart0.Yscale = 1F;
             // 
@@ -86,23 +86,23 @@
             myTelemetryPane1.AutoClear = true;
             myTelemetryPane1.BackColor = Color.PapayaWhip;
             myTelemetryPane1.BorderStyle = BorderStyle.FixedSingle;
-            myTelemetryPane1.Location = new Point(1178, 47);
+            myTelemetryPane1.Location = new Point(1118, 47);
             myTelemetryPane1.Name = "myTelemetryPane1";
-            myTelemetryPane1.Size = new Size(364, 920);
+            myTelemetryPane1.Size = new Size(424, 920);
             myTelemetryPane1.TabIndex = 7;
             // 
-            // tableLayoutPanel1
+            // tlpCharts
             // 
             tlpCharts.ColumnCount = 1;
             tlpCharts.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             tlpCharts.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             tlpCharts.Controls.Add(chart0, 0, 0);
             tlpCharts.Location = new Point(10, 45);
-            tlpCharts.Name = "tableLayoutPanel1";
+            tlpCharts.Name = "tlpCharts";
             tlpCharts.RowCount = 1;
             tlpCharts.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             tlpCharts.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            tlpCharts.Size = new Size(1163, 536);
+            tlpCharts.Size = new Size(1100, 536);
             tlpCharts.TabIndex = 8;
             // 
             // Form1

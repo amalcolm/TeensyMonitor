@@ -72,7 +72,7 @@ namespace PsycSerial
 
     BlockPacket::BlockPacket()
     {
-        BlockData = gcnew array<DataPacket^>(64);
+        BlockData = gcnew array<DataPacket^>(320);
         Reset();
 	}
     

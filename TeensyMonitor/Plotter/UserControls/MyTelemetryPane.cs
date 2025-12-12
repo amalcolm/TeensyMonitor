@@ -4,6 +4,7 @@ using OpenTK.Mathematics;
 using PsycSerial;
 
 using System.Collections.Concurrent;
+using System.Windows.Forms;
 using TeensyMonitor.Plotter.Backgrounds;
 using TeensyMonitor.Plotter.Fonts;
 
@@ -22,6 +23,7 @@ namespace TeensyMonitor.Plotter.UserControls
         private LabelAreaRenderer? _labelAreaRenderer;
 
         private readonly object _lock = new();
+        private volatile bool needUpdate = true;
 
         public MyTelemetryPane()
         {
@@ -38,7 +40,11 @@ namespace TeensyMonitor.Plotter.UserControls
                 if (TestAndSetPending(key) == false)
                     CreateTextBlocksForLabel(key, telePacket, "0.00");
 
+            if (_latestValues.TryGetValue(key, out var existingValue))
+                if (Math.Abs(existingValue - telePacket.Value) < 0.00001) return;
+
             _latestValues[key] = telePacket.Value;
+            needUpdate = true;
         }
 
         private bool TestAndSetPending(uint state)
@@ -73,11 +79,15 @@ namespace TeensyMonitor.Plotter.UserControls
         {
             base.Init();
             _labelAreaRenderer = new(this, "Resources/Backgrounds/LabelArea.png");
+            AutoClear = false;
         }
+
+        const int RedrawCount = 2;
+        int redrawCounter = 0;
 
         protected override void DrawText()
         {
-            if (font == null) return;
+            if (font == null || needUpdate == false) return;
 
             _textBlocksToRender.Clear();
             // 1. Populate the list of blocks to render and flag if their content has changed.
@@ -99,6 +109,13 @@ namespace TeensyMonitor.Plotter.UserControls
             }
 
             if (!_textBlocksToRender.Any()) return;
+
+            ClearViewport();
+            if (++redrawCounter >= RedrawCount)
+            {
+                needUpdate = false;
+                redrawCounter = 0;
+            }
 
             // 2. Calculate the total bounding box for all visible labels.
             RectangleF totalBounds = _textBlocksToRender.CalculateTotalBounds(ref maxBounds);
@@ -122,8 +139,8 @@ namespace TeensyMonitor.Plotter.UserControls
 
             fontRenderer.RenderText(_textBlocksToRender);
         }
+
+
         RectangleF maxBounds = RectangleF.Empty;
-
-
     }
 }

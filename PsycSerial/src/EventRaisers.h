@@ -26,11 +26,8 @@ namespace PsycSerial
             catch (Exception^ ex) 
             {
                 if (Debugger::IsAttached || IsDebuggerPresent())
-                {
-                    Debugger::Break;;
+                    Debugger::Break;
 
-
-                }
                 Debug::WriteLine(String::Format("DataEventRaiser::Raise Exception: {0}", ex->Message));
                 Debug::WriteLine(ex->StackTrace);
             }

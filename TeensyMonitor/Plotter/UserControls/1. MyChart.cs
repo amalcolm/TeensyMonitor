@@ -16,7 +16,7 @@ namespace TeensyMonitor.Plotter.UserControls
     [ToolboxItem(true)]
     public partial class MyChart : MyPlotter
     {
-        private const int WindowSize = 1200;
+        private const int WindowSize = 5120;
 
         public bool EnablePlots  { get; set; } = true;
         public bool EnableLabels { get; set; } = true;
@@ -229,7 +229,7 @@ namespace TeensyMonitor.Plotter.UserControls
                 }
             }
 
-            if (!_textBlocksToRender.Any()) return;
+            if (_textBlocksToRender.Count == 0) return;
             
             // 2. Calculate the total bounding box for all visible labels.
             RectangleF totalBounds = _textBlocksToRender.CalculateTotalBounds(ref maxBounds);

@@ -125,9 +125,10 @@ namespace PsycSerial
         {
 			NONE     = 0x00,
             Program  = 0x01,
+			Hardware = 0x02,
 
             A2D      = 0x11,
-            Hardware = 0x12,
+            DigiPots = 0x12,
             USB      = 0x13,
             Head     = 0x14,
 
