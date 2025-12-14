@@ -36,7 +36,7 @@ namespace TeensyMonitor.Plotter.UserControls
             if (packet is TelemetryPacket telePacket == false) return;
             var key = telePacket.Key; if (key == 0) return;
 
-            if (_blocks.TryGetValue(key, out var tuple) == false)
+            if (_blocks.ContainsKey(key) == false)
                 if (TestAndSetPending(key) == false)
                     CreateTextBlocksForLabel(key, telePacket, "0.00");
 

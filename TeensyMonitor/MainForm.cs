@@ -7,7 +7,7 @@ namespace TeensyMonitor
     using TeensyMonitor.Plotter.Helpers;
     using TeensyMonitor.Plotter.UserControls;
 
-    public partial class Form1 : Form
+    public partial class MainForm : Form
     {
         readonly TeensySerial? SP = Program.serialPort;
         readonly CancellationTokenSource cts = new();
@@ -16,7 +16,7 @@ namespace TeensyMonitor
 
         readonly System.Windows.Forms.Timer uiTimer = new() { Interval = 1000 / 20, Enabled = true };
 
-        public Form1()
+        public MainForm()
         {
             InitializeComponent();
 
@@ -24,7 +24,7 @@ namespace TeensyMonitor
             {
                 case "BOX":
                     this.StartPosition = FormStartPosition.Manual;
-                    this.Location = new Point(-1280, -100);
+                    this.Location = new Point(-1420, -100);
                     break;
 
                 case "PSYC-ANDREW":
@@ -42,9 +42,9 @@ namespace TeensyMonitor
             };
             if (SP == null) return;
 
-            SP.DataReceived += SP_DataReceived;
+            SP.DataReceived      += SP_DataReceived;
             SP.ConnectionChanged += SP_ConnectionChanged;
-            SP.ErrorOccurred += SP_ErrorOccurred;
+            SP.ErrorOccurred     += SP_ErrorOccurred;
         }
 
 
@@ -54,11 +54,9 @@ namespace TeensyMonitor
         {
             if (IsHandleCreated == false) return;
 
-            if (packet is BlockPacket blockPacket) { AddBlockPacket(blockPacket); return; }
-
-            if (packet is TextPacket textPacket) { AddTextPacket(textPacket); return; }
-
-            if (packet is TelemetryPacket telePacket) { AddTelePacket(telePacket); return; }
+            if (packet is     BlockPacket blockPacket) { AddBlockPacket(blockPacket); return; }
+            if (packet is      TextPacket  textPacket) {  AddTextPacket( textPacket); return; }
+            if (packet is TelemetryPacket  telePacket) {  AddTelePacket( telePacket); return; }
 
         }
 
@@ -148,6 +146,9 @@ namespace TeensyMonitor
 
             if (cbPorts.Enabled != enableDropdown)
                 this.Invoker(() => cbPorts.Enabled = enableDropdown);
+
+            if (state == ConnectionState.Connected)
+                dbg.Clear();
 
             if (str != null)
                 dbg.Log(str);

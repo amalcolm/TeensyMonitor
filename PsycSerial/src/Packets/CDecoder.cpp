@@ -47,11 +47,11 @@ namespace
     template <typename T>
            FrameParseResult readValue (const uint8_t* payload, T& out) noexcept;
 
-    inline FrameParseResult readU8    (const uint8_t* payload, uint8_t& out) noexcept;
+    inline FrameParseResult readU8    (const uint8_t* payload, uint8_t & out) noexcept;
     inline FrameParseResult readU16   (const uint8_t* payload, uint16_t& out) noexcept;
     inline FrameParseResult readU32   (const uint8_t* payload, uint32_t& out) noexcept;
 	inline FrameParseResult readU64   (const uint8_t* payload, uint64_t& out) noexcept;
-    inline FrameParseResult readDouble(const uint8_t* payload, double& out) noexcept;
+    inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexcept;
 
     FrameParseResult readDataPayload (const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept;
     FrameParseResult readBlockPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept;
@@ -63,7 +63,7 @@ namespace
     FrameParseResult quickFrameCheck   (const uint8_t* buf, size_t len, CDecodedPacket& out, size_t& usedBytes) noexcept;
     FrameParseResult tryParseDataFrame (const uint8_t* buf, size_t len, CDecodedPacket& out, size_t& usedBytes) noexcept;
     FrameParseResult tryParseBlockFrame(const uint8_t* buf, size_t len, CDecodedPacket& out, size_t& usedBytes) noexcept;
-	FrameParseResult tryParseTeleFrame(const uint8_t* buf, size_t len, CDecodedPacket& out, size_t& usedBytes) noexcept;
+	FrameParseResult tryParseTeleFrame (const uint8_t* buf, size_t len, CDecodedPacket& out, size_t& usedBytes) noexcept;
 
     static PacketKind classify(const uint8_t* buf, size_t n) noexcept;
 
@@ -319,7 +319,7 @@ inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexce
         // Copy the packed Data items
         const uint8_t* rP = payload + kBlockHeaderSize;
 
-
+//        uint32_t lastValue;
         for (uint32_t i = 0; i < count; ++i)
         {
             CDataPacket& dp = bp.blockData[i];
@@ -332,6 +332,19 @@ inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexce
             for (size_t ch = 0; ch < CDataPacket::A2D_NUM_CHANNELS; ++ch, rP += sizeof(uint32_t))
                 readU32(rP, dp.channel[ch]);
         }
+
+/*
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            CDataPacket& dp = bp.blockData[i];
+
+            if (i == 0)
+                lastValue = dp.channel[0];
+            else
+                if (lastValue < dp.channel[0] / 8)
+                    lastValue = dp.channel[0];
+        }
+*/
 
         consumed = need;
         out.block = bp;

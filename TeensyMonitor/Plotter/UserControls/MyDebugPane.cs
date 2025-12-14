@@ -30,6 +30,8 @@ namespace TeensyMonitor.Plotter.UserControls
 
         public void Log(AString str) => log.Add(str);
 
+        public void Clear() => log.Clear();
+
         protected override void DrawText() => log.Render();
 
     }
@@ -46,12 +48,23 @@ namespace TeensyMonitor.Plotter.UserControls
             lineHeight = (int)(fr.Font.LineHeight * fr.Scaling * LineSpacing);
 
             MaxNumberOfLines = (control.Height - 2 * Margin) / lineHeight;
-            LineBuffers = new LineVertices[MaxNumberOfLines];
-
-            baseHeight = -PrecisionBoundary;
-            nextHeight =  baseHeight + control.Height - Margin - lineHeight;
-
+            Clear();
             control.AutoClear = false;
+        }
+
+        public void Clear()
+        {
+            while (qLinesToAdd.TryDequeue(out _)) ;
+            while (qStringsToAdd.TryDequeue(out _)) ;
+            for (int i = 0; i < LineBuffers.Length; i++)
+                if (LineBuffers[i].Vertices != null)
+                    pool.Return(LineBuffers[i].Vertices);
+            
+            LineBuffers = new LineVertices[MaxNumberOfLines];
+            
+            UsedLines = 0;
+            baseHeight = -PrecisionBoundary;
+            nextHeight = baseHeight + control.Height - Margin - lineHeight;
         }
 
         private int MaxNumberOfLines;  // number of lines that fit in the control

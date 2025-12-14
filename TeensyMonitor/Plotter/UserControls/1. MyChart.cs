@@ -1,11 +1,9 @@
-﻿using System.Collections.Concurrent;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-
-using OpenTK.Graphics.OpenGL4;
+﻿using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
-
 using PsycSerial;
+using System.Collections.Concurrent;
+using System.ComponentModel;
+using System.Reflection;
 using TeensyMonitor.Plotter.Backgrounds;
 using TeensyMonitor.Plotter.Fonts;
 using TeensyMonitor.Plotter.Helpers;
@@ -30,7 +28,22 @@ namespace TeensyMonitor.Plotter.UserControls
 
         private LabelAreaRenderer? _labelAreaRenderer;
 
+
+        struct DataSelectorInfo
+        {
+            public string Name;
+            public MyPlot.DataSelector Selector;
+            public uint AdditionalMask;
+        }
+
+        static List<DataSelectorInfo> dataSelectors = [];
+
         private readonly object _lock = new();
+
+        private readonly string[] dataFieldsToOutput = {
+            "Offset1", "Offset2", "Gain",
+            "preGainSensor", "postGainSensor"
+            };
 
         public MyChart()
         {
@@ -39,8 +52,107 @@ namespace TeensyMonitor.Plotter.UserControls
             if (SP == null) return;
 
             SP.ConnectionChanged += SP_ConnectionChanged;
-        }
 
+            var properties = typeof(DataPacket).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+            
+
+            for (uint count = 1; count <= dataFieldsToOutput.Length; count++)
+            {
+                var property = properties.First(p => p.Name == dataFieldsToOutput[count - 1]);  // must declare a local to capture correctly in lambda
+
+                MyPlot.DataSelector selector;
+
+                if (property.PropertyType.IsArray)
+                    selector = data =>
+                    {
+                        if (property.GetValue(data) is Array arr && arr.Length > 0)
+                            return Convert.ToDouble(arr.GetValue(0));
+                        else
+                            return 0.0;
+                    };
+                else
+                    selector = data => Convert.ToDouble(property.GetValue(data));
+
+                dataSelectors.Add(new DataSelectorInfo
+                {
+                    Name = property.Name,
+                    Selector = selector,
+                    AdditionalMask = count << 12 // 12 > number of red LEDs, so as not to overlap state bits
+                });
+            }
+        }
+  
+        private RunningAverage ra = new (20);
+
+        public void SP_DataReceived(IPacket packet)
+        {
+            if (packet is BlockPacket blockPacket == false) return;
+            if (blockPacket.Count == 0) return;
+
+            uint state = (uint)blockPacket.State;
+
+            if (EnableLabels)
+                lock (PlotsLock)
+                {
+                    if (Plots.ContainsKey(state) == false)
+                        if (TestAndSetPending(state) == false)
+                        {
+                            Plots[state] = new MyPlot(WindowSize, this);
+
+                            foreach (var info in dataSelectors)
+                                Plots[state | info.AdditionalMask] = new MyPlot(WindowSize, this)
+                                {
+                                    Yscale = 1.0,
+                                    Colour = MyColours.GetNextColour(),
+                                    Selector = info.Selector
+                                };
+                            
+
+                        }
+                        else
+                            return;
+
+                    Plots[state].Add(blockPacket, false, ref ra);
+                    foreach (var info in dataSelectors)
+                        Plots[state | info.AdditionalMask].Add(blockPacket, false, ref ra);
+
+
+                }
+
+
+            if (EnableLabels == false || font == null) return;  // packet received before GL is initialized
+
+            if (_blocks.ContainsKey(state) == false)
+            {
+                string description = blockPacket.State.Description();
+
+                CreateTextBlocksForLabel(        state, description + " A2D %"   , "0.0000%");
+
+                foreach (var info in dataSelectors)
+                    CreateTextBlocksForLabel(state | info.AdditionalMask, description + " " + info.Name, "F4");
+                
+            }
+
+
+
+            if (blockPacket.Count > 0)
+            {
+                ref DataPacket data = ref blockPacket.BlockData[blockPacket.Count-1];
+
+                float c0   = data.Channel[0] / 4660100.0f;
+
+                lock (_lock)
+                {
+                    _latestValues[state] = c0;
+                    foreach (var info in dataSelectors)
+                    {
+                        var x = info.Selector(data);
+                        _latestValues[state | info.AdditionalMask] = x;
+                    }
+                }
+            }
+        }
 
         public void AddData(Dictionary<string, double> data)
         {
@@ -61,109 +173,8 @@ namespace TeensyMonitor.Plotter.UserControls
                         plot.Add(data[key]);
 
                     lock (_lock)
-                            _latestValues[stateHash] = data[key];
+                        _latestValues[stateHash] = data[key];
                 }
-        }
-
-
-        const uint maskOffset1 = 0b00010000000000000000000000000000;
-        const uint maskOffset2 = 0b00100000000000000000000000000000;
-        const uint maskGain    = 0b00110000000000000000000000000000;
-        const uint maskUser1   = 0b01000000000000000000000000000000;
-
-        //                          3         2         1         0
-        //                         10987654321098765432109876543210
-
-        const uint maskPreGain  = 0b0000000000000000100000000000000;
-        const uint maskPostGain = 0b0000000000000001000000000000000;
-
-        private RunningAverage ra = new (20);
-
-        public void SP_DataReceived(IPacket packet)
-        {
-            if (packet is BlockPacket blockPacket == false) return;
-            if (blockPacket.Count == 0) return;
-
-            uint state = (uint)blockPacket.State;
-
-            uint  offset1State = state | maskOffset1;
-            uint  offset2State = state | maskOffset2;
-            uint     gainState = state | maskGain;
-            uint    user1State = state | maskUser1;
-            uint  preGainState = state | maskPreGain;
-            uint postGainState = state | maskPostGain;
-
-            if (EnableLabels)
-                lock (PlotsLock)
-                {
-                    if (Plots.ContainsKey(state) == false)
-                        if (TestAndSetPending(state) == false)
-                        {
-                            Plots[        state] = new MyPlot(WindowSize, this);
-
-                            Plots[ offset1State] = new MyPlot(WindowSize, this);
-                            Plots[ offset2State] = new MyPlot(WindowSize, this);
-                            Plots[    gainState] = new MyPlot(WindowSize, this);
-                            Plots[ preGainState] = new MyPlot(WindowSize, this);
-                            Plots[postGainState] = new MyPlot(WindowSize, this);
-
-                            Plots[   user1State] = new MyPlot(WindowSize, this);
-                        }
-                        else
-                            return;
-
-                            Plots[state].Add(blockPacket, MyPlot.DataToShow.Channel0, false, ref ra);
-                    Plots[ offset1State].Add(blockPacket, MyPlot.DataToShow.Offset1 , false, ref ra);
-                    Plots[ offset2State].Add(blockPacket, MyPlot.DataToShow.Offset2 , false, ref ra);
-                    Plots[    gainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
-                    Plots[ preGainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
-                    Plots[postGainState].Add(blockPacket, MyPlot.DataToShow.Gain    , false, ref ra);
-
-    //              Plots[   user1State].Add(blockPacket, MyPlot.DataToShow.Channel0, true , ref ra); // plot to show difference from running average
-                }
-
-
-            if (EnableLabels == false || font == null) return;  // packet received before GL is initialized
-
-            if (_blocks.ContainsKey(state) == false)
-            {
-                string description = blockPacket.State.Description();
-
-                CreateTextBlocksForLabel(        state, description + " A2D %"   , "0.0000%");
-                CreateTextBlocksForLabel( offset1State, description + " Offset1" );
-                CreateTextBlocksForLabel( offset2State, description + " Offset2" );
-                CreateTextBlocksForLabel(    gainState, description + " Gain"    );
-                CreateTextBlocksForLabel( preGainState, description + " preGain" );
-                CreateTextBlocksForLabel(postGainState, description + " postGain");
-
-                // no label for user1State
-            }
-
-
-
-            if (blockPacket.Count > 0)
-            {
-                ref DataPacket data = ref blockPacket.BlockData[blockPacket.Count-1];
-
-                float c0   = data.Channel[0] / 4660100.0f;
-                float off1 = data.Offset1;
-                float off2 = data.Offset2;
-                float gain = data.Gain;
-
-                float preGain = data.preGainSensor;
-                float postGain = data.postGainSensor;
-
-                lock (_lock)
-                {
-                    _latestValues[        state] = c0;
-                    _latestValues[ offset1State] = off1;
-                    _latestValues[ offset2State] = off2;
-                    _latestValues[    gainState] = gain;
-                    _latestValues[ preGainState] = preGain;
-                    _latestValues[postGainState] = postGain;
-                  // do not show user1State value as label
-                }
-            }
         }
 
         private bool TestAndSetPending(uint state)

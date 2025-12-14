@@ -1,6 +1,6 @@
 ﻿namespace TeensyMonitor
 {
-    partial class Form1
+    partial class MainForm
     {
         /// <summary>
         ///  Required designer variable.
@@ -61,22 +61,22 @@
             dbg.AutoClear = true;
             dbg.BackColor = Color.AliceBlue;
             dbg.BorderStyle = BorderStyle.FixedSingle;
-            dbg.Location = new Point(12, 585);
+            dbg.Location = new Point(5, 986);
             dbg.Name = "dbg";
-            dbg.Size = new Size(1100, 382);
+            dbg.Size = new Size(1040, 306);
             dbg.TabIndex = 5;
             // 
             // chart0
             // 
-            chart0.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             chart0.AutoClear = true;
             chart0.BackColor = Color.Cornsilk;
             chart0.BorderStyle = BorderStyle.FixedSingle;
+            chart0.Dock = DockStyle.Fill;
             chart0.EnableLabels = true;
             chart0.EnablePlots = true;
             chart0.Location = new Point(3, 3);
             chart0.Name = "chart0";
-            chart0.Size = new Size(1094, 530);
+            chart0.Size = new Size(1040, 929);
             chart0.TabIndex = 6;
             chart0.Yscale = 1F;
             // 
@@ -86,9 +86,9 @@
             myTelemetryPane1.AutoClear = true;
             myTelemetryPane1.BackColor = Color.PapayaWhip;
             myTelemetryPane1.BorderStyle = BorderStyle.FixedSingle;
-            myTelemetryPane1.Location = new Point(1118, 47);
+            myTelemetryPane1.Location = new Point(1050, 47);
             myTelemetryPane1.Name = "myTelemetryPane1";
-            myTelemetryPane1.Size = new Size(424, 920);
+            myTelemetryPane1.Size = new Size(342, 1245);
             myTelemetryPane1.TabIndex = 7;
             // 
             // tlpCharts
@@ -97,25 +97,25 @@
             tlpCharts.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             tlpCharts.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             tlpCharts.Controls.Add(chart0, 0, 0);
-            tlpCharts.Location = new Point(10, 45);
+            tlpCharts.Location = new Point(2, 45);
             tlpCharts.Name = "tlpCharts";
             tlpCharts.RowCount = 1;
             tlpCharts.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             tlpCharts.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            tlpCharts.Size = new Size(1100, 536);
+            tlpCharts.Size = new Size(1046, 935);
             tlpCharts.TabIndex = 8;
             // 
-            // Form1
+            // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1545, 979);
+            ClientSize = new Size(1395, 1304);
             Controls.Add(tlpCharts);
             Controls.Add(myTelemetryPane1);
             Controls.Add(dbg);
             Controls.Add(labPorts);
             Controls.Add(cbPorts);
-            Name = "Form1";
+            Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "Form1";
             FormClosing += Form1_FormClosing;

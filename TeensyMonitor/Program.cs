@@ -34,13 +34,11 @@ namespace TeensyMonitor
             {
                 SocketWatcher.StartListening();
 
-                Application.Run(new Form1());
+                Application.Run(new MainForm());
                 
                 SocketWatcher.StopListening();
             }
-            else
-                Application.Run(new Form2());
-
+            
             serialPort?.Close();
         }
     }
