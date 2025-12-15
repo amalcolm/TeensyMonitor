@@ -178,6 +178,10 @@ namespace TeensyMonitor.Plotter.UserControls
         {   if (!_isLoaded || IsDisposed) return;
 
             GL.Viewport(0, 0, MyGL.ClientSize.Width, MyGL.ClientSize.Height);
+            fontRenderer.ProjectionMatrix = Matrix4.CreateOrthographicOffCenter(
+                0, MyGL.ClientSize.Width,
+                0, MyGL.ClientSize.Height,
+                -1, 1);
         }
 
         public void ClearViewport()

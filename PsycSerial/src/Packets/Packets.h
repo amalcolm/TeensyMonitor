@@ -131,6 +131,7 @@ namespace PsycSerial
             DigiPots = 0x12,
             USB      = 0x13,
             Head     = 0x14,
+            Timer    = 0x15,
 
 			UNSET    = 0xFF,
 		};

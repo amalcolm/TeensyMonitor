@@ -13,9 +13,6 @@ namespace TeensyMonitor
         readonly CancellationTokenSource cts = new();
 
         readonly Dictionary<HeadState, MyChart> charts = [];
-
-        readonly System.Windows.Forms.Timer uiTimer = new() { Interval = 1000 / 20, Enabled = true };
-
         public MainForm()
         {
             InitializeComponent();
@@ -33,13 +30,17 @@ namespace TeensyMonitor
                     break;
             }
 
-            uiTimer.Tick += (s, e) =>
-            {
-                StringBuilder sb = new();
+            this.FormClosing += (s,e) =>
+        {
+                TextWriter tw = new StreamWriter(@"C:\Temp\TeensyMonitorLog.txt", false, Encoding.UTF8);
                 foreach (var chart in charts.Values)
-                    sb.Append($"{chart.Tag}: {chart.FPS:00.000} FPS   ");
-                Text = sb.ToString();
-            };
+                {
+                    tw.WriteLine(chart.getDebugOutput());
+                }
+                tw.Dispose();
+            }
+            ;
+
             if (SP == null) return;
 
             SP.DataReceived      += SP_DataReceived;

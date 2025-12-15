@@ -1,11 +1,17 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 using PsycSerial;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Text;
 using TeensyMonitor.Plotter.UserControls;
 
 namespace TeensyMonitor.Plotter.Helpers
 {
     public class MyPlot
     {
+        static volatile int _instanceCounter = 0;
+        private readonly int _instanceId = _instanceCounter++;
+
         public delegate double DataSelector(DataPacket data);
 
         public float ChannelScale { get; set; } = 0.0002f;
@@ -110,9 +116,25 @@ namespace TeensyMonitor.Plotter.Helpers
                 _writeIndex++;
             }
         }
+        static readonly Stopwatch sw = Stopwatch.StartNew();
+        struct DebugPoint
+        {
+            public double SW;
+            public double Timestamp;
+        }
+        readonly ConcurrentQueue<DebugPoint> debugQueue = [];
 
+        public string getDebugOutput()
+        {
+            StringBuilder sb = new();
+            sb.AppendLine($"MyPlot Instance {_instanceId} Debug Output:");
+            foreach (var dp in debugQueue)
+                sb.AppendLine($"SW: {dp.SW:F2} ms, Timestamp: {dp.Timestamp*1000.0:F2} ms");
 
-        public void Add(BlockPacket packet, bool useRA, ref RunningAverage ra)
+            return sb.ToString();
+        }   
+
+        public void Add(BlockPacket packet, bool useRA, ref RunningAverage ra, DataSelector? selector = null)
         {
             if (first) { first = false; return; }
 
@@ -120,12 +142,19 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 double scale = Yscale == 0.0 ? 1.0 : Yscale;
 
+                debugQueue.Enqueue(new DebugPoint
+                {
+                    SW = sw.Elapsed.TotalMilliseconds,
+                    Timestamp = packet.BlockData[0].TimeStamp
+                });
+
                 var today = DateTime.Today;
                 for (int i = 0; i < packet.Count; i++)
                 {
                     ref var item = ref packet.BlockData[i];
                     double x = packet.BlockData[i].TimeStamp;
-                    double y = item.Channel[0] * ChannelScale;
+                    double y = selector != null ? selector(item) 
+                                                : item.Channel[0] * ChannelScale;
 
                     // When the buffer is full, copy the last block of data to the start.
                     if (_writeIndex >= _bufferCapacity)
@@ -150,9 +179,15 @@ namespace TeensyMonitor.Plotter.Helpers
                     _vertexData[_writeIndex * 3 + 1] = fY;
                     _vertexData[_writeIndex * 3 + 2] = 0.0f;
 
-                    
+                    if (LastX >= x)
+                        {
+                        // Out of order data point
+                        Debug.WriteLine($"[MyPlot {_instanceId}] Warning: Out of order data point. LastX: {LastX}, NewX: {fX}");
+                    }
+
                     LastX = fX;
                     LastY = fY;
+
 
                     _writeIndex++;
                 }

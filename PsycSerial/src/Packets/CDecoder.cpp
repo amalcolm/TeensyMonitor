@@ -294,6 +294,8 @@ inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexce
         return FrameParseResult::ValidPacket;
     }
 
+	double lastTimeStamp = 0;
+
     FrameParseResult readBlockPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept
     {
                                                                                                         if (payloadBytes < kBlockHeaderSize) return FrameParseResult::IncompleteHeader;
@@ -333,18 +335,16 @@ inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexce
                 readU32(rP, dp.channel[ch]);
         }
 
-/*
+
         for (uint32_t i = 0; i < count; ++i)
         {
             CDataPacket& dp = bp.blockData[i];
 
-            if (i == 0)
-                lastValue = dp.channel[0];
-            else
-                if (lastValue < dp.channel[0] / 8)
-                    lastValue = dp.channel[0];
+            if (dp.timeStamp < lastTimeStamp)
+				dp.timeStamp = lastTimeStamp; // prevent time going backwards in case of bad data
+    
         }
-*/
+
 
         consumed = need;
         out.block = bp;

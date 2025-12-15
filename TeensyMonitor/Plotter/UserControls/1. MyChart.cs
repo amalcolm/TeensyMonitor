@@ -4,6 +4,7 @@ using PsycSerial;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
+using System.Text;
 using TeensyMonitor.Plotter.Backgrounds;
 using TeensyMonitor.Plotter.Fonts;
 using TeensyMonitor.Plotter.Helpers;
@@ -14,6 +15,8 @@ namespace TeensyMonitor.Plotter.UserControls
     [ToolboxItem(true)]
     public partial class MyChart : MyPlotter
     {
+        static volatile uint _instanceCounter = 0;
+        private readonly uint _instanceId = _instanceCounter++;
         private const int WindowSize = 5120;
 
         public bool EnablePlots  { get; set; } = true;
@@ -23,11 +26,23 @@ namespace TeensyMonitor.Plotter.UserControls
         private readonly ConcurrentDictionary<uint, Tuple<TextBlock, TextBlock>> _blocks = [];
         private readonly List<TextBlock> _textBlocksToRender = [];
 
-        private volatile int labelCount = 0;
         private readonly ConcurrentDictionary<uint, bool> _pendingStates = [];
 
         private LabelAreaRenderer? _labelAreaRenderer;
 
+        public string getDebugOutput()
+        {
+            lock (_lock)
+            {
+                StringBuilder sb = new();
+                sb.AppendLine($"Chart {_instanceId}:");
+                foreach (var plot in Plots.Values)
+                {
+                    sb.Append(plot.getDebugOutput());
+                }
+                return sb.ToString();
+            }
+        }
 
         struct DataSelectorInfo
         {
@@ -36,13 +51,14 @@ namespace TeensyMonitor.Plotter.UserControls
             public uint AdditionalMask;
         }
 
-        static List<DataSelectorInfo> dataSelectors = [];
+        static readonly List<DataSelectorInfo> dataSelectors = [];
 
         private readonly object _lock = new();
 
-        private readonly string[] dataFieldsToOutput = {
-            "Offset1", "Offset2", "Gain",
-            "preGainSensor", "postGainSensor"
+        static readonly string[] dataFieldsToOutput = {
+//            "Offset1", "Offset2", "Gain",
+//          "preGainSensor",
+            "postGainSensor",
             };
 
         public MyChart()
@@ -56,6 +72,8 @@ namespace TeensyMonitor.Plotter.UserControls
             var properties = typeof(DataPacket).GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
             
+
+            if (dataSelectors.Count > 0) return;
 
             for (uint count = 1; count <= dataFieldsToOutput.Length; count++)
             {
@@ -113,9 +131,9 @@ namespace TeensyMonitor.Plotter.UserControls
                         else
                             return;
 
-                    Plots[state].Add(blockPacket, false, ref ra);
+//                    Plots[state].Add(blockPacket, false, ref ra);
                     foreach (var info in dataSelectors)
-                        Plots[state | info.AdditionalMask].Add(blockPacket, false, ref ra);
+                        Plots[state | info.AdditionalMask].Add(blockPacket, false, ref ra, info.Selector);
 
 
                 }
@@ -206,36 +224,42 @@ namespace TeensyMonitor.Plotter.UserControls
 
             lock (_lock)
             {
-                Interlocked.Increment(ref labelCount);
-                float yPos = MyGL.Height - 20 - labelCount * 50;
-
-                var labelBlock = new TextBlock(labelText, 126, yPos, font);
-                var valueBlock = new TextBlock("0.00", 120, yPos, font, TextAlign.Right, valueFormat);
+                var labelBlock = new TextBlock(labelText, 126, 0, font);                                 // yPos set on render
+                var valueBlock = new TextBlock("0.00", 120, 0, font, TextAlign.Right, valueFormat);
 
                 _blocks[state] = Tuple.Create(labelBlock, valueBlock);
             }
             _pendingStates.TryRemove(state, out _);
         }
-
         protected override void DrawText()
         {
             if (font == null) return;
 
             _textBlocksToRender.Clear();
-            // 1. Populate the list of blocks to render and flag if their content has changed.
+
             lock (_lock)
             {
-                foreach (var key in _latestValues.Keys)
-                {
-                    if (_blocks.TryGetValue(key, out var tuple))
-                    {
-                        var item = _latestValues[key];
+                // Sort by state for consistent order (important for stable layout)
+                
+                int index = 1;
+                float lineSpacing = 50f;
+                float topMargin = 20f;
 
-                        // Check
-                        tuple.Item2.SetValue(item);
+                foreach (var stateKey in _latestValues.Keys)
+                {
+                    if (_blocks.TryGetValue(stateKey, out var tuple))
+                    {
+                        tuple.Item2.SetValue(_latestValues[stateKey]);
+
+                        float yPos = MyGL.Height - topMargin - (index * lineSpacing);
+
+                        tuple.Item1.Y = yPos;
+                        tuple.Item2.Y = yPos;
 
                         _textBlocksToRender.Add(tuple.Item1);
                         _textBlocksToRender.Add(tuple.Item2);
+
+                        index++;
                     }
                 }
             }
@@ -279,7 +303,6 @@ namespace TeensyMonitor.Plotter.UserControls
                     _blocks.Clear();
                     _latestValues.Clear();
                     _pendingStates.Clear();
-                    Interlocked.Exchange(ref labelCount, 0);
                     MyColours.Reset();
                 }
         }
