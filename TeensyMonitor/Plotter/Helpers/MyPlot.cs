@@ -116,23 +116,7 @@ namespace TeensyMonitor.Plotter.Helpers
                 _writeIndex++;
             }
         }
-        static readonly Stopwatch sw = Stopwatch.StartNew();
-        struct DebugPoint
-        {
-            public double SW;
-            public double Timestamp;
-        }
-        readonly ConcurrentQueue<DebugPoint> debugQueue = [];
 
-        public string getDebugOutput()
-        {
-            StringBuilder sb = new();
-            sb.AppendLine($"MyPlot Instance {_instanceId} Debug Output:");
-            foreach (var dp in debugQueue)
-                sb.AppendLine($"SW: {dp.SW:F2} ms, Timestamp: {dp.Timestamp*1000.0:F2} ms");
-
-            return sb.ToString();
-        }   
 
         public void Add(BlockPacket packet, bool useRA, ref RunningAverage ra, DataSelector? selector = null)
         {
@@ -140,21 +124,42 @@ namespace TeensyMonitor.Plotter.Helpers
 
             lock (_lock)
             {
-                double scale = Yscale == 0.0 ? 1.0 : Yscale;
-
-                debugQueue.Enqueue(new DebugPoint
-                {
-                    SW = sw.Elapsed.TotalMilliseconds,
-                    Timestamp = packet.BlockData[0].TimeStamp
-                });
+                double scale = Yscale == 0.0 ? 1.0 : Yscale;                     // debugQueue.Enqueue(new DebugPoint { SW = sw.Elapsed.TotalMilliseconds, Timestamp = packet.BlockData[0].TimeStamp });
 
                 var today = DateTime.Today;
-                for (int i = 0; i < packet.Count; i++)
+                for (int i = packet.Count-1; i < packet.Count; i++)
                 {
                     ref var item = ref packet.BlockData[i];
                     double x = packet.BlockData[i].TimeStamp;
-                    double y = selector != null ? selector(item) 
-                                                : item.Channel[0] * ChannelScale;
+                    double y;
+                    if (selector == null)
+                    {
+                        y = item.Channel[0] * ChannelScale;
+
+                        if (i > 0)
+                        {
+                            uint c1 = item.Channel[0];
+                            uint c0 = packet.BlockData[i - 1].Channel[0];
+                            uint diff = (c0 > c1) ? (c0 - c1) : (c1 - c0);
+
+
+                            if (c0 < 0x1000 && c0 > 0xFEFFFFF) { // 0's and 0xFF.... are invalid data
+//                                Debug.WriteLine($"Skipping c0: 0x{c0:X8}");
+                            }
+                            else
+                            if (c1 < 0x1000 && c1 > 0xFEFFFFF)
+                            {
+                                // skip diff check as this will be caught next iteration
+                            }
+                            else
+                            if (diff > 0x00400000)
+                                Debug.WriteLine($"c0: 0x{c0:X8}, c1: 0x{c1:X8}");
+
+                        }
+
+                    }
+                    else
+                        y = selector(item);
 
                     // When the buffer is full, copy the last block of data to the start.
                     if (_writeIndex >= _bufferCapacity)
@@ -178,12 +183,6 @@ namespace TeensyMonitor.Plotter.Helpers
                     _vertexData[_writeIndex * 3 + 0] = fX;
                     _vertexData[_writeIndex * 3 + 1] = fY;
                     _vertexData[_writeIndex * 3 + 2] = 0.0f;
-
-                    if (LastX >= x)
-                        {
-                        // Out of order data point
-                        Debug.WriteLine($"[MyPlot {_instanceId}] Warning: Out of order data point. LastX: {LastX}, NewX: {fX}");
-                    }
 
                     LastX = fX;
                     LastY = fY;
@@ -226,5 +225,25 @@ namespace TeensyMonitor.Plotter.Helpers
                 if (_vaoHandle != 0) GL.DeleteVertexArray(_vaoHandle);
             }
         }
+
+        // static readonly Stopwatch sw = Stopwatch.StartNew();
+        // struct DebugPoint
+        // {
+        //     public double SW;
+        //     public double Timestamp;
+        // }
+        // readonly ConcurrentQueue<DebugPoint> debugQueue = [];
+
+ 
+        // public string getDebugOutput()
+        // {
+        //     StringBuilder sb = new();
+        //     sb.AppendLine($"MyPlot Instance {_instanceId} Debug Output:");
+        //     foreach (var dp in debugQueue)
+        //         sb.AppendLine($"SW: {dp.SW:F2} ms, Timestamp: {dp.Timestamp * 1000.0:F2} ms");
+        //
+        //     return sb.ToString();
+        // }
+
     }
 }

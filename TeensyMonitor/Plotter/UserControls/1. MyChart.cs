@@ -30,20 +30,6 @@ namespace TeensyMonitor.Plotter.UserControls
 
         private LabelAreaRenderer? _labelAreaRenderer;
 
-        public string getDebugOutput()
-        {
-            lock (_lock)
-            {
-                StringBuilder sb = new();
-                sb.AppendLine($"Chart {_instanceId}:");
-                foreach (var plot in Plots.Values)
-                {
-                    sb.Append(plot.getDebugOutput());
-                }
-                return sb.ToString();
-            }
-        }
-
         struct DataSelectorInfo
         {
             public string Name;
@@ -51,13 +37,21 @@ namespace TeensyMonitor.Plotter.UserControls
             public uint AdditionalMask;
         }
 
-        static readonly List<DataSelectorInfo> dataSelectors = [];
+        static readonly List<DataSelectorInfo> dataSelectorsToOutput = [];
+        static readonly List<DataSelectorInfo> dataSelectorsToPlot = [];
+        static readonly List<DataSelectorInfo> dataSelectorsForLabels = [];
 
         private readonly object _lock = new();
 
-        static readonly string[] dataFieldsToOutput = {
+        static readonly string[] dataFieldsToPlot = {
 //            "Offset1", "Offset2", "Gain",
-//          "preGainSensor",
+//            "preGainSensor",
+//            "postGainSensor",
+            };
+
+        static readonly string[] dataFieldsForLabels = {
+            "Offset1", "Offset2", "Gain",
+            "preGainSensor",
             "postGainSensor",
             };
 
@@ -73,11 +67,16 @@ namespace TeensyMonitor.Plotter.UserControls
 
             
 
-            if (dataSelectors.Count > 0) return;
+            if (dataSelectorsToOutput.Count > 0) return;
 
-            for (uint count = 1; count <= dataFieldsToOutput.Length; count++)
+            var allDataFields = dataFieldsToPlot
+                .Concat(dataFieldsForLabels)
+                .Distinct()
+                .ToArray();
+
+            for (uint count = 1; count <= allDataFields.Length; count++)
             {
-                var property = properties.First(p => p.Name == dataFieldsToOutput[count - 1]);  // must declare a local to capture correctly in lambda
+                var property = properties.First(p => p.Name == allDataFields[count - 1]);  // must declare a local to capture correctly in lambda
 
                 MyPlot.DataSelector selector;
 
@@ -92,12 +91,17 @@ namespace TeensyMonitor.Plotter.UserControls
                 else
                     selector = data => Convert.ToDouble(property.GetValue(data));
 
-                dataSelectors.Add(new DataSelectorInfo
+                var dsInfo = new DataSelectorInfo
                 {
                     Name = property.Name,
                     Selector = selector,
                     AdditionalMask = count << 12 // 12 > number of red LEDs, so as not to overlap state bits
-                });
+                };
+
+                dataSelectorsToOutput.Add(dsInfo); // for latest values tracking, which handles both plots and labels
+
+                if (dataFieldsToPlot   .Contains(property.Name)) dataSelectorsToPlot   .Add(dsInfo);
+                if (dataFieldsForLabels.Contains(property.Name)) dataSelectorsForLabels.Add(dsInfo);
             }
         }
   
@@ -118,21 +122,21 @@ namespace TeensyMonitor.Plotter.UserControls
                         {
                             Plots[state] = new MyPlot(WindowSize, this);
 
-                            foreach (var info in dataSelectors)
-                                Plots[state | info.AdditionalMask] = new MyPlot(WindowSize, this)
-                                {
-                                    Yscale = 1.0,
-                                    Colour = MyColours.GetNextColour(),
-                                    Selector = info.Selector
-                                };
+                            foreach (var info in dataSelectorsToPlot)
+                                    Plots[state | info.AdditionalMask] = new MyPlot(WindowSize, this)
+                                    {
+                                        Yscale = 1.0,
+                                        Colour = MyColours.GetNextColour(),
+                                        Selector = info.Selector
+                                    };
                             
 
                         }
                         else
                             return;
 
-//                    Plots[state].Add(blockPacket, false, ref ra);
-                    foreach (var info in dataSelectors)
+                    Plots[state].Add(blockPacket, false, ref ra);
+                    foreach (var info in dataSelectorsToPlot)
                         Plots[state | info.AdditionalMask].Add(blockPacket, false, ref ra, info.Selector);
 
 
@@ -147,7 +151,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
                 CreateTextBlocksForLabel(        state, description + " A2D %"   , "0.0000%");
 
-                foreach (var info in dataSelectors)
+                foreach (var info in dataSelectorsForLabels)
                     CreateTextBlocksForLabel(state | info.AdditionalMask, description + " " + info.Name, "F4");
                 
             }
@@ -163,7 +167,7 @@ namespace TeensyMonitor.Plotter.UserControls
                 lock (_lock)
                 {
                     _latestValues[state] = c0;
-                    foreach (var info in dataSelectors)
+                    foreach (var info in dataSelectorsToOutput)
                     {
                         var x = info.Selector(data);
                         _latestValues[state | info.AdditionalMask] = x;
@@ -307,6 +311,19 @@ namespace TeensyMonitor.Plotter.UserControls
                 }
         }
 
+//      public string getDebugOutput()
+//      {
+//          lock (_lock)
+//          {
+//              StringBuilder sb = new();
+//              sb.AppendLine($"Chart {_instanceId}:");
+//              foreach (var plot in Plots.Values)
+//              {
+//                  sb.Append(plot.getDebugOutput());
+//              }
+//              return sb.ToString();
+//          }
+//      }
 
     }
 }

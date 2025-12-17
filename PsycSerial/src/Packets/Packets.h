@@ -58,11 +58,12 @@ namespace PsycSerial
         virtual property HeadState State;
         virtual property double    TimeStamp;
 
-        property int         HardwareState;
-        property int         SensorState;
-        property array<int>^ Channel;
+        property int            HardwareState;
+        property int            SensorState;
 
-        property int SequenceNumber { int get() { return (HardwareState >> 24);         }}
+        property array<unsigned int>^ Channel;
+
+        property int SequenceNumber { int get() { return (HardwareState >> 24);        }}
 		property int Offset1        { int get() { return (HardwareState >> 16) & 0xFF; }}
 		property int Offset2        { int get() { return (HardwareState >>  8) & 0xFF; }}
 		property int Gain           { int get() { return (HardwareState      ) & 0xFF; }}

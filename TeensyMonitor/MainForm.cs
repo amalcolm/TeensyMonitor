@@ -30,16 +30,15 @@ namespace TeensyMonitor
                     break;
             }
 
-            this.FormClosing += (s,e) =>
-        {
-                TextWriter tw = new StreamWriter(@"C:\Temp\TeensyMonitorLog.txt", false, Encoding.UTF8);
-                foreach (var chart in charts.Values)
-                {
-                    tw.WriteLine(chart.getDebugOutput());
-                }
-                tw.Dispose();
-            }
-            ;
+//            this.FormClosing += (s,e) =>
+//            {
+//                TextWriter tw = new StreamWriter(@"C:\Temp\TeensyMonitorLog.txt", false, Encoding.UTF8);
+//                foreach (var chart in charts.Values)
+//                {
+//                    tw.WriteLine(chart.getDebugOutput());
+//                }
+//                tw.Dispose();
+//           };
 
             if (SP == null) return;
 

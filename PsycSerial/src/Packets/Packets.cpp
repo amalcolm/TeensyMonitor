@@ -41,7 +41,7 @@ namespace PsycSerial
 
     DataPacket::DataPacket()
     {
-        Channel = gcnew array<int>(8);
+        Channel = gcnew array<unsigned int>(8);
         Reset();
     }
 
