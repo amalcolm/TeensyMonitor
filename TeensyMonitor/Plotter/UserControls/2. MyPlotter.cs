@@ -21,11 +21,12 @@ namespace TeensyMonitor.Plotter.UserControls
         protected override void Init()
         {
             base.Init();
-            MyGL.MouseWheel += MyGL_MouseWheel;
 
-            if (SP == null) return;
+            if (MyGL != null)
+                MyGL.MouseWheel += MyGL_MouseWheel;
 
-            SP.ConnectionChanged += SP_ConnectionChanged;
+            if (SP != null)
+                SP.ConnectionChanged += SP_ConnectionChanged;
         }
 
         private float _currentViewRight = 0.0f;

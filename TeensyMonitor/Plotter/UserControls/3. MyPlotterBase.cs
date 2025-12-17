@@ -11,7 +11,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
         // Shader programs
         protected int _plotShaderProgram ;
-
+        public int GetPlotShader() => _plotShaderProgram;
 
         protected MyPlotterBase()
         {
