@@ -124,6 +124,9 @@ namespace TeensyMonitor.Plotter.UserControls
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
+            GL.Disable(EnableCap.DepthTest);
+            GL.DepthMask(false);
+
             _textShaderProgram = ShaderManager.Get("msdf");
             font = GetFont("Roboto-Medium.json");
             fontRenderer.Font = font;

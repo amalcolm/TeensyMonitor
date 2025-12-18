@@ -47,7 +47,13 @@ namespace TeensyMonitor.Plotter.Helpers
         private readonly float[] _vertexData;
         private int _writeIndex = 0; // Where to write the next data point
 
-        private float[] latestBlock = [];  // or List<float>, but array is fine
+        struct Vertex
+        {
+            public float X;
+            public float Y;
+            public float Z;
+        }
+        private Vertex[] latestBlock = [];  // or List<float>, but array is fine
         private readonly object blockLock = new();
 
         public MyPlot(int historyLength, MyGLControl myGL)
@@ -160,10 +166,17 @@ namespace TeensyMonitor.Plotter.Helpers
             lock (blockLock)  // or just outside the main lock
             {
                 if (latestBlock.Length != packet.Count)
-                    latestBlock = new float[packet.Count];
+                    latestBlock = new Vertex[packet.Count];
 
                 for (int i = 0; i < packet.Count; i++)
-                    latestBlock[i] = (float)packet.BlockData[i].Channel[0];
+                {
+                    latestBlock[i] = new Vertex
+                    {
+                        X = (float)packet.BlockData[i].StateTime * 1000.0f,  // milliseconds for subplot visibility
+                        Y = (float)packet.BlockData[i].Channel[0],
+                        Z = 0.0f
+                    };
+                }
             }
 
             lock (_lock)
@@ -282,40 +295,39 @@ namespace TeensyMonitor.Plotter.Helpers
         private int _maxGridCount = 0;
         private int _gridVertexCount = 0;
 
+        private readonly Vertex[] block = new Vertex[1024];
         private void RenderLatestBlock()
         {
             if (_parentChart == null) return;
-
-            float[] block;
+            int count = 0;
             lock (blockLock)
             {
-                if (latestBlock.Length < 2) return;
-                block = [.. latestBlock];
+                count = latestBlock.Length;
+                if (count < 2) return;
+
+                Array.Copy(latestBlock, block, count);
             }
-            int count = block.Length;
 
             GL.GetInteger(GetPName.Viewport, _viewport);
             int vpWidth = _viewport[2];
             int vpHeight = _viewport[3];
             
-            const float margin = 20f;
+            const int margin = 20;
             float sliceSize = vpWidth * 0.02f;
             
-            int subX = (int)margin;
-            int subY = (int)margin;
             int subW = (int)(sliceSize * _maxGridCount);
             int subH = (int)(vpHeight * 0.25f);
 
-            GL.Scissor(subX, subY, subW, subH);
+            GL.Scissor(margin, margin, subW, subH);
             GL.Enable(EnableCap.ScissorTest);
 
-            GL.Viewport(subX, subY, subW, subH);
+            GL.Viewport(margin, margin, subW, subH);
 
             // Key change: x now maps pixel width → 0 to count-1 logically
             // So short blocks get stretched, long ones compressed – consistent size on screen
             float xScale = (count - 1) / (subW - 1f);  // pixels per sample (approx)
 
-            var transform = Matrix4.CreateOrthographicOffCenter(0f, _maxGridCount - 1, ymin, ymax, -1f, 1f);
+            var transform = Matrix4.CreateOrthographicOffCenter(0f, 20.0F, ymin, ymax, -1f, 1f);
 
             int plotShader = _parentChart.GetPlotShader();
             int transformLoc = GL.GetUniformLocation(plotShader, "uTransform");
@@ -340,11 +352,9 @@ namespace TeensyMonitor.Plotter.Helpers
             int idx = 0;
             for (int i = 0; i < count; i++)
             {
-                float x = i;
-                float y = block[i];
-                _vertices[idx++] = x;
-                _vertices[idx++] = y;
-                _vertices[idx++] = 0.0f;
+                _vertices[idx++] = block[i].X;
+                _vertices[idx++] = block[i].Y;
+                _vertices[idx++] = block[i].Z;
             }
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, _subVBOHandle);
@@ -363,27 +373,25 @@ namespace TeensyMonitor.Plotter.Helpers
         private void RenderSubplotGrid(int count, int colorLocation)
         {
             // Faint vertical lines at every sample + top/bottom horizontals
-            _gridVertexCount = (count * 2) + 4;  // 2 per vertical + 4 for top/bottom lines
+            _gridVertexCount = ((count + 1) * 2) + 4;  // 2 per vertical + 4 for top/bottom lines
             if (_vertices.Length < _gridVertexCount * 3)
                 Array.Resize(ref _vertices, _gridVertexCount * 3 * 2);  // plenty of room
 
             int idx = 0;
 
             // Vertical lines
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i <= count; i++)
             {
                 float x = i;
                 _vertices[idx++] = x; _vertices[idx++] = ymin; _vertices[idx++] = 0.0f;
                 _vertices[idx++] = x; _vertices[idx++] = ymax; _vertices[idx++] = 0.0f;
             }
 
-            // Top horizontal
-            _vertices[idx++] = 0f; _vertices[idx++] = ymax; _vertices[idx++] = 0.0f;
-            _vertices[idx++] = count - 1; _vertices[idx++] = ymax; _vertices[idx++] = 0.0f;
-
-            // Bottom horizontal
-            _vertices[idx++] = 0f; _vertices[idx++] = ymin; _vertices[idx++] = 0.0f;
-            _vertices[idx++] = count - 1; _vertices[idx++] = ymin; _vertices[idx++] = 0.0f;
+            // Horizontal lines
+            _vertices[idx++] = 0.0f;  _vertices[idx++] = ymax; _vertices[idx++] = 0.0f;
+            _vertices[idx++] = count; _vertices[idx++] = ymax; _vertices[idx++] = 0.0f;
+            _vertices[idx++] = 0.0f;  _vertices[idx++] = ymin; _vertices[idx++] = 0.0f;
+            _vertices[idx++] = count; _vertices[idx++] = ymin; _vertices[idx++] = 0.0f;
 
             // Upload grid
             GL.BindBuffer(BufferTarget.ArrayBuffer, _subVBOHandle);

@@ -64,6 +64,7 @@ namespace PsycSerial
     {
         State = HeadState::None;
         TimeStamp = 0.0;
+		StateTime = 0.0;
         HardwareState = 0;
 		// Channel array is reused, and no need to clean it.
     }

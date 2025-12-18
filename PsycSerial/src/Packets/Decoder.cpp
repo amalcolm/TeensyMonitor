@@ -14,6 +14,7 @@ namespace PsycSerial
 				DataPacket^ pkt = DataPacket::Rent();
 
 				pkt->TimeStamp     = nativePacket.data.timeStamp;
+				pkt->StateTime     = nativePacket.data.stateTime;
 				pkt->State         = static_cast<HeadState>(nativePacket.data.state);
 				pkt->HardwareState = nativePacket.data.hardwareState;
 				pkt->SensorState   = nativePacket.data.sensorState;
@@ -42,6 +43,7 @@ namespace PsycSerial
 						dataPkt->Reset();
 
 					dataPkt->TimeStamp     = nativePacket.block.blockData[i].timeStamp;
+					dataPkt->StateTime     = nativePacket.block.blockData[i].stateTime;
 					dataPkt->State         = static_cast<HeadState>(nativePacket.block.blockData[i].state);
 					dataPkt->HardwareState = nativePacket.block.blockData[i].hardwareState;
 					dataPkt->SensorState   = nativePacket.block.blockData[i].sensorState;

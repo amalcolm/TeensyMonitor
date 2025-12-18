@@ -20,6 +20,7 @@ namespace
 	// this is the size of the incoming data for each block item.
     // It does not include the state field, (as it's the same for the whole block).
     constexpr size_t kBlockItemSize        = sizeof(double)                                    // timeStamp
+                                           + sizeof(double)                                    // stateTime
                                            + sizeof(uint32_t)                                  // hardwareState
                                            + sizeof(uint32_t)                                  // sensorState
                                            + CDataPacket::A2D_NUM_CHANNELS * sizeof(uint32_t); // channel data
@@ -90,7 +91,6 @@ PacketKind CDecoder::process(const CPacket& in, CDecodedPacket& out) noexcept
     size_t usedBytes = 0;
 
     // 2) Check for complete frame at the start of the buffer
-
 	FrameParseResult res = quickFrameCheck(m_buf.data(), m_buf.size(), out, usedBytes);
 
     switch (res)
@@ -328,6 +328,7 @@ inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexce
             dp.state = state; // shared block state
 
 			readDouble(rP, dp.timeStamp    ); rP += sizeof(double  );
+            readDouble(rP, dp.stateTime    ); rP += sizeof(double  );
             readU32   (rP, dp.hardwareState); rP += sizeof(uint32_t);
             readU32   (rP, dp.sensorState  ); rP += sizeof(uint32_t);
 

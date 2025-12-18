@@ -58,6 +58,7 @@ namespace PsycSerial
         virtual property HeadState State;
         virtual property double    TimeStamp;
 
+		property double         StateTime;
         property int            HardwareState;
         property int            SensorState;
 
