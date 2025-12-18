@@ -61,7 +61,7 @@ namespace TeensyMonitor.Plotter.UserControls
             }
             
 
-            // 2. Define the target for the right edge of our viewport.
+            // 2. Define the target for the right edge of our _viewport.
             //    This includes a small buffer for the gap.
             _currentViewRight = (float)(SW.ElapsedMilliseconds / 1000.0 + _watchOffset);
 
@@ -73,7 +73,7 @@ namespace TeensyMonitor.Plotter.UserControls
                 SW.Restart();
             }
 
-            // 4. Define the viewport based on the smoothed position.
+            // 4. Define the _viewport based on the smoothed position.
             float viewLeft = _currentViewRight - Window;
             ViewPort = new RectangleF(viewLeft, -6, Window, 1030);
 

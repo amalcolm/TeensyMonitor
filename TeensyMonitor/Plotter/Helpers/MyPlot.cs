@@ -101,7 +101,7 @@ namespace TeensyMonitor.Plotter.Helpers
             GL.BindBuffer(BufferTarget.ArrayBuffer, _subVBOHandle);
             GL.BufferData(
                 BufferTarget.ArrayBuffer,
-                1024 * 3 * sizeof(float),  // Better: 1024 vertices max, 3 floats each (bump if blocks are bigger)
+                1024 * 3 * sizeof(float),  // Better: 1024 _vertices max, 3 floats each (bump if blocks are bigger)
                 IntPtr.Zero,
                 BufferUsageHint.DynamicDraw
             );
@@ -273,12 +273,14 @@ namespace TeensyMonitor.Plotter.Helpers
                 if (_subVAOHandle != 0) GL.DeleteVertexArray(_subVAOHandle);
             }
         }
-        readonly float ymin = 1000000.0f;
-        readonly float ymax = 5000000.0f;
 
-        float[] vertices = new float[1024 * 3];
-        readonly int[] viewport = new int[4];
-        private int _lastGridCount = 0;  
+        private const float ymin = 1000000.0f;
+        private const float ymax = 5000000.0f;
+
+        private float[] _vertices = new float[1024 * 3];
+        private readonly int[] _viewport = new int[4];
+        private int _maxGridCount = 0;
+        private int _gridVertexCount = 0;
 
         private void RenderLatestBlock()
         {
@@ -292,16 +294,16 @@ namespace TeensyMonitor.Plotter.Helpers
             }
             int count = block.Length;
 
-            GL.GetInteger(GetPName.Viewport, viewport);
-            int vpWidth = viewport[2];
-            int vpHeight = viewport[3];
+            GL.GetInteger(GetPName.Viewport, _viewport);
+            int vpWidth = _viewport[2];
+            int vpHeight = _viewport[3];
             
             const float margin = 20f;
             float sliceSize = vpWidth * 0.02f;
             
             int subX = (int)margin;
             int subY = (int)margin;
-            int subW = (int)(sliceSize * count);
+            int subW = (int)(sliceSize * _maxGridCount);
             int subH = (int)(vpHeight * 0.25f);
 
             GL.Scissor(subX, subY, subW, subH);
@@ -313,7 +315,7 @@ namespace TeensyMonitor.Plotter.Helpers
             // So short blocks get stretched, long ones compressed – consistent size on screen
             float xScale = (count - 1) / (subW - 1f);  // pixels per sample (approx)
 
-            var transform = Matrix4.CreateOrthographicOffCenter(0f, count - 1, ymin, ymax, -1f, 1f);
+            var transform = Matrix4.CreateOrthographicOffCenter(0f, _maxGridCount - 1, ymin, ymax, -1f, 1f);
 
             int plotShader = _parentChart.GetPlotShader();
             int transformLoc = GL.GetUniformLocation(plotShader, "uTransform");
@@ -322,35 +324,33 @@ namespace TeensyMonitor.Plotter.Helpers
             int colorLoc = GL.GetUniformLocation(plotShader, "uColor");
 
             // Draw grid first (now in separate method – clean!)
-            if (count > _lastGridCount)
+            if (count > _maxGridCount)
             {
                 RenderSubplotGrid(count, colorLoc);
             }
             else
             {
-                // Still set dim color and draw existing grid (safe – extra lines clipped)
+                // Still set dim color and draw existing (potentially larger)
                 GL.Uniform4(colorLoc, 0.35f, 0.35f, 0.35f, 0.28f);
                 GL.BindVertexArray(_subVAOHandle);
-                int existingVerts = (_lastGridCount * 2) + 4;
-                GL.DrawArrays(PrimitiveType.Lines, 0, existingVerts);
+                GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertexCount);
                 GL.BindVertexArray(0);
             }
 
-            // Main curve vertices – x is still logical 0 to count-1
             int idx = 0;
             for (int i = 0; i < count; i++)
             {
                 float x = i;
                 float y = block[i];
-                vertices[idx++] = x;
-                vertices[idx++] = y;
-                vertices[idx++] = 0.0f;
+                _vertices[idx++] = x;
+                _vertices[idx++] = y;
+                _vertices[idx++] = 0.0f;
             }
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, _subVBOHandle);
-            GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, count * 3 * sizeof(float), vertices);
+            GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, count * 3 * sizeof(float), _vertices);
 
-            GL.Uniform4(colorLoc, 0.0f, 1.0f, 1.0f, 1.0f);  // bright cyan
+            GL.Uniform4(colorLoc, 0.0f, 0.3f, 0.3f, 1.0f);
 
             GL.BindVertexArray(_subVAOHandle);
             GL.DrawArrays(PrimitiveType.LineStrip, 0, count);
@@ -363,9 +363,9 @@ namespace TeensyMonitor.Plotter.Helpers
         private void RenderSubplotGrid(int count, int colorLocation)
         {
             // Faint vertical lines at every sample + top/bottom horizontals
-            int gridVertCount = (count * 2) + 4;  // 2 per vertical + 4 for top/bottom lines
-            if (vertices.Length < gridVertCount * 3)
-                Array.Resize(ref vertices, gridVertCount * 3 * 2);  // plenty of room
+            _gridVertexCount = (count * 2) + 4;  // 2 per vertical + 4 for top/bottom lines
+            if (_vertices.Length < _gridVertexCount * 3)
+                Array.Resize(ref _vertices, _gridVertexCount * 3 * 2);  // plenty of room
 
             int idx = 0;
 
@@ -373,30 +373,30 @@ namespace TeensyMonitor.Plotter.Helpers
             for (int i = 0; i < count; i++)
             {
                 float x = i;
-                vertices[idx++] = x; vertices[idx++] = ymin; vertices[idx++] = 0.0f;
-                vertices[idx++] = x; vertices[idx++] = ymax; vertices[idx++] = 0.0f;
+                _vertices[idx++] = x; _vertices[idx++] = ymin; _vertices[idx++] = 0.0f;
+                _vertices[idx++] = x; _vertices[idx++] = ymax; _vertices[idx++] = 0.0f;
             }
 
             // Top horizontal
-            vertices[idx++] = 0f; vertices[idx++] = ymax; vertices[idx++] = 0.0f;
-            vertices[idx++] = count - 1; vertices[idx++] = ymax; vertices[idx++] = 0.0f;
+            _vertices[idx++] = 0f; _vertices[idx++] = ymax; _vertices[idx++] = 0.0f;
+            _vertices[idx++] = count - 1; _vertices[idx++] = ymax; _vertices[idx++] = 0.0f;
 
             // Bottom horizontal
-            vertices[idx++] = 0f; vertices[idx++] = ymin; vertices[idx++] = 0.0f;
-            vertices[idx++] = count - 1; vertices[idx++] = ymin; vertices[idx++] = 0.0f;
+            _vertices[idx++] = 0f; _vertices[idx++] = ymin; _vertices[idx++] = 0.0f;
+            _vertices[idx++] = count - 1; _vertices[idx++] = ymin; _vertices[idx++] = 0.0f;
 
             // Upload grid
             GL.BindBuffer(BufferTarget.ArrayBuffer, _subVBOHandle);
-            GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, gridVertCount * 3 * sizeof(float), vertices);
+            GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, _gridVertexCount * 3 * sizeof(float), _vertices);
 
             // Dim subtle gray
             GL.Uniform4(colorLocation, 0.35f, 0.35f, 0.35f, 0.28f);
 
             GL.BindVertexArray(_subVAOHandle);
-            GL.DrawArrays(PrimitiveType.Lines, 0, gridVertCount);
+            GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertexCount);
             GL.BindVertexArray(0);
 
-            _lastGridCount = count;
+            _maxGridCount = count;
         }
 
         // static readonly Stopwatch sw = Stopwatch.StartNew();

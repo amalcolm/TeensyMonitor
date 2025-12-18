@@ -120,7 +120,7 @@ namespace TeensyMonitor.Plotter.Fonts
         {
             if (_hasChanged)
             {
-                int requiredCount = _length * 6; // 6 vertices per character
+                int requiredCount = _length * 6; // 6 _vertices per character
                 if (_vertices.Length < requiredCount)
                     Array.Resize(ref _vertices, requiredCount);
 
