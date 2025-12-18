@@ -127,8 +127,7 @@ namespace TeensyMonitor.Plotter.UserControls
                                     {
                                         Yscale = 1.0,
                                         Colour = MyColours.GetNextColour(),
-                                        Selector = info.Selector,
-                                        ParentChart = this
+                                        Selector = info.Selector
                                     };
                             
 

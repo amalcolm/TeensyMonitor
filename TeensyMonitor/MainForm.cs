@@ -40,6 +40,7 @@ namespace TeensyMonitor
 //                tw.Dispose();
 //           };
 
+
             if (SP == null) return;
 
             SP.DataReceived      += SP_DataReceived;

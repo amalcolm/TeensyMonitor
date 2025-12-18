@@ -11,7 +11,6 @@ namespace TeensyMonitor.Plotter.Helpers
 {
     public class MyPlot
     {
-        public MyChart? ParentChart { get; set; }
 
         static volatile int _instanceCounter = 0;
         private readonly int _instanceId = _instanceCounter++;
@@ -28,13 +27,16 @@ namespace TeensyMonitor.Plotter.Helpers
                                                                              // Starts at a large negative value to avoid issues with float precision with ++;
 
         public DataSelector? Selector { get; set; }
-
+        
+        
+        private MyChart? _parentChart;
         private readonly object _lock = new();
 
         // OpenGL handles
         private int _vboHandle;
         private int _vaoHandle;
 
+        private int _subVAOHandle;
         private int _subVBOHandle;
 
         // Configuration
@@ -45,11 +47,14 @@ namespace TeensyMonitor.Plotter.Helpers
         private readonly float[] _vertexData;
         private int _writeIndex = 0; // Where to write the next data point
 
-        private List<float> latestBlock = [];  // or List<float>, but array is fine
+        private float[] latestBlock = [];  // or List<float>, but array is fine
         private readonly object blockLock = new();
 
         public MyPlot(int historyLength, MyGLControl myGL)
         {
+            if (myGL is MyChart chart)
+                _parentChart = chart;
+
             _historyLength = historyLength;
 
             // Make the buffer larger than the history to avoid copying every single frame
@@ -78,16 +83,6 @@ namespace TeensyMonitor.Plotter.Helpers
                 BufferUsageHint.DynamicDraw // Hint that we will be updating this buffer frequently
             );
 
-            _subVBOHandle = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, _subVBOHandle);
-            GL.BufferData(
-                BufferTarget.ArrayBuffer,
-                1024 * sizeof(float),  // way too big, but whatever :) 
-                IntPtr.Zero, // Allocate memory, but don't upload data yet
-                BufferUsageHint.DynamicDraw // Hint that we will be updating this buffer frequently
-            );
-
-
             // 3. Configure vertex attributes
             // Tell OpenGL that our vertex data is arranged as 3 floats per vertex.
             GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
@@ -96,6 +91,28 @@ namespace TeensyMonitor.Plotter.Helpers
             // Unbind the VAO to prevent accidental changes
             GL.BindVertexArray(0);
 
+            // repeat for subplot
+            // 1. Configure vertex attributes for subplot
+            _subVAOHandle = GL.GenVertexArray();
+            GL.BindVertexArray(_subVAOHandle);
+
+            // 2. Create its own VBO and allocate (you already had this)
+            _subVBOHandle = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ArrayBuffer, _subVBOHandle);
+            GL.BufferData(
+                BufferTarget.ArrayBuffer,
+                1024 * 3 * sizeof(float),  // Better: 1024 vertices max, 3 floats each (bump if blocks are bigger)
+                IntPtr.Zero,
+                BufferUsageHint.DynamicDraw
+            );
+
+            // 3. Configure the SAME vertex layout for the sub VAO (while its VBO is bound)
+            GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
+            GL.EnableVertexAttribArray(0);
+
+            // Unbind everything cleanly
+            GL.BindVertexArray(0);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
         }
 
         public void Add(double y) => Add(XCounter++, y);
@@ -140,15 +157,18 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             if (first) { first = false; return; }
 
-            lock (_lock)
+            lock (blockLock)  // or just outside the main lock
             {
-                double scale = Yscale == 0.0 ? 1.0 : Yscale;                     // debugQueue.Enqueue(new DebugPoint { SW = sw.Elapsed.TotalMilliseconds, Timestamp = packet.BlockData[0].TimeStamp });
-
-                if (latestBlock.Count != packet.Count)
-                    latestBlock = new List<float>(packet.Count);
+                if (latestBlock.Length != packet.Count)
+                    latestBlock = new float[packet.Count];
 
                 for (int i = 0; i < packet.Count; i++)
                     latestBlock[i] = (float)packet.BlockData[i].Channel[0];
+            }
+
+            lock (_lock)
+            {
+                double scale = Yscale == 0.0 ? 1.0 : Yscale;                     // debugQueue.Enqueue(new DebugPoint { SW = sw.Elapsed.TotalMilliseconds, Timestamp = packet.BlockData[0].TimeStamp });
 
                 var today = DateTime.Today;
                 for (int i = packet.Count-1; i < packet.Count; i++)
@@ -249,26 +269,30 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 if (_vboHandle != 0) GL.DeleteBuffer(_vboHandle);
                 if (_vaoHandle != 0) GL.DeleteVertexArray(_vaoHandle);
+                if (_subVBOHandle != 0) GL.DeleteBuffer(_subVBOHandle);
+                if (_subVAOHandle != 0) GL.DeleteVertexArray(_subVAOHandle);
             }
         }
         readonly float ymin = 1000000.0f;
-        readonly float ymax = 3500000.0f;
+        readonly float ymax = 5000000.0f;
 
-        float[] vertices = new float[1024 * 3];
+        readonly float[] vertices = new float[1024 * 3];
+        readonly int[] viewport = new int[4];
 
         private void RenderLatestBlock()
         {
-            if (ParentChart == null) return;
+            if (_parentChart == null) return;
 
             float[] block;
-         
-            if (latestBlock.Count < 2) return;
-            block = latestBlock.ToArray();  // shallow copy is fine since we don't modify
-
+            lock (blockLock)
+            {
+                if (latestBlock.Length < 2) return;
+                block = [.. latestBlock];  // shallow copy is fine since we don't modify
+            }
             int count = block.Length;
 
             // Grab current viewport for sizing
-            int[] viewport = ParentChart.GetViewport();
+//            int[] viewport = _parentChart.GetViewport();
             GL.GetInteger(GetPName.Viewport, viewport);
             int vpWidth = viewport[2];
             int vpHeight = viewport[3];
@@ -284,14 +308,14 @@ namespace TeensyMonitor.Plotter.Helpers
 
             // Simple dark semi-transparent background
             GL.Viewport((int)margin, (int)margin, (int)subWidth, (int)subHeight);
-            GL.ClearColor(0.05f, 0.05f, 0.1f, 0.7f);
-            GL.Clear(ClearBufferMask.ColorBufferBit);
+//            GL.ClearColor(0.05f, 0.05f, 0.1f, 0.7f);
+//            GL.Clear(ClearBufferMask.ColorBufferBit);
 
             // Setup ortho projection for this subplot: x from 0 to count-1, y auto-scaled
             var transform = Matrix4.CreateOrthographicOffCenter(0f, count - 1, ymin, ymax, -1f, 1f);
             // You'll need to calculate ymin/ymax – see below
 
-            int _plotShaderProgram = ParentChart.GetPlotShader();
+            int _plotShaderProgram = _parentChart.GetPlotShader();
 
             int transformLocation = GL.GetUniformLocation(_plotShaderProgram, "uTransform");
             GL.UniformMatrix4(transformLocation, false, ref transform);
@@ -312,10 +336,9 @@ namespace TeensyMonitor.Plotter.Helpers
             GL.BindBuffer(BufferTarget.ArrayBuffer, _subVBOHandle);
             // We only need to upload the part of the buffer that contains valid data
             GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, count * 3 * sizeof(float), vertices);
-
+            GL.BindVertexArray(_subVAOHandle);  // Use the sub's recipe card
             GL.DrawArrays(PrimitiveType.LineStrip, 0, count);
-
-            // Optional: thin grid or axis lines here if you want
+            GL.BindVertexArray(0);  // Clean up after ourselves
 
             // Clean up
             GL.Disable(EnableCap.ScissorTest);
