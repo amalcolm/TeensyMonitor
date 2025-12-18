@@ -276,8 +276,9 @@ namespace TeensyMonitor.Plotter.Helpers
         readonly float ymin = 1000000.0f;
         readonly float ymax = 5000000.0f;
 
-        readonly float[] vertices = new float[1024 * 3];
+        float[] vertices = new float[1024 * 3];
         readonly int[] viewport = new int[4];
+        private int _lastGridCount = 0;  
 
         private void RenderLatestBlock()
         {
@@ -287,65 +288,116 @@ namespace TeensyMonitor.Plotter.Helpers
             lock (blockLock)
             {
                 if (latestBlock.Length < 2) return;
-                block = [.. latestBlock];  // shallow copy is fine since we don't modify
+                block = [.. latestBlock];
             }
             int count = block.Length;
 
-            // Grab current viewport for sizing
-//            int[] viewport = _parentChart.GetViewport();
             GL.GetInteger(GetPName.Viewport, viewport);
             int vpWidth = viewport[2];
             int vpHeight = viewport[3];
+            
+            const float margin = 20f;
+            float sliceSize = vpWidth * 0.02f;
+            
+            int subX = (int)margin;
+            int subY = (int)margin;
+            int subW = (int)(sliceSize * count);
+            int subH = (int)(vpHeight * 0.25f);
 
-            // Define subplot area: bottom-left, say 30% width, 25% height, with small margin
-            float margin = 20f;
-            float subWidth = vpWidth * 0.30f - margin * 2;
-            float subHeight = vpHeight * 0.25f - margin * 2;
-
-            // Set scissor to clip drawing to this rect only (nice clean box)
-            GL.Scissor((int)margin, (int)margin, (int)subWidth, (int)subHeight);
+            GL.Scissor(subX, subY, subW, subH);
             GL.Enable(EnableCap.ScissorTest);
 
-            // Simple dark semi-transparent background
-            GL.Viewport((int)margin, (int)margin, (int)subWidth, (int)subHeight);
-//            GL.ClearColor(0.05f, 0.05f, 0.1f, 0.7f);
-//            GL.Clear(ClearBufferMask.ColorBufferBit);
+            GL.Viewport(subX, subY, subW, subH);
 
-            // Setup ortho projection for this subplot: x from 0 to count-1, y auto-scaled
+            // Key change: x now maps pixel width → 0 to count-1 logically
+            // So short blocks get stretched, long ones compressed – consistent size on screen
+            float xScale = (count - 1) / (subW - 1f);  // pixels per sample (approx)
+
             var transform = Matrix4.CreateOrthographicOffCenter(0f, count - 1, ymin, ymax, -1f, 1f);
-            // You'll need to calculate ymin/ymax – see below
 
-            int _plotShaderProgram = _parentChart.GetPlotShader();
+            int plotShader = _parentChart.GetPlotShader();
+            int transformLoc = GL.GetUniformLocation(plotShader, "uTransform");
+            GL.UniformMatrix4(transformLoc, false, ref transform);
 
-            int transformLocation = GL.GetUniformLocation(_plotShaderProgram, "uTransform");
-            GL.UniformMatrix4(transformLocation, false, ref transform);
+            int colorLoc = GL.GetUniformLocation(plotShader, "uColor");
 
-            // Build vertices exactly like your main MyPlot does
-            for (int i = 0, j = 0; i < count; i++)
+            // Draw grid first (now in separate method – clean!)
+            if (count > _lastGridCount)
             {
-                float x = i;
-                float y = block[i]; 
-                vertices[j++] = x;
-                vertices[j++] = y;
-                vertices[j++] = 0.0f;
-
+                RenderSubplotGrid(count, colorLoc);
+            }
+            else
+            {
+                // Still set dim color and draw existing grid (safe – extra lines clipped)
+                GL.Uniform4(colorLoc, 0.35f, 0.35f, 0.35f, 0.28f);
+                GL.BindVertexArray(_subVAOHandle);
+                int existingVerts = (_lastGridCount * 2) + 4;
+                GL.DrawArrays(PrimitiveType.Lines, 0, existingVerts);
+                GL.BindVertexArray(0);
             }
 
-            // Upload to VBO/VAO the same way MyPlot does (reuse your buffer upload code)
+            // Main curve vertices – x is still logical 0 to count-1
+            int idx = 0;
+            for (int i = 0; i < count; i++)
+            {
+                float x = i;
+                float y = block[i];
+                vertices[idx++] = x;
+                vertices[idx++] = y;
+                vertices[idx++] = 0.0f;
+            }
 
             GL.BindBuffer(BufferTarget.ArrayBuffer, _subVBOHandle);
-            // We only need to upload the part of the buffer that contains valid data
             GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, count * 3 * sizeof(float), vertices);
-            GL.BindVertexArray(_subVAOHandle);  // Use the sub's recipe card
-            GL.DrawArrays(PrimitiveType.LineStrip, 0, count);
-            GL.BindVertexArray(0);  // Clean up after ourselves
 
-            // Clean up
+            GL.Uniform4(colorLoc, 0.0f, 1.0f, 1.0f, 1.0f);  // bright cyan
+
+            GL.BindVertexArray(_subVAOHandle);
+            GL.DrawArrays(PrimitiveType.LineStrip, 0, count);
+            GL.BindVertexArray(0);
+
             GL.Disable(EnableCap.ScissorTest);
-            // Restore main viewport
             GL.Viewport(0, 0, vpWidth, vpHeight);
         }
 
+        private void RenderSubplotGrid(int count, int colorLocation)
+        {
+            // Faint vertical lines at every sample + top/bottom horizontals
+            int gridVertCount = (count * 2) + 4;  // 2 per vertical + 4 for top/bottom lines
+            if (vertices.Length < gridVertCount * 3)
+                Array.Resize(ref vertices, gridVertCount * 3 * 2);  // plenty of room
+
+            int idx = 0;
+
+            // Vertical lines
+            for (int i = 0; i < count; i++)
+            {
+                float x = i;
+                vertices[idx++] = x; vertices[idx++] = ymin; vertices[idx++] = 0.0f;
+                vertices[idx++] = x; vertices[idx++] = ymax; vertices[idx++] = 0.0f;
+            }
+
+            // Top horizontal
+            vertices[idx++] = 0f; vertices[idx++] = ymax; vertices[idx++] = 0.0f;
+            vertices[idx++] = count - 1; vertices[idx++] = ymax; vertices[idx++] = 0.0f;
+
+            // Bottom horizontal
+            vertices[idx++] = 0f; vertices[idx++] = ymin; vertices[idx++] = 0.0f;
+            vertices[idx++] = count - 1; vertices[idx++] = ymin; vertices[idx++] = 0.0f;
+
+            // Upload grid
+            GL.BindBuffer(BufferTarget.ArrayBuffer, _subVBOHandle);
+            GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, gridVertCount * 3 * sizeof(float), vertices);
+
+            // Dim subtle gray
+            GL.Uniform4(colorLocation, 0.35f, 0.35f, 0.35f, 0.28f);
+
+            GL.BindVertexArray(_subVAOHandle);
+            GL.DrawArrays(PrimitiveType.Lines, 0, gridVertCount);
+            GL.BindVertexArray(0);
+
+            _lastGridCount = count;
+        }
 
         // static readonly Stopwatch sw = Stopwatch.StartNew();
         // struct DebugPoint
