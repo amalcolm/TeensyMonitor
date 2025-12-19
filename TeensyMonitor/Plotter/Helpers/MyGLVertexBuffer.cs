@@ -1,13 +1,12 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 using PsycSerial;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace TeensyMonitor.Plotter.Helpers
 {
     /// <summary>
     /// Represents a single vertex in 3D space.
     /// </summary>
-    struct Vertex(float x, float y, float z)
+    public struct Vertex(float x, float y, float z)
     {
         public float X = x;
         public float Y = y;
@@ -30,6 +29,9 @@ namespace TeensyMonitor.Plotter.Helpers
     /// <param name="stride">Number of floats per vertex (e.g. 3 for XYZ).</param>
     public class MyGLVertexBuffer(int vertexCapacity, int stride = 3) : IDisposable
     {
+        public float ChannelScale { get; set; } = 0.0002f;
+
+
         private readonly int _vertexCapacity = vertexCapacity;
         private readonly int _stride = stride;
 
@@ -99,12 +101,12 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             lock (_lock)
             {
-                for (int i = 0; i < packet.Count; i++)
+                for (int i = packet.Count-1; i < packet.Count; i++)
                 {
                     CheckSize();
 
                     float x = (float)packet.BlockData[i].TimeStamp;
-                    float y = (selector == null) ? (float)packet.BlockData[i].Channel[0] 
+                    float y = (selector == null) ? (float)packet.BlockData[i].Channel[0] * ChannelScale 
                                                  : (float)selector(packet.BlockData[i]);
 
                     int baseIndex = _vertexCount * _stride;
@@ -135,20 +137,23 @@ namespace TeensyMonitor.Plotter.Helpers
         /// Uploads vertex data to the GPU. 
         /// The number of vertices becomes the current draw count.
         /// </summary>
-        public void Set(ref float[] data)
+        public void Set(ref float[] data, int count)
         {
-            if (data.Length % _stride != 0)
-                throw new ArgumentException("Data length must be a multiple of stride.", nameof(data));
-
-            _vertexCount = data.Length / _stride;
-
             if (_vertexCount > _vertexCapacity)
-                throw new ArgumentOutOfRangeException(nameof(data),
-                    "Data exceeds allocated vertex capacity.");
+                throw new ArgumentOutOfRangeException(nameof(data), "Data exceeds allocated vertex capacity.");
 
-            GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
-            GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, data.Length * sizeof(float), data);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
+            _vertexCount = count / 3;
+
+            if (_stride == 3)
+                Array.Copy(data, 0, _vertexData, 0, count);
+            else
+                for (int i = 0; i < _vertexCount; i++)
+                {
+                    int baseIndex = i * _stride;
+                    _vertexData[baseIndex    ] = data[baseIndex    ];
+                    _vertexData[baseIndex + 1] = data[baseIndex + 1];
+                    _vertexData[baseIndex + 2] = data[baseIndex + 2];
+                }
         }
 
         /// <summary>
@@ -159,9 +164,9 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             if (_vertexCount == 0) return;
 
-            GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
+            GL.BindBuffer   (BufferTarget.ArrayBuffer, _vbo);
             GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, _vertexCount * _stride * sizeof(float), _vertexData);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
+            GL.BindBuffer   (BufferTarget.ArrayBuffer, 0);
         }
 
 
@@ -172,8 +177,10 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             if (_vertexCount == 0) return;
 
+            Upload();
+
             GL.BindVertexArray(_vao);
-            GL.DrawArrays(PrimitiveType.Lines, 0, _vertexCount);
+            GL.DrawArrays(PrimitiveType.Lines, 0, _vertexCount * 3 / 2 - 2);
             GL.BindVertexArray(0);
         }
 

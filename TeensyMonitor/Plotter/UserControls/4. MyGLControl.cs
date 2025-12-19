@@ -168,7 +168,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
             string log =$"[GL {type}]: {Marshal.PtrToStringAnsi(message, length)}";
 
-            System.Diagnostics.Debug.WriteLine(log);
+            Debug.WriteLine(log);
 
             // Break on errors so you see the stack trace immediately
             if (type == DebugType.DebugTypeError)

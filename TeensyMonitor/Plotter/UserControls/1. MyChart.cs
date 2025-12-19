@@ -33,7 +33,7 @@ namespace TeensyMonitor.Plotter.UserControls
         struct DataSelectorInfo
         {
             public string Name;
-            public MyPlot.DataSelector Selector;
+            public DataSelector Selector;
             public uint AdditionalMask;
         }
 
@@ -78,7 +78,7 @@ namespace TeensyMonitor.Plotter.UserControls
             {
                 var property = properties.First(p => p.Name == allDataFields[count - 1]);  // must declare a local to capture correctly in lambda
 
-                MyPlot.DataSelector selector;
+                DataSelector selector;
 
                 if (property.PropertyType.IsArray)
                     selector = data =>
@@ -135,9 +135,9 @@ namespace TeensyMonitor.Plotter.UserControls
                         else
                             return;
 
-                    Plots[state].Add(blockPacket, false, ref ra);
+                    Plots[state].Add(blockPacket);
                     foreach (var info in dataSelectorsToPlot)
-                        Plots[state | info.AdditionalMask].Add(blockPacket, false, ref ra, info.Selector);
+                        Plots[state | info.AdditionalMask].Add(blockPacket, info.Selector);
 
 
                 }
