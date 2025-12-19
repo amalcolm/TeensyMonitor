@@ -5,7 +5,7 @@ using TeensyMonitor.Plotter.UserControls;
 namespace TeensyMonitor.Plotter.Helpers
 {
 
-    class GLViewport(MyPlotterBase myPlotter)
+    class MyGLViewport(MyPlotterBase myPlotter)
     {
         public int         Margin { get =>  _margin; set {  _margin = value; Update(); } }   private int        _margin = 10;
         public RectangleF  InRect { get =>  _inRect; set {  _inRect = value; Update(); } }   private RectangleF _inRect  = RectangleF.Empty;

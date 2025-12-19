@@ -40,7 +40,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
             _bufMainPlot = new MyGLVertexBuffer(_bufferCapacity) { WindowSize = historyLength };
 
-            _subPlotViewport = new GLViewport(myPlotter)
+            _subPlotViewport = new MyGLViewport(myPlotter)
             {
                 Margin  = _subPlot_Margin,
                 InRect  = new RectangleF(0, 0, 0.5f, 0.35f),
@@ -170,7 +170,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
         private float[] block = new float[3072];
 
-        private GLViewport _subPlotViewport;
+        private MyGLViewport _subPlotViewport;
 
         private void RenderSubPlot()
         {
