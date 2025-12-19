@@ -174,6 +174,8 @@ namespace TeensyMonitor.Plotter.UserControls
                     }
                 }
             }
+
+            
         }
 
         public void AddData(Dictionary<string, double> data)

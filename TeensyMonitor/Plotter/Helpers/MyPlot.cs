@@ -39,6 +39,9 @@ namespace TeensyMonitor.Plotter.Helpers
         private int _subVAOHandle;
         private int _subVBOHandle;
 
+        private int _subGridVBOHandle;
+        private int _subGridVAOHandle;
+
         // Configuration
         private readonly int _bufferCapacity; // The total size of our vertex buffer
         private readonly int _historyLength;  // The number of recent points we want to keep contiguous for drawing
@@ -116,7 +119,26 @@ namespace TeensyMonitor.Plotter.Helpers
             GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
             GL.EnableVertexAttribArray(0);
 
-            // Unbind everything cleanly
+            GL.BindVertexArray(0);
+
+            _subGridVAOHandle = GL.GenVertexArray();
+            GL.BindVertexArray(_subGridVAOHandle);
+
+            // 2. Create its own VBO and allocate (you already had this)
+            _subGridVBOHandle = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ArrayBuffer, _subGridVBOHandle);
+            GL.BufferData(
+                BufferTarget.ArrayBuffer,
+                128 * 3 * sizeof(float),  // Better: 128 _vertices max, 3 floats each
+                IntPtr.Zero,
+                BufferUsageHint.DynamicDraw
+            );
+
+            // 3. Configure the SAME vertex layout for the sub VAO (while its VBO is bound)
+            GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 3 * sizeof(float), 0);
+            GL.EnableVertexAttribArray(0);
+
+
             GL.BindVertexArray(0);
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
         }
@@ -284,6 +306,8 @@ namespace TeensyMonitor.Plotter.Helpers
                 if (_vaoHandle != 0) GL.DeleteVertexArray(_vaoHandle);
                 if (_subVBOHandle != 0) GL.DeleteBuffer(_subVBOHandle);
                 if (_subVAOHandle != 0) GL.DeleteVertexArray(_subVAOHandle);
+                if (_subGridVBOHandle != 0) GL.DeleteBuffer(_subGridVBOHandle);
+                if (_subGridVAOHandle != 0) GL.DeleteVertexArray(_subGridVAOHandle);
             }
         }
 
@@ -291,6 +315,7 @@ namespace TeensyMonitor.Plotter.Helpers
         private const float ymax = 5000000.0f;
 
         private float[] _vertices = new float[1024 * 3];
+        private float[] _gridVertices = new float[128 * 3];
         private readonly int[] _viewport = new int[4];
         private int _maxGridCount = 0;
         private int _gridVertexCount = 0;
@@ -330,21 +355,20 @@ namespace TeensyMonitor.Plotter.Helpers
             var transform = Matrix4.CreateOrthographicOffCenter(0f, 20.0F, ymin, ymax, -1f, 1f);
 
             int plotShader = _parentChart.GetPlotShader();
+            int colorLoc = GL.GetUniformLocation(plotShader, "uColor");
             int transformLoc = GL.GetUniformLocation(plotShader, "uTransform");
             GL.UniformMatrix4(transformLoc, false, ref transform);
 
-            int colorLoc = GL.GetUniformLocation(plotShader, "uColor");
 
             // Draw grid first (now in separate method – clean!)
-            if (count > _maxGridCount)
+            if (_maxGridCount == 0)
             {
-                RenderSubplotGrid(count, colorLoc);
+                BuildSubplotGrid();
             }
             else
-            {
-                // Still set dim color and draw existing (potentially larger)
+            {   // Still set dim color and draw existing (potentially larger)
                 GL.Uniform4(colorLoc, 0.35f, 0.35f, 0.35f, 0.28f);
-                GL.BindVertexArray(_subVAOHandle);
+                GL.BindVertexArray(_subGridVAOHandle);
                 GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertexCount);
                 GL.BindVertexArray(0);
             }
@@ -370,12 +394,15 @@ namespace TeensyMonitor.Plotter.Helpers
             GL.Viewport(0, 0, vpWidth, vpHeight);
         }
 
-        private void RenderSubplotGrid(int count, int colorLocation)
+        private void BuildSubplotGrid()
         {
+            if (_parentChart == null) return;
+
+            int count = 20;
             // Faint vertical lines at every sample + top/bottom horizontals
             _gridVertexCount = ((count + 1) * 2) + 4;  // 2 per vertical + 4 for top/bottom lines
-            if (_vertices.Length < _gridVertexCount * 3)
-                Array.Resize(ref _vertices, _gridVertexCount * 3 * 2);  // plenty of room
+            if (_gridVertices.Length < _gridVertexCount * 3)
+                Array.Resize(ref _gridVertices, _gridVertexCount * 3 * 2);  // plenty of room
 
             int idx = 0;
 
@@ -383,25 +410,28 @@ namespace TeensyMonitor.Plotter.Helpers
             for (int i = 0; i <= count; i++)
             {
                 float x = i;
-                _vertices[idx++] = x; _vertices[idx++] = ymin; _vertices[idx++] = 0.0f;
-                _vertices[idx++] = x; _vertices[idx++] = ymax; _vertices[idx++] = 0.0f;
+                _gridVertices[idx++] = x; _gridVertices[idx++] = ymin; _gridVertices[idx++] = 0.0f;
+                _gridVertices[idx++] = x; _gridVertices[idx++] = ymax; _gridVertices[idx++] = 0.0f;
             }
 
             // Horizontal lines
-            _vertices[idx++] = 0.0f;  _vertices[idx++] = ymax; _vertices[idx++] = 0.0f;
-            _vertices[idx++] = count; _vertices[idx++] = ymax; _vertices[idx++] = 0.0f;
-            _vertices[idx++] = 0.0f;  _vertices[idx++] = ymin; _vertices[idx++] = 0.0f;
-            _vertices[idx++] = count; _vertices[idx++] = ymin; _vertices[idx++] = 0.0f;
+            _gridVertices[idx++] = 0.0f;  _gridVertices[idx++] = ymax; _gridVertices[idx++] = 0.0f;
+            _gridVertices[idx++] = count; _gridVertices[idx++] = ymax; _gridVertices[idx++] = 0.0f;
+            _gridVertices[idx++] = 0.0f;  _gridVertices[idx++] = ymin; _gridVertices[idx++] = 0.0f;
+            _gridVertices[idx++] = count; _gridVertices[idx++] = ymin; _gridVertices[idx++] = 0.0f;
 
             // Upload grid
-            GL.BindBuffer(BufferTarget.ArrayBuffer, _subVBOHandle);
-            GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, _gridVertexCount * 3 * sizeof(float), _vertices);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, _subGridVBOHandle);
+            GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, _gridVertexCount * 3 * sizeof(float), _gridVertices);
+
+            int plotShader = _parentChart.GetPlotShader();
+            int colorLoc = GL.GetUniformLocation(plotShader, "uColor");
 
             // Dim subtle gray
-            GL.Uniform4(colorLocation, 0.35f, 0.35f, 0.35f, 0.28f);
+            GL.Uniform4(colorLoc, 0.35f, 0.35f, 0.35f, 0.28f);
 
-            GL.BindVertexArray(_subVAOHandle);
-            GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertexCount);
+            GL.BindVertexArray(_subGridVAOHandle);
+            GL.DrawArrays(PrimitiveType.Lines, 0, idx/3);
             GL.BindVertexArray(0);
 
             _maxGridCount = count;
