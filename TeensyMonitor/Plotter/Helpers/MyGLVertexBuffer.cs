@@ -134,26 +134,20 @@ namespace TeensyMonitor.Plotter.Helpers
             }
         }
         /// <summary>
-        /// Uploads vertex data to the GPU. 
-        /// The number of vertices becomes the current draw count.
+        /// Replaces the buffer content with new data.
         /// </summary>
-        public void Set(ref float[] data, int count)
+        /// <param name="data">Flat array of floats (must be multiple of stride)</param>
+        /// <param name="vertexCount">Number of vertices (not floats!)</param>
+        public void Set(ref float[] data, int vertexCount)
         {
-            if (_vertexCount > _vertexCapacity)
-                throw new ArgumentOutOfRangeException(nameof(data), "Data exceeds allocated vertex capacity.");
+            if (vertexCount > _vertexCapacity)       throw new ArgumentOutOfRangeException(nameof(vertexCount));
 
-            _vertexCount = count / 3;
+            if (data.Length < vertexCount * _stride) throw new ArgumentException("Data array too small for vertex count");
 
-            if (_stride == 3)
-                Array.Copy(data, 0, _vertexData, 0, count);
-            else
-                for (int i = 0; i < _vertexCount; i++)
-                {
-                    int baseIndex = i * _stride;
-                    _vertexData[baseIndex    ] = data[baseIndex    ];
-                    _vertexData[baseIndex + 1] = data[baseIndex + 1];
-                    _vertexData[baseIndex + 2] = data[baseIndex + 2];
-                }
+            _vertexCount = vertexCount;
+
+            // Copy only the used portion
+            Array.Copy(data, _vertexData, vertexCount * _stride);
         }
 
         /// <summary>
@@ -180,7 +174,7 @@ namespace TeensyMonitor.Plotter.Helpers
             Upload();
 
             GL.BindVertexArray(_vao);
-            GL.DrawArrays(PrimitiveType.Lines, 0, _vertexCount * 3 / 2 - 2);
+            GL.DrawArrays(PrimitiveType.Lines, 0, _vertexCount);
             GL.BindVertexArray(0);
         }
 

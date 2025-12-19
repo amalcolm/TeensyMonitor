@@ -3,6 +3,7 @@ using OpenTK.Mathematics;
 using PsycSerial;
 using System.Diagnostics;
 using TeensyMonitor.Plotter.UserControls;
+using static TeensyMonitor.Plotter.Helpers.ShaderManager;
 
 namespace TeensyMonitor.Plotter.Helpers
 {
@@ -18,7 +19,7 @@ namespace TeensyMonitor.Plotter.Helpers
         public DataSelector? Selector { get; set; }
         
         
-        private MyChart? _parentChart;
+        private MyPlotterBase _parentControl;
         private readonly object _lock = new();
 
         // OpenGL handles
@@ -27,25 +28,35 @@ namespace TeensyMonitor.Plotter.Helpers
         private MyGLVertexBuffer _bufSubPlotGrid = new(128);
 
         // Configuration
-        private readonly int _bufferCapacity; // The total size of our vertex buffer
-    
+        private int _colorLoc = -1;  // location of uColor uniform in shader
 
-        public MyPlot(int historyLength, MyGLControl myGL)
+
+        public MyPlot(int historyLength, MyPlotterBase myPlotter)
         {
-            if (myGL is MyChart chart)
-                _parentChart = chart;
+            _parentControl = myPlotter;
 
             // Make the buffer larger than the history to avoid copying every single frame
-            _bufferCapacity = historyLength * 8 + Random.Shared.Next(0, historyLength);  // stagger refreshes
+            int _bufferCapacity = historyLength * 8 + Random.Shared.Next(0, historyLength);  // stagger refreshes
 
             _bufMainPlot = new MyGLVertexBuffer(_bufferCapacity) { WindowSize = historyLength };
 
-            myGL.Setup(initAction:Init, shutdownAction:Shutdown);
+            _subPlotViewport = new GLViewport(myPlotter)
+            {
+                Margin  = _subPlot_Margin,
+                InRect  = new RectangleF(0, 0, 0.5f, 0.35f),
+                OutRect = new RectangleF(0, _subPlot_Ymin, 20.0f, _subPlot_Ymax - _subPlot_Ymin)
+            };
+
+            myPlotter.Setup(initAction:Init, shutdownAction:Shutdown);
         }
 
 
         private void Init()
         {
+            _colorLoc = GL.GetUniformLocation(_parentControl.GetPlotShader(), "uColor");
+
+            _subPlotViewport.Init();
+
             _bufMainPlot.Init();
             _bufSubPlot.Init();
             _bufSubPlotGrid.Init();
@@ -76,6 +87,7 @@ namespace TeensyMonitor.Plotter.Helpers
         }
 
         float[] latestBlock = [];
+        int packetCount = 0;
 
         public void Add(BlockPacket packet, DataSelector? selector = null)
         {
@@ -83,6 +95,8 @@ namespace TeensyMonitor.Plotter.Helpers
 
             if (latestBlock.Length < packet.Count * 3)
                 latestBlock = new float[packet.Count * 3];
+
+            packetCount = packet.Count;
 
             for (int i = 0; i < packet.Count; i++)
             {
@@ -104,12 +118,12 @@ namespace TeensyMonitor.Plotter.Helpers
                     uint c0 = packet.BlockData[i - 1].Channel[0];
                     uint diff = (c0 > c1) ? (c0 - c1) : (c1 - c0);
 
-                    if (c0 < 0x1000 && c0 > 0xFEFFFFF)
+                    if (c0 < 0x1000 || c0 > 0xFEFFFFF)
                     {   // 0's and 0xFF.... are invalid data
                         // Debug.WriteLine($"Skipping c0: 0x{c0:X8}");
                     }
                     else
-                    if (c1 < 0x1000 && c1 > 0xFEFFFFF)
+                    if (c1 < 0x1000 || c1 > 0xFEFFFFF)
                     {
                         // skip diff check as this will be caught next iteration
                     }
@@ -133,7 +147,7 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             _bufMainPlot.DrawLineStrip();
 
-            RenderSubPlot(latestBlock.Length);
+            RenderSubPlot();
         }
 
 
@@ -147,86 +161,72 @@ namespace TeensyMonitor.Plotter.Helpers
             _bufSubPlotGrid.Dispose();
         }
 
-        private const int margin = 20;
-        private const float ymin = 1000000.0f;
-        private const float ymax = 5000000.0f;
 
-        private readonly int[] _viewport = new int[4];
+
         private bool _buildGrid = true;
+        const int _subPlot_Margin = 20;
+        const float _subPlot_Ymin = 1000000.0f;
+        const float _subPlot_Ymax = 5000000.0f;
 
         private float[] block = new float[3072];
-        private void RenderSubPlot(int count)
+
+        private GLViewport _subPlotViewport;
+
+        private void RenderSubPlot()
         {
-            if (_parentChart == null) return;
+            if (packetCount <= 0) return;
 
             lock (_lock)
-                Array.Copy(latestBlock, 0, block, 0, Math.Min(count, block.Length));
+                Array.Copy(latestBlock, 0, block, 0, Math.Min(packetCount * 3, block.Length));
 
-            _bufSubPlot.Set(ref block, count);
+            _bufSubPlot.Set(ref block, packetCount);
 
-            GL.GetInteger(GetPName.Viewport, _viewport);
-            int vpWidth  = _viewport[2];
-            int vpHeight = _viewport[3];
-
-            float sliceSize = vpWidth * 0.02f;
-
-            int subW = (int)(sliceSize * 20.00f);
-            int subH = (int)(vpHeight  *  0.25f);
-
-            GL.Scissor (margin, margin, subW, subH);
-            GL.Enable  (EnableCap.ScissorTest);
-            GL.Viewport(margin, margin, subW, subH);
-
-            // the x-ordinates are in milliseconds for the subplot, max 20ms
-            var transform = Matrix4.CreateOrthographicOffCenter(0f, 20.0f, ymin, ymax, -1f, 1f);
-
-            int plotShader   = _parentChart.GetPlotShader();
-            int colorLoc     = GL.GetUniformLocation(plotShader, "uColor");
-            int transformLoc = GL.GetUniformLocation(plotShader, "uTransform");
-            GL.UniformMatrix4(transformLoc, false, ref transform);
+            _subPlotViewport.Set();
 
             // --- Draw subplot grid ---
             if (_buildGrid)
                 BuildSubplotGrid();
 
-            GL.Uniform4(colorLoc, 0.35f, 0.35f, 0.35f, 0.28f);
+
+            GL.Uniform4(_colorLoc, 0.35f, 0.35f, 0.35f, 0.28f);
             _bufSubPlotGrid.DrawLines();
 
             // --- Draw subplot waveform ---
-            GL.Uniform4(colorLoc, 0.0f, 0.3f, 0.3f, 1.0f);
+            GL.Uniform4(_colorLoc, 0.0f, 0.3f, 0.3f, 1.0f);
             _bufSubPlot.DrawLineStrip();
 
-            // --- Cleanup ---
-            GL.Disable(EnableCap.ScissorTest);
-            GL.Viewport(0, 0, vpWidth, vpHeight);
+            _subPlotViewport.Reset();
         }
+
 
 
         private void BuildSubplotGrid()
         {
-            if (_parentChart == null) return;
-
             int maxDivisor = 20;
 
             int gridVertexCount = ((maxDivisor + 1) * 2) + 4;
             float[] grid = new float[gridVertexCount * 3];
             int idx = 0;
 
+            RectangleF subPlotRect = _subPlotViewport.OutRect;
+            float yMin = subPlotRect.Bottom;
+            float yMax = subPlotRect.Top;
+
             // Vertical lines
             for (int i = 0; i <= maxDivisor; i++)
             {
-                grid[idx++] = i; grid[idx++] = ymin; grid[idx++] = 0.0f;
-                grid[idx++] = i; grid[idx++] = ymax; grid[idx++] = 0.0f;
+                grid[idx++] = i; grid[idx++] = yMin; grid[idx++] = 0.0f;
+                grid[idx++] = i; grid[idx++] = yMax; grid[idx++] = 0.0f;
             }
 
             // Horizontal lines
-            grid[idx++] = 0.0f;       grid[idx++] = ymax; grid[idx++] = 0.0f;
-            grid[idx++] = maxDivisor; grid[idx++] = ymax; grid[idx++] = 0.0f;
-            grid[idx++] = 0.0f;       grid[idx++] = ymin; grid[idx++] = 0.0f;
-            grid[idx++] = maxDivisor; grid[idx++] = ymin; grid[idx++] = 0.0f;
+            grid[idx++] = 0.0f;       grid[idx++] = yMax; grid[idx++] = 0.0f;
+            grid[idx++] = maxDivisor; grid[idx++] = yMax; grid[idx++] = 0.0f;
+            grid[idx++] = 0.0f;       grid[idx++] = yMin; grid[idx++] = 0.0f;
+            grid[idx++] = maxDivisor; grid[idx++] = yMin; grid[idx++] = 0.0f;
 
-            _bufSubPlotGrid.Set(ref grid, grid.Length);
-            
+            _bufSubPlotGrid.Set(ref grid, gridVertexCount);
+
             _buildGrid = false;
         }
 

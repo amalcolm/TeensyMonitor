@@ -42,6 +42,7 @@ namespace TeensyMonitor.Plotter.UserControls
         protected readonly GLControl MyGL = default!;
         private static DebugProc? _debugProcCallback;
         protected int _textShaderProgram;
+        protected int _defaultShaderProgram;
 
         private bool _isLoaded = false;
         public bool IsLoaded
@@ -126,6 +127,8 @@ namespace TeensyMonitor.Plotter.UserControls
 
             GL.Disable(EnableCap.DepthTest);
             GL.DepthMask(false);
+
+            _defaultShaderProgram = ShaderManager.Get("_default");
 
             _textShaderProgram = ShaderManager.Get("msdf");
             font = GetFont("Roboto-Medium.json");

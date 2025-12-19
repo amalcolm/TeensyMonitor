@@ -95,7 +95,7 @@ namespace TeensyMonitor.Plotter.UserControls
                 {
                     Name = property.Name,
                     Selector = selector,
-                    AdditionalMask = count << 12 // 12 > number of red LEDs, so as not to overlap state bits
+                    AdditionalMask = count << 12 // 12 > number of red LEDs, and < 16 (IR1) so as not to overlap state bits
                 };
 
                 dataSelectorsToOutput.Add(dsInfo); // for latest values tracking, which handles both plots and labels
@@ -109,6 +109,8 @@ namespace TeensyMonitor.Plotter.UserControls
 
         public void SP_DataReceived(IPacket packet)
         {
+            if (IsLoaded == false) return;  // ignore packets until control is fully loaded (i.e. GL.Init called, otherwise Task.Enqueue gets Inits out of order)
+
             if (packet is BlockPacket blockPacket == false) return;
             if (blockPacket.Count == 0) return;
 

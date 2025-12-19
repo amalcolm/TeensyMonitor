@@ -67,8 +67,7 @@ namespace TeensyMonitor.Plotter.Helpers
             };
         }
 
-        [DllImport("dwmapi.dll")] private static extern void DwmFlush();
-
+        
         //// <summary>
         /// Starts the rendering thread with a specific action to be performed each frame.
         //// </summary>
@@ -118,7 +117,6 @@ namespace TeensyMonitor.Plotter.Helpers
                     try
                     {
                         RenderAction?.Invoke();
-                        DwmFlush();
 
                         nTotalFrames++;
                         nFramesThisSecond++;
