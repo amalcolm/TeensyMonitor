@@ -4,7 +4,6 @@ using PsycSerial;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
-using System.Text;
 using TeensyMonitor.Plotter.Backgrounds;
 using TeensyMonitor.Plotter.Fonts;
 using TeensyMonitor.Plotter.Helpers;
@@ -15,8 +14,6 @@ namespace TeensyMonitor.Plotter.UserControls
     [ToolboxItem(true)]
     public partial class MyChart : MyPlotter
     {
-        static volatile uint _instanceCounter = 0;
-        private readonly uint _instanceId = _instanceCounter++;
         private const int WindowSize = 5120;
 
         public bool EnablePlots  { get; set; } = true;

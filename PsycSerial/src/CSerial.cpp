@@ -330,6 +330,13 @@ void CSerial::ReadLoop()
             const DWORD le = GetLastError();
             std::ostringstream os; os << "ClearCommError failed in ReadLoop. Error: " << le;
             InvokeErrorOccurred(std::runtime_error(os.str()));
+
+            if (le == 22)
+            {
+                InvokeConnectionChanged(false);
+				break;
+            }
+
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
             continue;
         }

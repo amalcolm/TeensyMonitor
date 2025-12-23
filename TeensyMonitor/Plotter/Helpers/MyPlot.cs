@@ -22,10 +22,12 @@ namespace TeensyMonitor.Plotter.Helpers
         private MyPlotterBase _parentControl;
         private readonly object _lock = new();
 
-        // OpenGL handles
+        
         private MyGLVertexBuffer _bufMainPlot = default!;
         private MyGLVertexBuffer _bufSubPlot = new(1024) { ChannelScale = 1.0f };
         private MyGLVertexBuffer _bufSubPlotGrid = new(128);
+
+        private MySubplot _subPlot = default!;
 
         // Configuration
         private int _colorLoc = -1;  // location of uColor uniform in shader
@@ -40,11 +42,11 @@ namespace TeensyMonitor.Plotter.Helpers
 
             _bufMainPlot = new MyGLVertexBuffer(_bufferCapacity) { WindowSize = historyLength };
 
-            _subPlotViewport = new MyGLViewport(myPlotter)
+            _subPlot = new MySubplot(myPlotter)
             {
-                Margin  = _subPlot_Margin,
+                Margin  = 10,
                 InRect  = new RectangleF(0, 0, 0.5f, 0.35f),
-                OutRect = new RectangleF(0, _subPlot_Ymin, 20.0f, _subPlot_Ymax - _subPlot_Ymin)
+                OutRect = new RectangleF(0, 1000000f, 20f, 4000000f)
             };
 
             myPlotter.Setup(initAction:Init, shutdownAction:Shutdown);
@@ -55,7 +57,7 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             _colorLoc = GL.GetUniformLocation(_parentControl.GetPlotShader(), "uColor");
 
-            _subPlotViewport.Init();
+            _subPlot.Init();
 
             _bufMainPlot.Init();
             _bufSubPlot.Init();
@@ -140,6 +142,7 @@ namespace TeensyMonitor.Plotter.Helpers
             LastY = (float)(lastData.Channel[0] * _bufMainPlot.ChannelScale);
         }
 
+        private float[] block = new float[1024 * 3];
         /// <summary>
         /// Renders the plot. Assumes the correct shader program is already active.
         /// </summary>
@@ -147,7 +150,14 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             _bufMainPlot.DrawLineStrip();
 
-            RenderSubPlot();
+            if (packetCount <= 0) return;
+
+            lock (_lock)
+                Array.Copy(latestBlock, 0, block, 0, Math.Min(packetCount * 3, block.Length));
+
+            _bufSubPlot.Set(ref block, packetCount);
+
+            _subPlot.Render(_bufSubPlot);
         }
 
 
@@ -159,77 +169,8 @@ namespace TeensyMonitor.Plotter.Helpers
             _bufMainPlot.Dispose();
             _bufSubPlot.Dispose();
             _bufSubPlotGrid.Dispose();
+
+            _subPlot.Shutdown();
         }
-
-
-
-        private bool _buildGrid = true;
-        const int _subPlot_Margin = 20;
-        const float _subPlot_Ymin = 1000000.0f;
-        const float _subPlot_Ymax = 5000000.0f;
-
-        private float[] block = new float[3072];
-
-        private MyGLViewport _subPlotViewport;
-
-        private void RenderSubPlot()
-        {
-            if (packetCount <= 0) return;
-
-            lock (_lock)
-                Array.Copy(latestBlock, 0, block, 0, Math.Min(packetCount * 3, block.Length));
-
-            _bufSubPlot.Set(ref block, packetCount);
-
-            _subPlotViewport.Set();
-
-            // --- Draw subplot grid ---
-            if (_buildGrid)
-                BuildSubplotGrid();
-
-
-            GL.Uniform4(_colorLoc, 0.35f, 0.35f, 0.35f, 0.28f);
-            _bufSubPlotGrid.DrawLines();
-
-            // --- Draw subplot waveform ---
-            GL.Uniform4(_colorLoc, 0.0f, 0.3f, 0.3f, 1.0f);
-            _bufSubPlot.DrawLineStrip();
-
-            _subPlotViewport.Reset();
-        }
-
-
-
-        private void BuildSubplotGrid()
-        {
-            int maxDivisor = 20;
-
-            int gridVertexCount = ((maxDivisor + 1) * 2) + 4;
-            float[] grid = new float[gridVertexCount * 3];
-            int idx = 0;
-
-            RectangleF subPlotRect = _subPlotViewport.OutRect;
-            float yMin = subPlotRect.Bottom;
-            float yMax = subPlotRect.Top;
-
-            // Vertical lines
-            for (int i = 0; i <= maxDivisor; i++)
-            {
-                grid[idx++] = i; grid[idx++] = yMin; grid[idx++] = 0.0f;
-                grid[idx++] = i; grid[idx++] = yMax; grid[idx++] = 0.0f;
-            }
-
-            // Horizontal lines
-            grid[idx++] = 0.0f;       grid[idx++] = yMax; grid[idx++] = 0.0f;
-            grid[idx++] = maxDivisor; grid[idx++] = yMax; grid[idx++] = 0.0f;
-            grid[idx++] = 0.0f;       grid[idx++] = yMin; grid[idx++] = 0.0f;
-            grid[idx++] = maxDivisor; grid[idx++] = yMin; grid[idx++] = 0.0f;
-
-            _bufSubPlotGrid.Set(ref grid, gridVertexCount);
-
-            _buildGrid = false;
-        }
-
-
     }
 }

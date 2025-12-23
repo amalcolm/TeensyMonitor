@@ -1,11 +1,11 @@
-
+using Timer = System.Windows.Forms.Timer;
 
 namespace TeensyMonitor
 {
     using PsycSerial;
-    using System.Text;
     using TeensyMonitor.Plotter.Helpers;
     using TeensyMonitor.Plotter.UserControls;
+
 
     public partial class MainForm : Form
     {
@@ -40,6 +40,20 @@ namespace TeensyMonitor
 //                tw.Dispose();
 //           };
 
+            monitorTimer.Tick += (s, e) =>
+            {
+                var ports = SerialHelper.GetUSBSerialPorts();
+                if (ports.Length > 0)
+                {
+                    monitorTimer.Stop();
+                    this.Invoker(() =>
+                    {
+                        cbPorts.Items.Clear();
+                        cbPorts.Items.AddRange(ports);
+                        cbPorts.SelectedIndex = cbPorts.Items.Count - 1;
+                    });
+                }
+            };
 
             if (SP == null) return;
 
@@ -47,6 +61,8 @@ namespace TeensyMonitor
             SP.ConnectionChanged += SP_ConnectionChanged;
             SP.ErrorOccurred     += SP_ErrorOccurred;
         }
+
+        private readonly Timer monitorTimer = new() { Interval = 1000, Enabled = false };
 
 
         readonly MyPool<Dictionary<string, double>> parsedPool = new();
@@ -136,9 +152,9 @@ namespace TeensyMonitor
 
             AString? str = state switch
             {
-                ConnectionState.Connected => AString.FromString("Connected " + SP?.PortName),
+                ConnectionState.Connected           => AString.FromString("Connected " + SP?.PortName),
                 ConnectionState.HandshakeInProgress => AString.FromString("Handshake in progress"),
-                ConnectionState.Disconnected => AString.FromString("Disconnected"),
+                ConnectionState.Disconnected        => AString.FromString("Disconnected"),
                 ConnectionState.HandshakeSuccessful => null,  // string comes from the device
                 _ => null
             };
@@ -148,11 +164,24 @@ namespace TeensyMonitor
             if (cbPorts.Enabled != enableDropdown)
                 this.Invoker(() => cbPorts.Enabled = enableDropdown);
 
-            if (state == ConnectionState.Connected)
-                dbg.Clear();
+            switch (state)
+            {
+                case ConnectionState.Connected:
+                    dbg.Clear();
+                    dbg.Log(str);
+                    break;
+                case ConnectionState.Disconnected:
+                    if (SocketWatcher.ReceivedDisconnect)
+                    {
+                        dbg.Log(AString.FromString("Disconnected by request, waiting for reconnect..."));
+                        return;
+                    }
+                    dbg.Log(str);
 
-            if (str != null)
-                dbg.Log(str);
+                    this.Invoker(() => Form1_Load(this, EventArgs.Empty));
+                    break;
+            }
+
         }
 
         
@@ -160,28 +189,39 @@ namespace TeensyMonitor
         private void cbPorts_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (cbPorts.SelectedItem == null) return;
+            if (cbPorts.SelectedText == "No ports found") return;
 
             SP?.Open(cbPorts.SelectedItem.ToString());
         }
 
 
+        bool firstLoad = true;
         private void Form1_Load(object sender, EventArgs e)
         {
             var ports = SerialHelper.GetUSBSerialPorts();
 
             if (ports.Length == 0)
             {
-                MessageBox.Show("No serial ports found.");
-                Close();
-                return;
+                if (firstLoad)
+                {
+                    MessageBox.Show("No serial ports found.");
+                    Close();
+                    return;
+                }
+                cbPorts.Items.Clear();
+                cbPorts.Items.Add("No ports found");
+                cbPorts.SelectedIndex = 0;
+
+                monitorTimer.Start();
             }
             else
             {
+                firstLoad = false;
+                cbPorts.Items.Clear();
                 cbPorts.Items.AddRange(ports);
                 cbPorts.SelectedIndex = cbPorts.Items.Count - 1;
             }
         }
-
 
 
         private void AddNewChart(MyChart newChart)

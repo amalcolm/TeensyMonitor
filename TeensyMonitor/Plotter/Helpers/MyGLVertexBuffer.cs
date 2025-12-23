@@ -30,6 +30,7 @@ namespace TeensyMonitor.Plotter.Helpers
     public class MyGLVertexBuffer(int vertexCapacity, int stride = 3) : IDisposable
     {
         public float ChannelScale { get; set; } = 0.0002f;
+        public int VertexCount { get => _vertexCount; }
 
 
         private readonly int _vertexCapacity = vertexCapacity;
@@ -115,9 +116,17 @@ namespace TeensyMonitor.Plotter.Helpers
                     _vertexData[baseIndex + 2] = 0.0f;
 
                     _vertexCount++;
+                
                 }
+
             }
         }
+
+        private float[] _latestX = new float[1024];
+        private int _latestXCount = 0;
+
+        public int LatestXCount => _latestXCount;
+        public ReadOnlySpan<float> LatestX => _latestX.AsSpan(0, _latestXCount);
 
         public int Count => _vertexCount;
 
@@ -145,9 +154,15 @@ namespace TeensyMonitor.Plotter.Helpers
             if (data.Length < vertexCount * _stride) throw new ArgumentException("Data array too small for vertex count");
 
             _vertexCount = vertexCount;
-
             // Copy only the used portion
             Array.Copy(data, _vertexData, vertexCount * _stride);
+
+            _latestXCount = vertexCount;
+            if (_latestX.Length < _latestXCount)
+                _latestX = new float[_latestXCount * 2];
+
+            for (int i = 0; i < _latestXCount; i++)
+                _latestX[i] = _vertexData[i * _stride];
         }
 
         /// <summary>

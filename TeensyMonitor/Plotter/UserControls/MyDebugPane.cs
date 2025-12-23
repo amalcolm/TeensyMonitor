@@ -28,7 +28,7 @@ namespace TeensyMonitor.Plotter.UserControls
         }
 
 
-        public void Log(AString str) => log.Add(str);
+        public void Log(AString? str) => log.Add(str);
 
         public void Clear() => log.Clear();
 
@@ -85,9 +85,9 @@ namespace TeensyMonitor.Plotter.UserControls
 
         private readonly ConcurrentQueue<AString> qStringsToAdd = [];
 
-        public void Add(AString str)
+        public void Add(AString? str)
         {
-            if (str.Length > 0)
+            if (str?.Length > 0)
                 qStringsToAdd.Enqueue(str);
         }
 

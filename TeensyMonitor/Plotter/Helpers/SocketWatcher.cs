@@ -11,6 +11,7 @@ namespace TeensyMonitor.Plotter.Helpers
         private static UdpClient listener = default!;
         private const int Port = 11000;
 
+        public static bool ReceivedDisconnect { get; private set; } = false;
 
         private static readonly CancellationTokenSource cts = new();
 
@@ -58,12 +59,14 @@ namespace TeensyMonitor.Plotter.Helpers
                     Debug.WriteLine("Received DISCONNECT. Closing port.");
                     if (SP?.IsOpen == true)
                         await SP.CloseAsync();
+                    ReceivedDisconnect = true;
                     break;
                 case "RECONNECT":
                     // Your logic to try reopening the serial port
                     Debug.WriteLine("Received RECONNECT. Attempting to open port.");
                     if (SP?.IsOpen == false)
                         await SP.OpenAsync();
+                    ReceivedDisconnect = false;
                     break;
             }
         }
