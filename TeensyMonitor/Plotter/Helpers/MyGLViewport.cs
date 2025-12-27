@@ -52,7 +52,7 @@ namespace TeensyMonitor.Plotter.Helpers
             _vpRect.Height = (int)(_inRect.Height * _parentRect.Height - 2 * _margin);
         }
 
-        public void Set()
+        public void SetupViewport()
         {
             if (!_canUpdate) return;
             if (_vpRect.Width == 0 || _vpRect.Height == 0) Update();
@@ -66,7 +66,7 @@ namespace TeensyMonitor.Plotter.Helpers
             GL.UniformMatrix4(_transformLoc, false, ref transform);
         }
 
-        public void Reset()
+        public void ResetViewport()
         {
             if (!_canUpdate) return;
             GL.Disable(EnableCap.ScissorTest);

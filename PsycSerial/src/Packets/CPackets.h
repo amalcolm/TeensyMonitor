@@ -42,7 +42,7 @@ struct CDataPacket
 
 struct CBlockPacket
 {
-    static constexpr size_t MAX_BLOCK_SIZE = 64;
+    static constexpr size_t MAX_BLOCK_SIZE = 164;
 
 	static constexpr Frame frameStart = 0xEDB1FAB4;  // B1/B2 = Block Packet
     static constexpr Frame frameEnd   = 0xEDB2FAB4;

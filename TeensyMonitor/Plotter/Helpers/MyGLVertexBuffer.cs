@@ -98,16 +98,17 @@ namespace TeensyMonitor.Plotter.Helpers
             }
         }
 
-        public void AddBlock(ref BlockPacket packet, DataSelector? selector)
+        public void AddBlock(ref BlockPacket packet, DataSelector? selector, bool onlyLast)
         {
             lock (_lock)
             {
-                for (int i = packet.Count-1; i < packet.Count; i++)
+                int start = onlyLast ? packet.Count - 1 : 0;
+                for (int i = start; i < packet.Count; i++)
                 {
                     CheckSize();
 
                     float x = (float)packet.BlockData[i].TimeStamp;
-                    float y = (selector == null) ? (float)packet.BlockData[i].Channel[0] * ChannelScale 
+                    float y = (selector == null) ? (float)packet.BlockData[i].Channel[0] * ChannelScale + 40.0f 
                                                  : (float)selector(packet.BlockData[i]);
 
                     int baseIndex = _vertexCount * _stride;
@@ -122,7 +123,7 @@ namespace TeensyMonitor.Plotter.Helpers
             }
         }
 
-        private float[] _latestX = new float[1024];
+        private float[] _latestX = new float[10240];
         private int _latestXCount = 0;
 
         public int LatestXCount => _latestXCount;
@@ -142,6 +143,26 @@ namespace TeensyMonitor.Plotter.Helpers
                 _vertexCount = WindowSize;
             }
         }
+
+        float[] subPlotData = new float[1024 * 3];
+        public void SetBlock(BlockPacket block)
+        {
+            if (subPlotData.Length < block.Count * 3)
+                subPlotData = new float[block.Count * 3 * 2];
+
+            for (int i = 0; i < block.Count; i++)
+            {
+                int baseIndex = i * 3;
+
+                subPlotData[baseIndex] = (float)block.BlockData[i].StateTime * 1000.0f;  // milliseconds for subplot visibility
+                subPlotData[baseIndex + 1] = (float)block.BlockData[i].Channel[0];
+                subPlotData[baseIndex + 2] = 0.0f;
+            }
+
+            Set(ref subPlotData, block.Count);
+
+        }
+
         /// <summary>
         /// Replaces the buffer content with new data.
         /// </summary>
@@ -171,7 +192,7 @@ namespace TeensyMonitor.Plotter.Helpers
         /// </summary>
         public void Upload()
         {
-            if (_vertexCount == 0) return;
+            if (_vertexCount < 2) return;
 
             GL.BindBuffer   (BufferTarget.ArrayBuffer, _vbo);
             GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, _vertexCount * _stride * sizeof(float), _vertexData);
@@ -184,7 +205,7 @@ namespace TeensyMonitor.Plotter.Helpers
         /// </summary>
         public void DrawLines()
         {
-            if (_vertexCount == 0) return;
+            if (_vertexCount < 2) return;
 
             Upload();
 
@@ -198,7 +219,7 @@ namespace TeensyMonitor.Plotter.Helpers
         /// </summary>
         public void DrawLineStrip()
         {
-            if (_vertexCount == 0) return;
+            if (_vertexCount < 2) return;
 
             Upload();
 

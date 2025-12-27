@@ -157,6 +157,18 @@ namespace PsycSerial
         return inst;
 	}
 
+    AString^ AString::FromStringBuilder(StringBuilder^ sb)
+    {
+        if (sb == nullptr) return nullptr;
+        AString^ inst = Rent();
+        int sbLength = sb->Length;
+        if (sbLength == 0) return inst;
+        if (sbLength > inst->_buffer->Length)
+            inst->_buffer = gcnew array<wchar_t>(sbLength);
+        sb->CopyTo(0, inst->_buffer, 0, sbLength);
+        inst->_length = sbLength;
+        return inst;
+    }
 
     String^ AString::ToString()
     {

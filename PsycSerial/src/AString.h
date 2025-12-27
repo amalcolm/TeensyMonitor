@@ -84,6 +84,7 @@ namespace PsycSerial
         static AString^ FromUtf8(const uint8_t* bytes, int offset, const int count);
 
 		static AString^ FromString(String^ str);
+		static AString^ FromStringBuilder(StringBuilder^ sb);
 
         // Destructor returns buffer and object to pools (called via 'delete')
         ~AString();

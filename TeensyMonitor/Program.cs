@@ -5,9 +5,7 @@ namespace TeensyMonitor
 {
     internal static class Program
     {
-        public const string Version = "1.0";
-
-        public static readonly TeensySerial? serialPort = new(Version);
+        public static readonly TeensySerial? serialPort = new();
 
         public static bool IsRunning = false;
 

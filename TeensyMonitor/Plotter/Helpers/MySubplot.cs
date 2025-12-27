@@ -1,23 +1,25 @@
 ﻿using OpenTK.Graphics.OpenGL4;
+using PsycSerial;
 using TeensyMonitor.Plotter.UserControls;
 
 namespace TeensyMonitor.Plotter.Helpers
 {
      class MySubplot : MyGLViewport
     {
-        private readonly MyGLVertexBuffer _gridBuffer = new(128);
+        private readonly MyGLVertexBuffer _waveBuffer = new(1024);
+        private readonly MyGLVertexBuffer _gridBuffer = new(4096);
         private bool _gridDirty = true;
         
         private int _colorLoc = -1;
 
-        public int GridDivisions { get; set; } = 20;
+        public int GridDivisions { get; set; } = Setup.LoopMS;
         public bool UniformGrid { get; set; } = false;
 
         public MySubplot(MyPlotterBase myPlotter) : base(myPlotter)
         {
             Margin = 20;
             InRect = new RectangleF(0f, 0f, 0.5f, 0.35f);
-            OutRect = new RectangleF(0f, 1000000f, 20f, 4000000f);
+            OutRect = new RectangleF(0f, 1000000f, Setup.LoopMS, 4000000f);
         }
 
         public override void Init()
@@ -26,6 +28,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
             _colorLoc = GL.GetUniformLocation(_myPlotter.GetPlotShader(), "uColor");
 
+            _waveBuffer.Init();
             _gridBuffer.Init();
         }
 
@@ -33,6 +36,7 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             base.Shutdown();
             _gridBuffer.Dispose();
+            _waveBuffer.Dispose();
         }
 
         /// <summary>
@@ -53,17 +57,24 @@ namespace TeensyMonitor.Plotter.Helpers
             }
         }
 
-        public void Render(MyGLVertexBuffer waveBuffer)
+        public void SetBlock(BlockPacket block)
         {
-            if (waveBuffer.VertexCount <= 0) return;
+            _waveBuffer.SetBlock(block);
+        }
 
-            Set();  // full base magic: viewport, scissor, ortho projection from OutRect
+        public void Render()
+        {
+            if (_waveBuffer.VertexCount <= 0) return;
+
+            SetupViewport();  // full base magic: viewport, scissor, ortho projection from OutRect
+
+            _waveBuffer.Upload();
 
             if (_gridDirty)
                 if (UniformGrid)
                     BuildGrid();
                 else
-                    BuildGrid(waveBuffer);
+                    BuildGrid(_waveBuffer);
             
             // Dim grey grid
             GL.Uniform4(_colorLoc, 0.35f, 0.35f, 0.35f, 0.28f);
@@ -71,11 +82,16 @@ namespace TeensyMonitor.Plotter.Helpers
 
             // Teal/cyan waveform
             GL.Uniform4(_colorLoc, 0.0f, 0.3f, 0.3f, 1.0f);
-            waveBuffer.DrawLineStrip();
+            _waveBuffer.DrawLineStrip();
 
-            Reset();  // clean restore to parent viewport
+            ResetViewport();  // clean restore to parent viewport
         }
 
+
+
+
+
+        #region Build Grid Methods
         private void BuildGrid()
         {
             var data = OutRect;
@@ -159,6 +175,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
             _gridBuffer.Set(ref grid, vertexCount);
         }
-
+        #endregion
     }
+
 }

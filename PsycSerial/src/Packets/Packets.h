@@ -39,16 +39,19 @@ namespace PsycSerial
     };
 
 
-    public interface class IPacket
+	public interface class IPacket
     {
         property double    TimeStamp;
         property HeadState State;
+
+        virtual void Cleanup();
     };
 
-    public ref struct DataPacket : IPacket
+	public ref class DataPacket : IPacket, IDisposable
     {
 	public:
 		static DataPacket^ Rent();
+		virtual void Cleanup();
 
         ~DataPacket();
 		!DataPacket();
@@ -77,10 +80,11 @@ namespace PsycSerial
         static ConcurrentQueue<DataPacket^>^ s_pool = gcnew ConcurrentQueue<DataPacket^>();
     };
 
-    public ref struct BlockPacket : IPacket
+	public ref class BlockPacket : IPacket, IDisposable
     {
     public:
 		static BlockPacket^ Rent();
+        virtual void Cleanup();
 
 		~BlockPacket();
 		!BlockPacket();
@@ -99,10 +103,11 @@ namespace PsycSerial
 		static ConcurrentQueue<BlockPacket^>^ s_pool = gcnew ConcurrentQueue<BlockPacket^>();
     };
 
-	public ref struct TextPacket : IPacket
+	public ref class TextPacket : IPacket, IDisposable
 	{
     public:
         static TextPacket^ Rent();
+        virtual void Cleanup();
 
         ~TextPacket();
         !TextPacket();
@@ -120,7 +125,7 @@ namespace PsycSerial
         static ConcurrentQueue<TextPacket^>^ s_pool = gcnew ConcurrentQueue<TextPacket^>();
 	};
 
-    public ref struct TelemetryPacket : IPacket
+    public ref class TelemetryPacket : IPacket, IDisposable
 	{
     public:
         enum class TeleGroup : System::Byte
@@ -139,7 +144,8 @@ namespace PsycSerial
 		};
 
         static TelemetryPacket^ Rent();
-      
+        virtual void Cleanup();
+
         ~TelemetryPacket();
         !TelemetryPacket();
         

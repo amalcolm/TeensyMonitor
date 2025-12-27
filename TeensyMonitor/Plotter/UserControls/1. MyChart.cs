@@ -4,6 +4,7 @@ using PsycSerial;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
+using System.Text;
 using TeensyMonitor.Plotter.Backgrounds;
 using TeensyMonitor.Plotter.Fonts;
 using TeensyMonitor.Plotter.Helpers;
@@ -16,7 +17,7 @@ namespace TeensyMonitor.Plotter.UserControls
     {
         private const int WindowSize = 5120;
 
-        public bool EnablePlots  { get; set; } = true;
+        public bool EnablePlots { get; set; } = true;
         public bool EnableLabels { get; set; } = true;
 
         private readonly ConcurrentDictionary<uint, double> _latestValues = [];
@@ -42,8 +43,8 @@ namespace TeensyMonitor.Plotter.UserControls
 
         static readonly string[] dataFieldsToPlot = {
 //            "Offset1", "Offset2", "Gain",
-//            "preGainSensor",
-//            "postGainSensor",
+            "preGainSensor",
+            "postGainSensor",
             };
 
         static readonly string[] dataFieldsForLabels = {
@@ -62,7 +63,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
             var properties = typeof(DataPacket).GetProperties(BindingFlags.Public | BindingFlags.Instance);
 
-            
+
 
             if (dataSelectorsToOutput.Count > 0) return;
 
@@ -97,12 +98,10 @@ namespace TeensyMonitor.Plotter.UserControls
 
                 dataSelectorsToOutput.Add(dsInfo); // for latest values tracking, which handles both plots and labels
 
-                if (dataFieldsToPlot   .Contains(property.Name)) dataSelectorsToPlot   .Add(dsInfo);
+                if (dataFieldsToPlot.Contains(property.Name)) dataSelectorsToPlot.Add(dsInfo);
                 if (dataFieldsForLabels.Contains(property.Name)) dataSelectorsForLabels.Add(dsInfo);
             }
         }
-  
-        private RunningAverage ra = new (20);
 
         public void SP_DataReceived(IPacket packet)
         {
@@ -122,25 +121,22 @@ namespace TeensyMonitor.Plotter.UserControls
                             Plots[state] = new MyPlot(WindowSize, this);
 
                             foreach (var info in dataSelectorsToPlot)
-                                    Plots[state | info.AdditionalMask] = new MyPlot(WindowSize, this)
-                                    {
-                                        Yscale = 1.0,
-                                        Colour = MyColours.GetNextColour(),
-                                        Selector = info.Selector
-                                    };
-                            
-
+                                Plots[state | info.AdditionalMask] = new MyPlot(WindowSize, this)
+                                {
+                                    Yscale = 1.0,
+                                    Colour = MyColours.GetNextColour(),
+                                    Selector = info.Selector
+                                };
                         }
                         else
                             return;
 
                     Plots[state].Add(blockPacket);
                     foreach (var info in dataSelectorsToPlot)
-                        Plots[state | info.AdditionalMask].Add(blockPacket, info.Selector);
+                        Plots[state | info.AdditionalMask].Add(blockPacket);
 
 
                 }
-
 
             if (EnableLabels == false || font == null) return;  // packet received before GL is initialized
 
@@ -148,33 +144,33 @@ namespace TeensyMonitor.Plotter.UserControls
             {
                 string description = blockPacket.State.Description();
 
-                CreateTextBlocksForLabel(        state, description + " A2D %"   , "0.0000%");
+                CreateTextBlocksForLabel(state, description + " A2D %", "0.0000%");
 
                 foreach (var info in dataSelectorsForLabels)
                     CreateTextBlocksForLabel(state | info.AdditionalMask, description + " " + info.Name, "F4");
-                
+
             }
 
 
 
             if (blockPacket.Count > 0)
             {
-                ref DataPacket data = ref blockPacket.BlockData[blockPacket.Count-1];
+                ref DataPacket data = ref blockPacket.BlockData[blockPacket.Count - 1];
 
-                float c0   = data.Channel[0] / 4660100.0f;
+                float c0_percentage = data.Channel[0] / 4660100.0f;
 
                 lock (_lock)
                 {
-                    _latestValues[state] = c0;
+                    _latestValues[state] = c0_percentage;
                     foreach (var info in dataSelectorsToOutput)
                     {
-                        var x = info.Selector(data);
-                        _latestValues[state | info.AdditionalMask] = x;
+                        var val = info.Selector(data);
+                        _latestValues[state | info.AdditionalMask] = val;
                     }
                 }
             }
 
-            
+
         }
 
         public void AddData(Dictionary<string, double> data)
@@ -212,7 +208,7 @@ namespace TeensyMonitor.Plotter.UserControls
         protected override void Init()
         {
             base.Init();
-            _labelAreaRenderer = new (this, "Resources/Backgrounds/LabelArea.png");
+            _labelAreaRenderer = new(this, "Resources/Backgrounds/LabelArea.png");
         }
 
         protected override void Shutdown()
@@ -221,7 +217,7 @@ namespace TeensyMonitor.Plotter.UserControls
             _labelAreaRenderer?.Shutdown();
         }
 
-        private void CreateTextBlocksForLabel(uint state, string label, string valueFormat = "F0")
+        private void CreateTextBlocksForLabel(uint state, string label, string valueFormat = "F2")
         {
             if (font == null) return;
 
@@ -245,7 +241,7 @@ namespace TeensyMonitor.Plotter.UserControls
             lock (_lock)
             {
                 // Sort by state for consistent order (important for stable layout)
-                
+
                 int index = 1;
                 float lineSpacing = 50f;
                 float topMargin = 20f;
@@ -270,7 +266,7 @@ namespace TeensyMonitor.Plotter.UserControls
             }
 
             if (_textBlocksToRender.Count == 0) return;
-            
+
             // 2. Calculate the total bounding box for all visible labels.
             RectangleF totalBounds = _textBlocksToRender.CalculateTotalBounds(ref maxBounds);
 
@@ -285,7 +281,7 @@ namespace TeensyMonitor.Plotter.UserControls
                     totalBounds.Height + (padding * 2)
                 );
                 var projection = Matrix4.CreateOrthographicOffCenter(0, MyGL.ClientSize.Width, 0, MyGL.ClientSize.Height, -1.0f, 1.0f);
-                
+
                 _labelAreaRenderer?.Render(paddedBounds, projection);
 
                 GL.UseProgram(_textShaderProgram);
@@ -312,19 +308,25 @@ namespace TeensyMonitor.Plotter.UserControls
                 }
         }
 
-//      public string getDebugOutput()
-//      {
-//          lock (_lock)
-//          {
-//              StringBuilder sb = new();
-//              sb.AppendLine($"Chart {_instanceId}:");
-//              foreach (var plot in Plots.Values)
-//              {
-//                  sb.Append(plot.getDebugOutput());
-//              }
-//              return sb.ToString();
-//          }
-//      }
+        public AString getDebugOutput(int index)
+        {
+            StringBuilder sb = new();
+            sb.Append($"Chart {Tag}: ");
+            lock (PlotsLock)
+            {
+                var orderedPlots = Plots.OrderBy(p => p.Key);
 
+                for (int i = 0; i < orderedPlots.Count(); i++)
+                {
+                    uint   key  = orderedPlots.ElementAt(i).Key;
+                    MyPlot plot = orderedPlots.ElementAt(i).Value;
+
+                    plot.Visible = i != (index % orderedPlots.Count());
+
+                    sb.Append($"S:0x{(key>>12) & 0xF:X1} ({plot.DBG})  ");
+                }
+            }
+            return AString.FromStringBuilder(sb);
+        }
     }
 }

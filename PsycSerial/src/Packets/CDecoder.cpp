@@ -108,6 +108,18 @@ PacketKind CDecoder::process(const CPacket& in, CDecodedPacket& out) noexcept
 		case FrameParseResult::NoHeader:
 		case FrameParseResult::InvalidHeader:
         {
+            if (m_buf.size() < kFrameSize)
+				return PacketKind::Unknown; // need more data
+
+            uint32_t test;	readU32(m_buf.data(), test);
+            if (test == CDataPacket::frameEnd || test == CBlockPacket::frameEnd || test == CTelemetryPacket::frameEnd)
+            {
+                // Found a frame end where we expected a start: drop it
+                m_buf.erase(m_buf.begin(), m_buf.begin() + kFrameSize);
+				m_badHeaderAttempts = 0;
+				return PacketKind::Unknown;
+            }
+
             // 3) Try text line (newline-terminated)
             auto itNL = std::find(m_buf.begin(), m_buf.end(), '\n');
             if (itNL != m_buf.end()) {
@@ -295,6 +307,10 @@ inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexce
     }
 
 	double lastTimeStamp = 0;
+#ifndef _Debug
+#define _DEBUG 0
+#endif // !_Debug
+
 
     FrameParseResult readBlockPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept
     {
@@ -353,6 +369,9 @@ inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexce
 
         return FrameParseResult::ValidPacket;
     }
+#if _DEBUG == 0
+#undef _DEBUG
+#endif // _DEBUG
 
     FrameParseResult readTextPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept
     {

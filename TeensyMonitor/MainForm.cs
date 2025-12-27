@@ -30,15 +30,15 @@ namespace TeensyMonitor
                     break;
             }
 
-//            this.FormClosing += (s,e) =>
-//            {
-//                TextWriter tw = new StreamWriter(@"C:\Temp\TeensyMonitorLog.txt", false, Encoding.UTF8);
-//                foreach (var chart in charts.Values)
-//                {
-//                    tw.WriteLine(chart.getDebugOutput());
-//                }
-//                tw.Dispose();
-//           };
+            //            this.FormClosing += (s,e) =>
+            //            {
+            //                TextWriter tw = new StreamWriter(@"C:\Temp\TeensyMonitorLog.txt", false, Encoding.UTF8);
+            //                foreach (var chart in charts.Values)
+            //                {
+            //                    tw.WriteLine(chart.getDebugOutput());
+            //                }
+            //                tw.Dispose();
+            //           };
 
             monitorTimer.Tick += (s, e) =>
             {
@@ -57,9 +57,9 @@ namespace TeensyMonitor
 
             if (SP == null) return;
 
-            SP.DataReceived      += SP_DataReceived;
+            SP.DataReceived += SP_DataReceived;
             SP.ConnectionChanged += SP_ConnectionChanged;
-            SP.ErrorOccurred     += SP_ErrorOccurred;
+            SP.ErrorOccurred += SP_ErrorOccurred;
         }
 
         private readonly Timer monitorTimer = new() { Interval = 1000, Enabled = false };
@@ -71,14 +71,17 @@ namespace TeensyMonitor
         {
             if (IsHandleCreated == false) return;
 
-            if (packet is     BlockPacket blockPacket) { AddBlockPacket(blockPacket); return; }
-            if (packet is      TextPacket  textPacket) {  AddTextPacket( textPacket); return; }
-            if (packet is TelemetryPacket  telePacket) {  AddTelePacket( telePacket); return; }
+            if (packet is BlockPacket blockPacket) AddBlockPacket(blockPacket);
+            if (packet is TextPacket textPacket) AddTextPacket(textPacket);
+            if (packet is TelemetryPacket telePacket) AddTelePacket(telePacket);
 
+            packet.Cleanup();
         }
 
         private void AddBlockPacket(BlockPacket blockPacket)
         {
+            if (blockPacket.Count == 0) return;
+
             if (charts.Count == 0)
             {
                 charts[blockPacket.State] = chart0;
@@ -91,8 +94,8 @@ namespace TeensyMonitor
                 MyChart newChart = new()
                 {
                     BackColor = chart0.BackColor,
-                    Dock      = chart0.Dock,
-                    Tag       = blockPacket.State.Description(),
+                    Dock = chart0.Dock,
+                    Tag = blockPacket.State.Description(),
                 };
 
                 charts[blockPacket.State] = newChart;
@@ -152,9 +155,9 @@ namespace TeensyMonitor
 
             AString? str = state switch
             {
-                ConnectionState.Connected           => AString.FromString("Connected " + SP?.PortName),
+                ConnectionState.Connected => AString.FromString("Connected " + SP?.PortName),
                 ConnectionState.HandshakeInProgress => AString.FromString("Handshake in progress"),
-                ConnectionState.Disconnected        => AString.FromString("Disconnected"),
+                ConnectionState.Disconnected => AString.FromString("Disconnected"),
                 ConnectionState.HandshakeSuccessful => null,  // string comes from the device
                 _ => null
             };
@@ -184,7 +187,7 @@ namespace TeensyMonitor
 
         }
 
-        
+
 
         private void cbPorts_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -204,7 +207,7 @@ namespace TeensyMonitor
             {
                 if (firstLoad)
                 {
-                    MessageBox.Show("No serial ports found.");
+                    MessageBox.Show("Couldn't find the device.");
                     Close();
                     return;
                 }
@@ -247,5 +250,17 @@ namespace TeensyMonitor
 
         private void Form1_Shown(object sender, EventArgs e)
             => this.Focus();
+
+        int index = -1;
+        private void butDBG_Click(object sender, EventArgs e)
+        {
+            for (int i = 0; i < charts.Count; i++)
+            {
+                var chart = charts.ElementAt(i).Value;
+
+                dbg.Log(chart.getDebugOutput(index));
+            }
+            butDBG.Text = $"DBG {index++}";
+        }
     }
 }

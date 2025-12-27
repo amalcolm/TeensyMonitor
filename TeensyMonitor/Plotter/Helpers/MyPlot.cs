@@ -1,42 +1,37 @@
 ﻿using OpenTK.Graphics.OpenGL4;
-using OpenTK.Mathematics;
 using PsycSerial;
 using System.Diagnostics;
 using TeensyMonitor.Plotter.UserControls;
-using static TeensyMonitor.Plotter.Helpers.ShaderManager;
 
 namespace TeensyMonitor.Plotter.Helpers
 {
     public class MyPlot
     {
         public float  LastX    { get; private set; } = 0;
-        public float  LastY    { get; private set; } = 0;
         public double Yscale   { get; set;         } = 0.0; // overridden by MyPlotter if 0.0.  If not overridden, use 1.0.
         public Color  Colour   { get; set;         } = MyColours.GetNextColour();
         public double XCounter { get; set;         } = -Math.Pow(2, 20) + 2; // X value counter, for signals without timestamps
                                                                              // Starts at a large negative value to avoid issues with float precision with ++;
-
+        public bool   Visible  { get; set;         } = true;
         public DataSelector? Selector { get; set; }
+
         
         
-        private MyPlotterBase _parentControl;
         private readonly object _lock = new();
 
+        public string DBG { get; set; } = string.Empty;
         
         private MyGLVertexBuffer _bufMainPlot = default!;
-        private MyGLVertexBuffer _bufSubPlot = new(1024) { ChannelScale = 1.0f };
-        private MyGLVertexBuffer _bufSubPlotGrid = new(128);
+        private MyGLVertexBuffer _bufSubPlot = new(4096) { ChannelScale = 1.0f };
+        private MyGLVertexBuffer _bufSubPlotGrid = new(4096);
 
         private MySubplot _subPlot = default!;
 
-        // Configuration
-        private int _colorLoc = -1;  // location of uColor uniform in shader
+        public int NumPoints => _bufMainPlot.Count;
 
 
         public MyPlot(int historyLength, MyPlotterBase myPlotter)
         {
-            _parentControl = myPlotter;
-
             // Make the buffer larger than the history to avoid copying every single frame
             int _bufferCapacity = historyLength * 8 + Random.Shared.Next(0, historyLength);  // stagger refreshes
 
@@ -46,7 +41,7 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 Margin  = 10,
                 InRect  = new RectangleF(0, 0, 0.5f, 0.35f),
-                OutRect = new RectangleF(0, 1000000f, 20f, 4000000f)
+                OutRect = new RectangleF(0, 1000000f, Setup.LoopMS, 4000000f)
             };
 
             myPlotter.Setup(initAction:Init, shutdownAction:Shutdown);
@@ -55,8 +50,6 @@ namespace TeensyMonitor.Plotter.Helpers
 
         private void Init()
         {
-            _colorLoc = GL.GetUniformLocation(_parentControl.GetPlotShader(), "uColor");
-
             _subPlot.Init();
 
             _bufMainPlot.Init();
@@ -84,82 +77,41 @@ namespace TeensyMonitor.Plotter.Helpers
                 _bufMainPlot.AddVertex(fX, fY, 0.0f);
 
                 LastX = fX;
-                LastY = fY;
             }
         }
 
-        float[] latestBlock = [];
-        int packetCount = 0;
+        
 
-        public void Add(BlockPacket packet, DataSelector? selector = null)
+        public void Add(BlockPacket block)
         {
             if (first) { first = false; return; }
 
-            if (latestBlock.Length < packet.Count * 3)
-                latestBlock = new float[packet.Count * 3];
+            double scale = Yscale == 0.0 ? 1.0 : Yscale;                     // debugQueue.Enqueue(new DebugPoint { SW = sw.Elapsed.TotalMilliseconds, Timestamp = block.BlockData[0].TimeStamp });
 
-            packetCount = packet.Count;
+            if (Selector == null)
+                SetSubplot(block);
 
-            for (int i = 0; i < packet.Count; i++)
-            {
-                int baseIndex = i * 3;  
+            _bufMainPlot.AddBlock(ref block, Selector, onlyLast:true); // only plot last point in block
 
-                latestBlock[baseIndex    ] = (float)packet.BlockData[i].StateTime * 1000.0f;  // milliseconds for subplot visibility
-                latestBlock[baseIndex + 1] = (float)packet.BlockData[i].Channel[0];
-                latestBlock[baseIndex + 2] = 0.0f;
-            }
-
-            double scale = Yscale == 0.0 ? 1.0 : Yscale;                     // debugQueue.Enqueue(new DebugPoint { SW = sw.Elapsed.TotalMilliseconds, Timestamp = packet.BlockData[0].TimeStamp });
-
-            if (selector == null)  // check data
-                for (int i = 1; i < packet.Count; i++)
-                {
-                    ref var item = ref packet.BlockData[i];
-
-                    uint c1 = item.Channel[0];
-                    uint c0 = packet.BlockData[i - 1].Channel[0];
-                    uint diff = (c0 > c1) ? (c0 - c1) : (c1 - c0);
-
-                    if (c0 < 0x1000 || c0 > 0xFEFFFFF)
-                    {   // 0's and 0xFF.... are invalid data
-                        // Debug.WriteLine($"Skipping c0: 0x{c0:X8}");
-                    }
-                    else
-                    if (c1 < 0x1000 || c1 > 0xFEFFFFF)
-                    {
-                        // skip diff check as this will be caught next iteration
-                    }
-                    else
-                    if (diff > 0x00400000)
-                        Debug.WriteLine($"c0: 0x{c0:X8}, c1: 0x{c1:X8}");
-                }
-           
-            // display all data, regardless of checks
-            _bufMainPlot.AddBlock(ref packet, selector);
-
-            var lastData = packet.BlockData[packet.Count - 1];
-            LastX = (float) lastData.TimeStamp;
-            LastY = (float)(lastData.Channel[0] * _bufMainPlot.ChannelScale);
+            LastX = (float)block.BlockData[block.Count - 1].TimeStamp;
         }
 
-        private float[] block = new float[1024 * 3];
         /// <summary>
         /// Renders the plot. Assumes the correct shader program is already active.
         /// </summary>
-        public void Render() // No need for view parameters here now
+        public void Render()
         {
-            _bufMainPlot.DrawLineStrip();
-
-            if (packetCount <= 0) return;
-
-            lock (_lock)
-                Array.Copy(latestBlock, 0, block, 0, Math.Min(packetCount * 3, block.Length));
-
-            _bufSubPlot.Set(ref block, packetCount);
-
-            _subPlot.Render(_bufSubPlot);
+            if (Visible)
+            {
+                _bufMainPlot.DrawLineStrip();
+                _subPlot.Render();
+                DBG = "Rendered";
+            }
+            else
+            {
+                DBG = "Not Visible";
+            }
         }
-
 
         /// <summary>
         /// Releases the GPU resources (VBO and VAO).
@@ -171,6 +123,36 @@ namespace TeensyMonitor.Plotter.Helpers
             _bufSubPlotGrid.Dispose();
 
             _subPlot.Shutdown();
+        }
+
+        private void SetSubplot(BlockPacket block)
+        {
+            if (block == null) return;
+
+            _subPlot.SetBlock(block);
+
+            for (int i = 1; i < block.Count; i++)
+            {
+                ref var item = ref block.BlockData[i];
+
+                uint c0 = block.BlockData[i - 1].Channel[0];
+                uint c1 = item.Channel[0];
+                uint diff = (c0 > c1) ? (c0 - c1) : (c1 - c0);
+
+                if (c0 < 0x1000 || c0 > 0xFEFFFFF)
+                {   // 0's and 0xFF.... are invalid data
+                    // Debug.WriteLine($"Skipping c0: 0x{c0:X8}");
+                }
+                else
+                if (c1 < 0x1000 || c1 > 0xFEFFFFF)
+                {
+                    // skip diff check as this will be caught next iteration
+                }
+                else
+                if (diff > 0x00400000)
+                    Debug.WriteLine($"c0: 0x{c0:X8}, c1: 0x{c1:X8}");
+            }
+
         }
     }
 }

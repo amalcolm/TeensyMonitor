@@ -50,15 +50,13 @@ namespace PsycSerial
         DataPacket^ p; if (s_pool->TryDequeue(p)) return p;
         return gcnew DataPacket();
 	}
-
-    DataPacket::~DataPacket()
+    void DataPacket::Cleanup()
     {
-        Reset();
-        s_pool->Enqueue(this);
-        GC::SuppressFinalize(this);
-	}
+        this->~DataPacket();
+    }
 
-    DataPacket::!DataPacket() {}
+    DataPacket::~DataPacket() { Cleanup(); GC::SuppressFinalize(this); }
+    DataPacket::!DataPacket() { }
 
     void DataPacket::Reset()
     {
@@ -82,16 +80,14 @@ namespace PsycSerial
         BlockPacket^ p; if (s_pool->TryDequeue(p)) return p;
         return gcnew BlockPacket();
 	}
+    void BlockPacket::Cleanup()
     
-    BlockPacket::~BlockPacket()
-    {
-        // Deterministic cleanup path (Dispose)
-        Reset();
+    {   Reset();
         s_pool->Enqueue(this);
-        GC::SuppressFinalize(this);
 	}
 	
-    BlockPacket::!BlockPacket() {}
+    BlockPacket::~BlockPacket(){ Cleanup(); GC::SuppressFinalize(this);	}
+    BlockPacket::!BlockPacket() { }
 
     void BlockPacket::Reset()
     {
@@ -113,15 +109,15 @@ namespace PsycSerial
         TextPacket^ p; if (s_pool->TryDequeue(p)) return p;
         return gcnew TextPacket();
     }
+
     
-    TextPacket::~TextPacket()
+    void TextPacket::Cleanup()
     {
-        // Deterministic cleanup path (Dispose)
         Reset();
         s_pool->Enqueue(this);
-        GC::SuppressFinalize(this);
     }
-    
+
+    TextPacket::~TextPacket() { Cleanup(); GC::SuppressFinalize(this); }   
     TextPacket::!TextPacket() {}
     
     void TextPacket::Reset()
@@ -144,14 +140,13 @@ namespace PsycSerial
         return gcnew TelemetryPacket();
     }
     
-    TelemetryPacket::~TelemetryPacket()
+    void TelemetryPacket::Cleanup()
     {
-        // Deterministic cleanup path (Dispose)
         Reset();
         s_pool->Enqueue(this);
-        GC::SuppressFinalize(this);
     }
-    
+
+	TelemetryPacket::~TelemetryPacket() { Cleanup(); GC::SuppressFinalize(this); }
     TelemetryPacket::!TelemetryPacket() {}
 
     void TelemetryPacket::Reset()

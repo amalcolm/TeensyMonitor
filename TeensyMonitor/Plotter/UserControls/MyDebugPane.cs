@@ -93,37 +93,83 @@ namespace TeensyMonitor.Plotter.UserControls
 
         public void Render()
         {
+            // --- Phase 1: Build all new lines this frame with batched positions ---
+            float buildY = nextHeight;  // Snapshot current (use Volatile.Read if you make it volatile float, but int cast fine)
+
             while (qStringsToAdd.TryDequeue(out AString? str))
             {
-                var buf = pool.Rent(str.Length * 6);
+                if (str?.Length > 0)
+                {
+                    var buf = pool.Rent(str.Length * 6);
 
-                var numVerts = FontVertex.BuildString(buf, 0, str.Buffer.AsSpan(), FontFile.Default, 0, nextHeight, control.fontRenderer.Scaling, TextAlign.Left);
+                    var numVerts = FontVertex.BuildString(buf, 0, str.Buffer.AsSpan(), FontFile.Default, 0, buildY, control.fontRenderer.Scaling, TextAlign.Left);
 
-                qLinesToAdd.Enqueue(new LineVertices { Vertices = buf, Length = numVerts });
+                    qLinesToAdd.Enqueue(new LineVertices { Vertices = buf, Length = numVerts });
 
-                Interlocked.Add(ref nextHeight, -lineHeight);
-
+                    buildY -= lineHeight;
+                }
             }
 
+            // Update global nextHeight once, after the whole batch
+            nextHeight = (int)buildY;
+
+            // --- Phase 2: Assign vertices to slots, count overwrites ---
+            int overwritesThisFrame = 0;
             bool needUpdate = false;
+
             while (qLinesToAdd.TryDequeue(out LineVertices newLine))
             {
                 int thisLine = UsedLines % MaxNumberOfLines;
 
                 if (UsedLines >= MaxNumberOfLines)
+                {
                     pool.Return(LineBuffers[thisLine].Vertices);
+                    overwritesThisFrame++;
+                }
 
                 LineBuffers[thisLine] = newLine;
 
                 UsedLines++;
-
                 needUpdate = true;
-                
-                ManageScrolling();
+            }
+
+            // --- Phase 3: Batched scroll + precision reset ---
+            if (overwritesThisFrame > 0)
+            {
+                int shiftAmount = overwritesThisFrame * lineHeight;
+                baseHeight -= shiftAmount;
+            }
+
+            // Precision reset (fixed trigger + small tweaks for consistency)
+            if (baseHeight < -PrecisionBoundary)  // was > , probably the off-by-one source of some weirdness
+            {
+                float offset = 2 * PrecisionBoundary;
+                baseHeight = -PrecisionBoundary;
+
+                // Original reset lines
+                nextHeight = baseHeight + control.Height - Margin - lineHeight;
+                nextHeight = (MaxNumberOfLines - 1) * lineHeight;  // keep your magic line, it works!
+
+                int lines = UsedLines < MaxNumberOfLines ? UsedLines : MaxNumberOfLines;
+                for (int i = 0; i < lines; i++)
+                {
+                    ref var line = ref LineBuffers[i];
+                    if (line.Vertices != null)
+                    {
+                        for (int j = 0; j < line.Length; j++)
+                        {
+                            line.Vertices[j].Position.Y -= offset;
+                        }
+                    }
+                }
+
+                // Bonus consistency: shift future builds to match
+                nextHeight -= (int)offset;
             }
 
             if (!needUpdate) return;
 
+            // --- Rest of render (projection + draw) ---
             control.ClearViewport();
 
             var fr = control.fontRenderer;
@@ -134,10 +180,14 @@ namespace TeensyMonitor.Plotter.UserControls
                 fMargin + baseHeight, fMargin + control.Height + baseHeight,
                 -1, 1);
 
-            foreach (ref var line in LineBuffers.AsSpan())
-                fr.RenderText(line.Vertices, line.Length);
+            int activeLines = Math.Min(UsedLines, MaxNumberOfLines);
+            for (int i = 0; i < activeLines; i++)
+            {
+                ref var line = ref LineBuffers[i];
+                if (line.Vertices != null)
+                    fr.RenderText(line.Vertices, line.Length);
+            }
         }
-
 
         private void ManageScrolling()
         {

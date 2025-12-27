@@ -11,7 +11,7 @@ namespace PsycSerial
     public ref class TeensySerial : public SerialHelper
     {
     public:
-        TeensySerial(String^ version);
+        TeensySerial();
         
         virtual ~TeensySerial();
         !TeensySerial();
@@ -23,16 +23,11 @@ namespace PsycSerial
         Task<bool>^ OpenAsync(String^ portName);
 
 
-		property String^ DeviceVersion { String^ get() { return m_deviceVersion; } }
-
-
     private:
 		Task^ m_handshakeTask;
 		Task^ PerformHandshake();
         bool PerformAsyncConnectionSequence();
 
-		String^ m_programVersion;
-		String^ m_deviceVersion;
         CancellationTokenSource^ m_handshakeCts;
 
 		static const int BAUDRATE = 115200*8;

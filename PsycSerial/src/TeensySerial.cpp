@@ -1,9 +1,10 @@
 #include "TeensySerial.h"
 #include "Utilities.h"
+#include "Setup.h"
 
 namespace PsycSerial
 {
-	TeensySerial::TeensySerial(String^ version) : m_programVersion(version), SerialHelper(CallbackPolicy::Queued)
+	TeensySerial::TeensySerial() :  SerialHelper(CallbackPolicy::Queued)
 	{
 	}
 
@@ -93,12 +94,12 @@ namespace PsycSerial
 				if (devAck)
 				{
 //					Clear();
-					Write(">" + m_programVersion + "\n");
+					Write(">" + Setup::ProgramVersion + "\n");
 
 					received = m_handshakeEvent->WaitOne(500);
 					if (received)
 					{
-						m_deviceVersion = GetHandshakeResponse()->TrimStart('<');
+						Setup::ParseHandshakeResponse(GetHandshakeResponse());
 
 						m_connectionState = ConnectionState::HandshakeSuccessful;
 //						Clear();

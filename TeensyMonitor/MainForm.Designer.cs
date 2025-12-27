@@ -34,6 +34,7 @@
             chart0 = new TeensyMonitor.Plotter.UserControls.MyChart();
             myTelemetryPane1 = new TeensyMonitor.Plotter.UserControls.MyTelemetryPane();
             tlpCharts = new TableLayoutPanel();
+            butDBG = new Button();
             tlpCharts.SuspendLayout();
             SuspendLayout();
             // 
@@ -105,11 +106,22 @@
             tlpCharts.Size = new Size(1046, 935);
             tlpCharts.TabIndex = 8;
             // 
+            // butDBG
+            // 
+            butDBG.Location = new Point(5, 5);
+            butDBG.Name = "butDBG";
+            butDBG.Size = new Size(75, 23);
+            butDBG.TabIndex = 9;
+            butDBG.Text = "DBG";
+            butDBG.UseVisualStyleBackColor = true;
+            butDBG.Click += butDBG_Click;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1395, 1304);
+            Controls.Add(butDBG);
             Controls.Add(tlpCharts);
             Controls.Add(myTelemetryPane1);
             Controls.Add(dbg);
@@ -133,5 +145,6 @@
         private Plotter.UserControls.MyChart chart0;
         private Plotter.UserControls.MyTelemetryPane myTelemetryPane1;
         private TableLayoutPanel tlpCharts;
+        private Button butDBG;
     }
 }
