@@ -1,6 +1,7 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using PsycSerial;
+using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
@@ -53,6 +54,9 @@ namespace TeensyMonitor.Plotter.UserControls
             "postGainSensor",
             };
 
+        float lineSpacing = 50f;
+        float topMargin = 20f;
+
         public MyChart()
         {
             InitializeComponent();
@@ -101,6 +105,25 @@ namespace TeensyMonitor.Plotter.UserControls
                 if (dataFieldsToPlot.Contains(property.Name)) dataSelectorsToPlot.Add(dsInfo);
                 if (dataFieldsForLabels.Contains(property.Name)) dataSelectorsForLabels.Add(dsInfo);
             }
+
+            this.Resize += (s, e) =>
+            {
+                lock (PlotsLock)
+                {
+                    int index = 1;
+
+                    var orderedKeys = _blocks.Keys.OrderBy(k => -_blocks[k].Item1.Y).ToArray();
+
+                    foreach (var key in orderedKeys)
+                    {
+                        float yPos = Height - topMargin - (index * lineSpacing);
+
+                        _blocks[key].Item1.Y = yPos;
+                        _blocks[key].Item2.Y = yPos + 0.01f;  // to maintain ordering
+                        index++;
+                    }
+                }
+            };
         }
 
         public void SP_DataReceived(IPacket packet)
@@ -144,10 +167,10 @@ namespace TeensyMonitor.Plotter.UserControls
             {
                 string description = blockPacket.State.Description();
 
-                CreateTextBlocksForLabel(state, description + " A2D %", "0.0000%");
+                CreateTextBlocksForLabel(state, description + " A2D %", "0.0%");
 
                 foreach (var info in dataSelectorsForLabels)
-                    CreateTextBlocksForLabel(state | info.AdditionalMask, description + " " + info.Name, "F4");
+                    CreateTextBlocksForLabel(state | info.AdditionalMask, description + " " + info.Name, "F2");
 
             }
 
@@ -217,6 +240,7 @@ namespace TeensyMonitor.Plotter.UserControls
             _labelAreaRenderer?.Shutdown();
         }
 
+        int numLabels = 0;
         private void CreateTextBlocksForLabel(uint state, string label, string valueFormat = "F2")
         {
             if (font == null) return;
@@ -225,8 +249,14 @@ namespace TeensyMonitor.Plotter.UserControls
 
             lock (_lock)
             {
+                numLabels++;
+                float yPos = MyGL.Height - topMargin - (numLabels * lineSpacing);
+
                 var labelBlock = new TextBlock(labelText, 126, 0, font);                                 // yPos set on render
                 var valueBlock = new TextBlock("0.00", 120, 0, font, TextAlign.Right, valueFormat);
+
+                labelBlock.Y = yPos;
+                valueBlock.Y = yPos + 0.01f;  // to maintain ordering
 
                 _blocks[state] = Tuple.Create(labelBlock, valueBlock);
             }
@@ -243,8 +273,6 @@ namespace TeensyMonitor.Plotter.UserControls
                 // Sort by state for consistent order (important for stable layout)
 
                 int index = 1;
-                float lineSpacing = 50f;
-                float topMargin = 20f;
 
                 foreach (var stateKey in _latestValues.Keys)
                 {
@@ -252,10 +280,6 @@ namespace TeensyMonitor.Plotter.UserControls
                     {
                         tuple.Item2.SetValue(_latestValues[stateKey]);
 
-                        float yPos = MyGL.Height - topMargin - (index * lineSpacing);
-
-                        tuple.Item1.Y = yPos;
-                        tuple.Item2.Y = yPos;
 
                         _textBlocksToRender.Add(tuple.Item1);
                         _textBlocksToRender.Add(tuple.Item2);
