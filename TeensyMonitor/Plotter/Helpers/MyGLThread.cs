@@ -41,9 +41,39 @@ namespace TeensyMonitor.Plotter.Helpers
 
         private volatile bool _isRunning = false;
         private int RefreshRate;
+
+        public bool IsDisposed => _shutdownRequested;
+
+        public void RenderOnce()
+        {
+            if (_glControl.IsDisposed || _isRunning) return;
+
+            lock (this)
+            {
+                _glControl.MakeCurrent();
+
+                // process enqueued work
+                while (_taskQueue.TryDequeue(out var task))
+                {
+                    try { task.Invoke(); }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Render task failed: {ex.Message}");
+                    }
+                }
+
+                RenderAction?.Invoke();
+
+                _glControl.SwapBuffers();
+            }
+        }
+
+
         public MyGLThread(GLControl glControl)
         {
             _glControl = glControl;
+
+            Scheduler.Register(this);
 
             _thread = new(Run)
             {
@@ -153,7 +183,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
         public void Dispose()
         {
-            if (!_isRunning) return;
+            if (!_isRunning || _shutdownRequested) return;
             _cts.Cancel();
             _isRunning = false;
             _shutdownRequested = true;
@@ -162,6 +192,8 @@ namespace TeensyMonitor.Plotter.Helpers
 
             _cts.Dispose();
             GC.SuppressFinalize(this);
+
+            Scheduler.Unregister(this);
         }
     }
 }

@@ -10,8 +10,10 @@ namespace TeensyMonitor.Plotter.Backgrounds
     {
         private int _bgVao, _bgVbo, _bgTextureId, _bgShaderProgram;
 
+        MyGLControl myGL;
         public LabelAreaRenderer(MyGLControl myGL, string texturePath)
         {
+            this.myGL = myGL;
             myGL.Setup(() => InitBackground(texturePath));
         }
 

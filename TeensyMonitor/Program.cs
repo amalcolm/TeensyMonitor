@@ -31,7 +31,7 @@ namespace TeensyMonitor
             if (serialPort != null)
             {
                 SocketWatcher.StartListening();
-
+                
                 Application.Run(new MainForm());
                 
                 SocketWatcher.StopListening();

@@ -66,11 +66,12 @@ namespace TeensyMonitor.Plotter.Helpers
             GL.UniformMatrix4(_transformLoc, false, ref transform);
         }
 
-        public void ResetViewport()
+        public void ResetViewport(Matrix4 transform)
         {
             if (!_canUpdate) return;
             GL.Disable(EnableCap.ScissorTest);
             GL.Viewport(_parentRect.X, _parentRect.Y, _parentRect.Width, _parentRect.Height);
+            GL.UniformMatrix4(_transformLoc, false, ref transform);
         }
     }
 }

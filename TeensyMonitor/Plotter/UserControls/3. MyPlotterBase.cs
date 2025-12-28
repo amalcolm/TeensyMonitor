@@ -11,6 +11,9 @@ namespace TeensyMonitor.Plotter.UserControls
 
         // Shader programs
         protected int _plotShaderProgram ;
+        private Matrix4 _plotTransform;
+        public Matrix4 getPlotTransform() => _plotTransform;
+
         public int GetPlotShader() => _plotShaderProgram;
 
         protected MyPlotterBase()
@@ -27,9 +30,9 @@ namespace TeensyMonitor.Plotter.UserControls
         {
             GL.UseProgram(_plotShaderProgram);
 
-            var transform = Matrix4.CreateOrthographicOffCenter(ViewPort.Left, ViewPort.Right, ViewPort.Top, ViewPort.Bottom, -1.0f, 1.0f);
+            _plotTransform = Matrix4.CreateOrthographicOffCenter(ViewPort.Left, ViewPort.Right, ViewPort.Top, ViewPort.Bottom, -1.0f, 1.0f);
             int transformLocation = GL.GetUniformLocation(_plotShaderProgram, "uTransform");
-            GL.UniformMatrix4(transformLocation, false, ref transform);
+            GL.UniformMatrix4(transformLocation, false, ref _plotTransform);
 
             DrawPlots();
         }

@@ -91,6 +91,7 @@ namespace TeensyMonitor
                 chart.SP_DataReceived(blockPacket);
             else
             {
+                MyColours.Reset();
                 MyChart newChart = new()
                 {
                     BackColor = chart0.BackColor,

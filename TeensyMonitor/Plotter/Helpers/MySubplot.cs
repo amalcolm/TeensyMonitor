@@ -84,7 +84,7 @@ namespace TeensyMonitor.Plotter.Helpers
             GL.Uniform4(_colorLoc, 0.0f, 0.3f, 0.3f, 1.0f);
             _waveBuffer.DrawLineStrip();
 
-            ResetViewport();  // clean restore to parent viewport
+            ResetViewport(_myPlotter.getPlotTransform());  // clean restore to parent viewport
         }
 
 

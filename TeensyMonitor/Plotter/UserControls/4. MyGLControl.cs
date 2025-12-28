@@ -78,15 +78,8 @@ namespace TeensyMonitor.Plotter.UserControls
             if (!Program.IsRunning) { ShowDesignView(); return; }
             InstanceCount++;
 
-            var glControlSettings = new GLControlSettings
-            {
-                NumberOfSamples = 4,
-                APIVersion = new Version(4, 6),
-                Profile = ContextProfile.Core,
-                API = ContextAPI.OpenGL,
-                Flags = ContextFlags.Debug
-            };
-            MyGL = new(glControlSettings) { Dock = DockStyle.Fill };
+            
+            MyGL = GLShared.GetControl();
             this.Controls.Add(MyGL);
 
             GLThread = new(MyGL);

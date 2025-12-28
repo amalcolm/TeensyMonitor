@@ -83,15 +83,13 @@ namespace TeensyMonitor.Plotter.UserControls
                 foreach (var key in Plots.Keys)
                 {
                     var plot = Plots[key]; if (plot == null) continue;
-
+                    
                     if (plot.Yscale == 0.0f)
                         plot.Yscale = Yscale;
 
                     GL.Uniform4(colorLocation, plot.Colour);
                     plot.Render();
                 }
-
- //           Debug = $"Plots: {Plots.Count}, Time: {_maxTime:F2}, Window: {TimeWindowSeconds}s";
         }
 
         protected virtual void SP_ConnectionChanged(ConnectionState state)
