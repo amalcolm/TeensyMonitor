@@ -22,7 +22,7 @@ namespace TeensyMonitor.Plotter.Helpers
             if (SharedContext == null)
             {
                 var control = new GLControl(settings) { Dock = DockStyle.Fill };
-                control.MakeCurrent();
+               // control.MakeCurrent();
                 SharedContext = control.Context;
                 return control;
             }

@@ -88,7 +88,12 @@ namespace TeensyMonitor
                 chart0.Tag = blockPacket.State.Description();
             }
             if (charts.TryGetValue(blockPacket.State, out MyChart? chart) && chart != null)
+            {
                 chart.SP_DataReceived(blockPacket);
+
+                if (chart == chart0)
+                    tallForm?.Process(blockPacket);
+            }
             else
             {
                 MyColours.Reset();
@@ -200,6 +205,7 @@ namespace TeensyMonitor
 
 
         bool firstLoad = true;
+        MyTallForm? tallForm;
         private void Form1_Load(object sender, EventArgs e)
         {
             var ports = SerialHelper.GetUSBSerialPorts();
@@ -220,6 +226,13 @@ namespace TeensyMonitor
             }
             else
             {
+                if (firstLoad)
+                {
+                    tallForm = new MyTallForm();
+                    tallForm.FormClosed += (_,_) => this.Close();
+                    tallForm.Show();
+                }
+
                 firstLoad = false;
                 cbPorts.Items.Clear();
                 cbPorts.Items.AddRange(ports);

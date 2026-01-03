@@ -7,4 +7,4 @@ using System.Diagnostics.CodeAnalysis;
 
 [assembly: SuppressMessage("Style", "IDE1006:Naming Styles", Justification = "Personal choice", Scope = "module")]
 [assembly: SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "IDE Bug", Scope = "module")]
-[assembly: SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "Only use Wim11/Server2025", Scope = "module")]
+[assembly: SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "Only use Win11/Server2025", Scope = "module")]

@@ -69,8 +69,12 @@ namespace TeensyMonitor.Plotter.Helpers
         }
 
 
+        static List<MyGLThread> ActiveGLThreads = [];
+
         public MyGLThread(GLControl glControl)
         {
+            ActiveGLThreads.Add(this);
+
             _glControl = glControl;
 
             Scheduler.Register(this);
@@ -82,11 +86,17 @@ namespace TeensyMonitor.Plotter.Helpers
                 Priority = ThreadPriority.Highest
             };
 
+            Debug.WriteLine($"[MyGLThread] Creating GL thread for {RenderAction?.Target?.GetType().Name}.");
+
+
             _glControl.HandleCreated += (s,e) =>
             {
+                Debug.WriteLine($"[MyGLThread] Staring GL thread for {RenderAction?.Target?.GetType().Name}.");
+
                 // Ensure the GLControl is initialized before starting the thread
                 if (_glControl.Context == null)
                     throw new InvalidOperationException("GLControl context is not initialized.");
+
 
                 RefreshRate = ScreenHelper.GetCurrentRefreshRate(_glControl);
 
@@ -146,8 +156,14 @@ namespace TeensyMonitor.Plotter.Helpers
 
                     try
                     {
-                        RenderAction?.Invoke();
-
+                        try
+                        {
+                            RenderAction?.Invoke();
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"[MyGLThread] RenderAction Exception: {ex.Message}");
+                        }
                         nTotalFrames++;
                         nFramesThisSecond++;
                         do
@@ -167,6 +183,10 @@ namespace TeensyMonitor.Plotter.Helpers
                             nFramesThisSecond = 0;
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[MyGLThread] Main Loop Exception: {ex.Message}");
+                    }
                     finally
                     {
                         _frameDone.Set();
@@ -179,6 +199,9 @@ namespace TeensyMonitor.Plotter.Helpers
                 while (_shutdownStack.TryPop(out var action))
                     action.Invoke();
             }
+
+
+            Debug.WriteLine($"[MyGLThread] Exiting GL thread for {RenderAction?.Target?.GetType().Name}.");
         }
 
         public void Dispose()

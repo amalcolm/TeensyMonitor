@@ -62,7 +62,7 @@ namespace TeensyMonitor.Plotter.Helpers
             GL.Viewport(_vpRect.X, _vpRect.Y, _vpRect.Width, _vpRect.Height);
 
             // the x-ordinates are in milliseconds for the subplot, max 20ms
-            var transform = Matrix4.CreateOrthographicOffCenter(_outRect.Left, _outRect.Right, _outRect.Bottom, _outRect.Top, -1.0f, 1.0f);
+            var transform = Matrix4.CreateOrthographicOffCenter(_outRect.Left, _outRect.Right, _outRect.Top, _outRect.Bottom, -1.0f, 1.0f);
             GL.UniformMatrix4(_transformLoc, false, ref transform);
         }
 

@@ -1,4 +1,5 @@
 ﻿using OpenTK.Graphics.OpenGL4;
+using OpenTK.Mathematics;
 using PsycSerial;
 using System.Diagnostics;
 using TeensyMonitor.Plotter.UserControls;
@@ -15,8 +16,13 @@ namespace TeensyMonitor.Plotter.Helpers
         public bool   Visible  { get; set;         } = true;
         public DataSelector? Selector { get; set; }
 
-        
-        
+        public bool AutoScaling { get; set; } = false;
+
+        private RunningAverage? _ra = null;
+
+
+
+
         private readonly object _lock = new();
 
         public string DBG { get; set; } = string.Empty;
@@ -29,27 +35,36 @@ namespace TeensyMonitor.Plotter.Helpers
 
         public int NumPoints => _bufMainPlot.Count;
 
+        int _transformLoc = -1;
+        private readonly MyPlotterBase _plotter;
+        private readonly int _windowSize;
 
-        public MyPlot(int historyLength, MyPlotterBase myPlotter)
+        public MyPlot(int windowSize, MyPlotterBase myPlotter)
         {
+            _windowSize = windowSize;
+            _plotter = myPlotter;
+            
             // Make the buffer larger than the history to avoid copying every single frame
-            int _bufferCapacity = historyLength * 8 + Random.Shared.Next(0, historyLength);  // stagger refreshes
+            int _bufferCapacity = _windowSize * 8 + Random.Shared.Next(0, _windowSize);  // stagger refreshes
 
-            _bufMainPlot = new MyGLVertexBuffer(_bufferCapacity) { WindowSize = historyLength };
+            _bufMainPlot = new MyGLVertexBuffer(_bufferCapacity) { WindowSize = _windowSize };
 
-            _subPlot = new MySubplot(myPlotter)
+            _subPlot = new MySubplot(_plotter)
             {
                 Margin  = 10,
                 InRect  = new RectangleF(0, 0, 0.5f, 0.35f),
-                OutRect = new RectangleF(0, 1000000f, Setup.LoopMS, 4000000f)
+                OutRect = new RectangleF(0, 1000000f, Setup.STATE_DURATION_uS/1000.0f, 4000000f)
             };
 
-            myPlotter.Setup(initAction:Init, shutdownAction:Shutdown);
+            _plotter.Setup(initAction:Init, shutdownAction:Shutdown);
         }
 
 
         private void Init()
         {
+            _transformLoc = GL.GetUniformLocation(_plotter.GetPlotShader(), "uTransform");
+
+
             _subPlot.Init();
 
             _bufMainPlot.Init();
@@ -57,15 +72,16 @@ namespace TeensyMonitor.Plotter.Helpers
             _bufSubPlotGrid.Init();
         }
 
-        public void Add(double y) => Add(XCounter++, y);
+        public void Add(double y) => Add(XCounter+=0.01, y);
 
-        private bool first = true;
+        private int count = -1;
+        double diffSum = 0.0;
         /// <summary>
         /// Adds a new Y data point to the plot. The X value is automatically incremented.
         /// </summary>
         public void Add(double x, double y)
         {
-            if (first) { first = false; return; }
+            if (count++ < 0)  return; 
 
             double scale = Yscale == 0.0 ? 1.0 : Yscale;
 
@@ -74,17 +90,29 @@ namespace TeensyMonitor.Plotter.Helpers
                 float fX = (float)x;
                 float fY = (float)(y * scale);
 
+                _ra?.Add(fY);
+
                 _bufMainPlot.AddVertex(fX, fY, 0.0f);
 
+
+                if (count < 10)
+                    diffSum += fX - LastX;
+                else if (count == 10)
+                {
+                    double avgDiff = diffSum / 10.0;
+                    float window = _parentMaxX - _parentMinX;
+                    _ra = new RunningAverage( (int)(window / avgDiff) ); // 5 second average
+                }
                 LastX = fX;
             }
+
         }
 
         
 
-        public void Add(BlockPacket block)
+        public void Add(BlockPacket block)  // no auto-scaling support
         {
-            if (first) { first = false; return; }
+            if (count++ < 0) return;
 
             double scale = Yscale == 0.0 ? 1.0 : Yscale;                     // debugQueue.Enqueue(new DebugPoint { SW = sw.Elapsed.TotalMilliseconds, Timestamp = block.BlockData[0].TimeStamp });
 
@@ -96,11 +124,57 @@ namespace TeensyMonitor.Plotter.Helpers
             LastX = (float)block.BlockData[block.Count - 1].TimeStamp;
         }
 
+
+        float _parentMinX = 0.0f;
+        float _parentMaxX = 0.0f;
+
         /// <summary>
         /// Renders the plot. Assumes the correct shader program is already active.
         /// </summary>
         public void Render()
         {
+            var plotTransform = _plotter.getPlotTransform();
+            plotTransform.ExtractOrthographicOffCenter(
+                out _parentMinX, out _parentMaxX,
+                out _, out _,
+                out float zNear, out float zFar);
+
+            if (_ra != null && AutoScaling)
+            {
+                float minY = (float)_ra.Min;
+                float maxY = (float)_ra.Max;
+
+                // Guard bad values / zero range
+                if (!float.IsFinite(minY) || !float.IsFinite(maxY))
+                    return;
+
+                if (maxY < minY) (minY, maxY) = (maxY, minY);
+
+                float range = maxY - minY;
+                if (range < 1e-6f) range = 1e-6f;
+
+                float midY = (minY + maxY) * 0.5f;
+
+                float padding = 200f;
+                float targetHeight = range + padding;
+
+                // Ramp-in based on sample count
+                float t = Math.Clamp(count / 1000f, 0f, 1f);
+                t = t * t * (3f - 2f * t); // smoothstep (optional but nicer)
+
+                float startHeight = 120000f;              // big & stable at the beginning
+                float desiredHeight = startHeight + (targetHeight - startHeight) * t;
+
+                desiredHeight = Math.Clamp(desiredHeight, 500f, 120000f);
+
+                float bottom = midY - desiredHeight * 0.5f;
+                float top = midY + desiredHeight * 0.5f;
+
+        
+                var transform = Matrix4.CreateOrthographicOffCenter(_parentMinX, _parentMaxX, bottom, top, zNear, zFar);
+                GL.UniformMatrix4(_transformLoc, false, ref transform);
+            }
+
             if (Visible)
             {
                 _bufMainPlot.DrawLineStrip();

@@ -126,6 +126,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="src\AString.h" />
+    <ClInclude Include="src\CRunningAverage.h" />
     <ClInclude Include="src\EventRaisers.h" />
     <ClInclude Include="src\ManagedCallbacks.h" />
     <ClInclude Include="src\CHandleGuard.h" />
@@ -134,6 +135,7 @@
     <ClInclude Include="src\Packets\CPackets.h" />
     <ClInclude Include="src\Packets\Decoder.h" />
     <ClInclude Include="src\Packets\Packets.h" />
+    <ClInclude Include="src\RunningAverage.h" />
     <ClInclude Include="src\SerialHelper.h" />
     <ClInclude Include="src\Setup.h" />
     <ClInclude Include="src\TeensySerial.h" />

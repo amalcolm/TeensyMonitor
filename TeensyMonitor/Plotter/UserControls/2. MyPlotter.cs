@@ -11,12 +11,14 @@ namespace TeensyMonitor.Plotter.UserControls
     {
         protected TeensySerial? SP = Program.serialPort;
 
+        public static float Window { get; set; } = 10.0f;
+        public        float Yscale { get; set; } = 1.0f;
+
+
         protected ConcurrentDictionary<uint, MyPlot> Plots = [];
         protected readonly object PlotsLock = new();
 
-        public static float Window  { get; set; } = 10.0f;
-        public float Yscale             { get; set; } =  1.0f;
-
+        
         protected string Debug = string.Empty;
         protected override void Init()
         {

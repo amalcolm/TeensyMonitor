@@ -12,14 +12,14 @@ namespace TeensyMonitor.Plotter.Helpers
         
         private int _colorLoc = -1;
 
-        public int GridDivisions { get; set; } = Setup.LoopMS;
+        public int GridDivisions { get; set; } = (int)Math.Round(Setup.STATE_DURATION_uS/1000.0f);
         public bool UniformGrid { get; set; } = false;
 
         public MySubplot(MyPlotterBase myPlotter) : base(myPlotter)
         {
             Margin = 20;
             InRect = new RectangleF(0f, 0f, 0.5f, 0.35f);
-            OutRect = new RectangleF(0f, 1000000f, Setup.LoopMS, 4000000f);
+            OutRect = new RectangleF(0f, 1000000f, Setup.STATE_DURATION_uS/1000.0f, 4000000f);
         }
 
         public override void Init()

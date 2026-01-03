@@ -88,20 +88,24 @@ namespace TeensyMonitor.Plotter.UserControls
         public void Add(AString? str)
         {
             if (str?.Length > 0)
+            {
                 qStringsToAdd.Enqueue(str);
+            }
+
         }
 
         public void Render()
         {
-            // --- Phase 1: Build all new lines this frame with batched positions ---
-            float buildY = nextHeight;  // Snapshot current (use Volatile.Read if you make it volatile float, but int cast fine)
+            if (MaxNumberOfLines <= 0) return;  // safety for weird resize states
+
+            // --- Phase 1: Build new lines ---
+            float buildY = nextHeight;  // snapshot
 
             while (qStringsToAdd.TryDequeue(out AString? str))
             {
                 if (str?.Length > 0)
                 {
                     var buf = pool.Rent(str.Length * 6);
-
                     var numVerts = FontVertex.BuildString(buf, 0, str.Buffer.AsSpan(), FontFile.Default, 0, buildY, control.fontRenderer.Scaling, TextAlign.Left);
 
                     qLinesToAdd.Enqueue(new LineVertices { Vertices = buf, Length = numVerts });
@@ -110,12 +114,11 @@ namespace TeensyMonitor.Plotter.UserControls
                 }
             }
 
-            // Update global nextHeight once, after the whole batch
             nextHeight = (int)buildY;
 
-            // --- Phase 2: Assign vertices to slots, count overwrites ---
+            // --- Phase 2: Slot into circular buffer ---
             int overwritesThisFrame = 0;
-            bool needUpdate = false;
+            bool needUpdate = qLinesToAdd.Count > 0;  // simple flag
 
             while (qLinesToAdd.TryDequeue(out LineVertices newLine))
             {
@@ -128,48 +131,20 @@ namespace TeensyMonitor.Plotter.UserControls
                 }
 
                 LineBuffers[thisLine] = newLine;
-
                 UsedLines++;
                 needUpdate = true;
             }
 
-            // --- Phase 3: Batched scroll + precision reset ---
+            // Normal line-by-line scroll from overwrites
             if (overwritesThisFrame > 0)
             {
-                int shiftAmount = overwritesThisFrame * lineHeight;
-                baseHeight -= shiftAmount;
+                baseHeight -= overwritesThisFrame * lineHeight;
             }
 
-            // Precision reset (fixed trigger + small tweaks for consistency)
-            if (baseHeight < -PrecisionBoundary)  // was > , probably the off-by-one source of some weirdness
-            {
-                float offset = 2 * PrecisionBoundary;
-                baseHeight = -PrecisionBoundary;
-
-                // Original reset lines
-                nextHeight = baseHeight + control.Height - Margin - lineHeight;
-                nextHeight = (MaxNumberOfLines - 1) * lineHeight;  // keep your magic line, it works!
-
-                int lines = UsedLines < MaxNumberOfLines ? UsedLines : MaxNumberOfLines;
-                for (int i = 0; i < lines; i++)
-                {
-                    ref var line = ref LineBuffers[i];
-                    if (line.Vertices != null)
-                    {
-                        for (int j = 0; j < line.Length; j++)
-                        {
-                            line.Vertices[j].Position.Y -= offset;
-                        }
-                    }
-                }
-
-                // Bonus consistency: shift future builds to match
-                nextHeight -= (int)offset;
-            }
 
             if (!needUpdate) return;
 
-            // --- Rest of render (projection + draw) ---
+            // --- Final render ---
             control.ClearViewport();
 
             var fr = control.fontRenderer;
@@ -188,7 +163,6 @@ namespace TeensyMonitor.Plotter.UserControls
                     fr.RenderText(line.Vertices, line.Length);
             }
         }
-
         private void ManageScrolling()
         {
             // Scroll is needed one before we exceed max lines

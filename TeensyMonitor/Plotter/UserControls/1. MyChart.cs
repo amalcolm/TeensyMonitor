@@ -18,11 +18,15 @@ namespace TeensyMonitor.Plotter.UserControls
     {
         private const int WindowSize = 5120;
 
-        public bool EnablePlots { get; set; } = true;
+        public bool EnablePlots  { get; set; } = true;
         public bool EnableLabels { get; set; } = true;
+        public bool AutoScaling  { get; set; } = false;
+
 
         private readonly ConcurrentDictionary<uint, double> _latestValues = [];
         private readonly ConcurrentDictionary<uint, Tuple<TextBlock, TextBlock>> _blocks = [];
+
+        int _numLabels = 0;
         private readonly List<TextBlock> _textBlocksToRender = [];
 
         private readonly ConcurrentDictionary<uint, bool> _pendingStates = [];
@@ -54,8 +58,8 @@ namespace TeensyMonitor.Plotter.UserControls
             "postGainSensor",
             };
 
-        float lineSpacing = 50f;
-        float topMargin = 20f;
+        private readonly float _labelLineSpacing = 45f;
+        private readonly float _labelTopMargin   = 20f;
 
         public MyChart()
         {
@@ -112,11 +116,11 @@ namespace TeensyMonitor.Plotter.UserControls
                 {
                     int index = 1;
 
-                    var orderedKeys = _blocks.Keys.OrderBy(k => -_blocks[k].Item1.Y).ToArray();
+                    uint[] orderedKeys = [.. _blocks.Keys.OrderBy(k => -_blocks[k].Item1.Y)];
 
                     foreach (var key in orderedKeys)
                     {
-                        float yPos = Height - topMargin - (index * lineSpacing);
+                        float yPos = Height - _labelTopMargin -  index * _labelLineSpacing;
 
                         _blocks[key].Item1.Y = yPos;
                         _blocks[key].Item2.Y = yPos + 0.01f;  // to maintain ordering
@@ -198,26 +202,96 @@ namespace TeensyMonitor.Plotter.UserControls
 
         public void AddData(Dictionary<string, double> data)
         {
-            foreach (var key in data.Keys)
-                if (string.IsNullOrWhiteSpace(key) == false)
+            var timeKey = data.Keys.FirstOrDefault(k => k.Equals("Time", StringComparison.OrdinalIgnoreCase));
+            var hasTime = data.TryGetValue(timeKey!, out var timeValue);
+
+            foreach (var (key, value) in data)
+            {
+                if (string.IsNullOrWhiteSpace(key))
+                    continue;
+
+                uint stateHash = (uint)key.GetHashCode();
+
+                if (!Plots.TryGetValue(stateHash, out var plot))
                 {
-                    uint stateHash = (uint)key.GetHashCode();
-                    if (Plots.TryGetValue(stateHash, out var plot) == false)
-                    {
-                        if (TestAndSetPending(stateHash)) continue;
+                    if (TestAndSetPending(stateHash))
+                        continue;
 
-                        plot = new(WindowSize, this) { Yscale = 1.0 };
-                        lock (PlotsLock)
-                            Plots[stateHash] = plot;
-                        CreateTextBlocksForLabel(stateHash, key);
-                    }
-                    else
-                        plot.Add(data[key]);
+                    plot = new(WindowSize, this) { Yscale = 1.0, AutoScaling = this.AutoScaling };
 
-                    lock (_lock)
-                        _latestValues[stateHash] = data[key];
+                    lock (PlotsLock)
+                        Plots[stateHash] = plot;
+
+                    CreateTextBlocksForLabel(stateHash, key);
                 }
+
+                if (hasTime && !key.Equals(timeKey, StringComparison.OrdinalIgnoreCase))
+                    plot.Add(timeValue, value);
+                else if (!hasTime)
+                    plot.Add(value);
+
+                lock (_lock)
+                    _latestValues[stateHash] = value;
+            }
         }
+
+        public void AddData(Dictionary<string, double[]> data)
+        {
+            // Find Time series (case-insensitive) in a single pass
+            string? timeKey = null;
+            double[]? timeValues = null;
+
+            foreach (var kv in data)
+            {
+                if (kv.Key.Equals("Time", StringComparison.OrdinalIgnoreCase))
+                {
+                    timeKey = kv.Key;       // preserve actual key casing used in the dictionary
+                    timeValues = kv.Value;
+                    break;
+                }
+            }
+
+            bool hasTime = timeValues is { Length: > 0 };
+            double timeValue = hasTime ? timeValues![^1] : 0.0;
+
+            foreach (var (key, values) in data)
+            {
+                if (string.IsNullOrWhiteSpace(key))
+                    continue;
+
+                // Don't treat Time as a plot series
+                if (timeKey is not null && key.Equals(timeKey, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                if (values is null || values.Length == 0)
+                    continue; // nothing to add, also avoids Last()
+
+                uint stateHash = unchecked((uint)key.GetHashCode());
+
+                if (!Plots.TryGetValue(stateHash, out var plot))
+                {
+                    if (TestAndSetPending(stateHash))
+                        continue;
+
+                    plot = new(WindowSize, this) { Yscale = 1.0 };
+
+                    lock (PlotsLock)
+                        Plots[stateHash] = plot;
+
+                    CreateTextBlocksForLabel(stateHash, key);
+                }
+
+                if (hasTime && timeValues!.Length == values.Length)    for (int i = 1; i < values.Length; i++)  plot.Add(timeValues[i], values[i]);
+                else if (hasTime)                                      for (int i = 0; i < values.Length; i++)  plot.Add(timeValue    , values[i]);
+                else                                                   for (int i = 0; i < values.Length; i++)  plot.Add(values[i]);
+
+                // Last sample for this series
+                double last = values[^1];
+                lock (_lock)
+                    _latestValues[stateHash] = last;
+            }
+        }
+
 
         private bool TestAndSetPending(uint state)
         {
@@ -240,7 +314,6 @@ namespace TeensyMonitor.Plotter.UserControls
             _labelAreaRenderer?.Shutdown();
         }
 
-        int numLabels = 0;
         private void CreateTextBlocksForLabel(uint state, string label, string valueFormat = "F2")
         {
             if (font == null) return;
@@ -249,8 +322,8 @@ namespace TeensyMonitor.Plotter.UserControls
 
             lock (_lock)
             {
-                numLabels++;
-                float yPos = MyGL.Height - topMargin - (numLabels * lineSpacing);
+                _numLabels++;
+                float yPos = MyGL.Height - _labelTopMargin - (_numLabels * _labelLineSpacing);
 
                 var labelBlock = new TextBlock(labelText, 126, 0, font);                                 // yPos set on render
                 var valueBlock = new TextBlock("0.00", 120, 0, font, TextAlign.Right, valueFormat);
@@ -328,6 +401,7 @@ namespace TeensyMonitor.Plotter.UserControls
                     _blocks.Clear();
                     _latestValues.Clear();
                     _pendingStates.Clear();
+                    _numLabels = 0;
                     MyColours.Reset();
                 }
         }
