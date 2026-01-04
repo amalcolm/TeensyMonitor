@@ -150,6 +150,7 @@
     <ClCompile Include="src\Packets\CPackets.cpp" />
     <ClCompile Include="src\Packets\Decoder.cpp" />
     <ClCompile Include="src\Packets\Packets.cpp" />
+    <ClCompile Include="src\RunningAverage.cpp" />
     <ClCompile Include="src\SerialHelper.cpp" />
     <ClCompile Include="src\SerialHelper_GetUSBSerialPorts.cpp" />
     <ClCompile Include="src\Setup.cpp" />

@@ -307,7 +307,7 @@ inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexce
     }
 
 	double lastTimeStamp = 0;
-#ifndef _Debug
+#ifndef _DEBUG
 #define _DEBUG 0
 #endif // !_Debug
 

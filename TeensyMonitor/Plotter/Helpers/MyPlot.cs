@@ -97,11 +97,11 @@ namespace TeensyMonitor.Plotter.Helpers
 
                 if (count < 10)
                     diffSum += fX - LastX;
-                else if (count == 10)
+                else if (_ra == null)
                 {
-                    double avgDiff = diffSum / 10.0;
+                    double avgDiff = Setup.STATE_DURATION_uS / 1_000_000.0;
                     float window = _parentMaxX - _parentMinX;
-                    _ra = new RunningAverage( (int)(window / avgDiff) ); // 5 second average
+                    _ra = new RunningAverage( (int)(window / avgDiff) );
                 }
                 LastX = fX;
             }
@@ -141,8 +141,12 @@ namespace TeensyMonitor.Plotter.Helpers
 
             if (_ra != null && AutoScaling)
             {
-                float minY = (float)_ra.Min;
-                float maxY = (float)_ra.Max;
+                float minY, maxY;
+                lock (_lock)
+                {
+                    minY = (float)_ra.Min;
+                    maxY = (float)_ra.Max;
+                }
 
                 // Guard bad values / zero range
                 if (!float.IsFinite(minY) || !float.IsFinite(maxY))
@@ -159,8 +163,8 @@ namespace TeensyMonitor.Plotter.Helpers
                 float targetHeight = range + padding;
 
                 // Ramp-in based on sample count
-                float t = Math.Clamp(count / 1000f, 0f, 1f);
-                t = t * t * (3f - 2f * t); // smoothstep (optional but nicer)
+                float t = Math.Clamp(count / 100f, 0f, 1f);
+//                t = t * t * (3f - 2f * t); // smoothstep (optional but nicer)
 
                 float startHeight = 120000f;              // big & stable at the beginning
                 float desiredHeight = startHeight + (targetHeight - startHeight) * t;
@@ -173,6 +177,8 @@ namespace TeensyMonitor.Plotter.Helpers
         
                 var transform = Matrix4.CreateOrthographicOffCenter(_parentMinX, _parentMaxX, bottom, top, zNear, zFar);
                 GL.UniformMatrix4(_transformLoc, false, ref transform);
+
+                _plotter.SetMetrics(minY, maxY, range, desiredHeight);
             }
 
             if (Visible)

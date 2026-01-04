@@ -6,7 +6,7 @@
 
 using namespace System;
 
-namespace YourNamespace
+namespace PsycSerial
 {
     public ref class RunningAverage sealed
     {
@@ -24,43 +24,15 @@ namespace YourNamespace
         }
 
     public:
-        RunningAverage(int windowSize) { _p = new Native(ToSizeT(windowSize)); }
-        
+        RunningAverage(int windowSize);
+        ~RunningAverage();
+		!RunningAverage();
 
-        // Deterministic cleanup
-        ~RunningAverage() { this->!RunningAverage(); }
 
-        // Finalizer (in case user forgets to Dispose)
-        !RunningAverage() { delete _p; _p = nullptr; }
+        void Reset(int windowSize);
+        void Add(double value);
 
-        void Reset(int windowSize)
-        {
-            if (!_p) throw gcnew ObjectDisposedException("RunningAverage");
-            _p->Reset(ToSizeT(windowSize));
-        }
-
-        void Add(double value)
-        {
-            if (!_p) throw gcnew ObjectDisposedException("RunningAverage");
-            _p->Add(value);
-        }
-
-        property double Min
-        {
-            double get()
-            {
-                if (!_p) throw gcnew ObjectDisposedException("RunningAverage");
-                return _p->GetMin();
-            }
-        }
-
-        property double Max
-        {
-            double get()
-            {
-                if (!_p) throw gcnew ObjectDisposedException("RunningAverage");
-                return _p->GetMax();
-            }
-        }
+        property double Min { double get(); }
+        property double Max { double get(); }
     };
 }

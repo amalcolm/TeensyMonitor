@@ -212,6 +212,16 @@ namespace TeensyMonitor.Plotter.UserControls
 
                 uint stateHash = (uint)key.GetHashCode();
 
+                if (!_blocks.ContainsKey(stateHash)) 
+                    CreateTextBlocksForLabel(stateHash, key);
+
+                lock (_lock)
+                    _latestValues[stateHash] = value;
+
+
+                if (key.StartsWith("-"))
+                    continue; // skip special keys
+
                 if (!Plots.TryGetValue(stateHash, out var plot))
                 {
                     if (TestAndSetPending(stateHash))
@@ -221,19 +231,22 @@ namespace TeensyMonitor.Plotter.UserControls
 
                     lock (PlotsLock)
                         Plots[stateHash] = plot;
-
-                    CreateTextBlocksForLabel(stateHash, key);
                 }
 
                 if (hasTime && !key.Equals(timeKey, StringComparison.OrdinalIgnoreCase))
                     plot.Add(timeValue, value);
                 else if (!hasTime)
                     plot.Add(value);
-
-                lock (_lock)
-                    _latestValues[stateHash] = value;
             }
         }
+
+
+        
+
+
+
+
+
 
         public void AddData(Dictionary<string, double[]> data)
         {

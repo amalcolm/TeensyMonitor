@@ -19,6 +19,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
         public bool AutoClear { get; set; } = true;
         public static bool IsPaused { get; set; } = false;
+        public bool AllowPause { get; set; } = true;
 
         public MyGLThread? GLThread { get; private set; } = default!;
         public void Setup(Action? initAction, Action? shutdownAction = null) 
@@ -194,7 +195,8 @@ namespace TeensyMonitor.Plotter.UserControls
         /// </summary>
         private void RenderLoop()
         {
-            if (IsPaused || !IsLoaded || IsDisposed) return;
+            if (!IsLoaded || IsDisposed) return;
+            if (IsPaused && AllowPause) return;
 
             if (AutoClear)
                 GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);

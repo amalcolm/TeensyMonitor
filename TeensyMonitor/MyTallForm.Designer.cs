@@ -33,6 +33,7 @@
             // 
             // chart
             // 
+            chart.AllowPause = true;
             chart.AutoClear = true;
             chart.AutoScaling = true;
             chart.BackColor = Color.Linen;
@@ -45,6 +46,9 @@
             chart.Size = new Size(800, 1235);
             chart.TabIndex = 0;
             chart.Yscale = 1F;
+            chart.MouseDown += MyTallForm_MouseDown;
+            chart.MouseMove += MyTallForm_MouseMove;
+            chart.MouseUp += MyTallForm_MouseUp;
             // 
             // MyTallForm
             // 
@@ -57,6 +61,10 @@
             StartPosition = FormStartPosition.Manual;
             Text = "MyTallForm";
             WindowState = FormWindowState.Maximized;
+            MouseDown += MyTallForm_MouseDown;
+            MouseLeave += MyTallForm_MouseLeave;
+            MouseMove += MyTallForm_MouseMove;
+            MouseUp += MyTallForm_MouseUp;
             ResumeLayout(false);
         }
 
