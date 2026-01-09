@@ -35,7 +35,6 @@
             // 
             chart.AllowPause = true;
             chart.AutoClear = true;
-            chart.AutoScaling = true;
             chart.BackColor = Color.Linen;
             chart.BorderStyle = BorderStyle.FixedSingle;
             chart.Dock = DockStyle.Fill;

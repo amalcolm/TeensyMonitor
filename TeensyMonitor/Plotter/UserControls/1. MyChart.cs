@@ -20,7 +20,6 @@ namespace TeensyMonitor.Plotter.UserControls
 
         public bool EnablePlots  { get; set; } = true;
         public bool EnableLabels { get; set; } = true;
-        public bool AutoScaling  { get; set; } = false;
 
 
         private readonly ConcurrentDictionary<uint, double> _latestValues = [];
@@ -203,7 +202,8 @@ namespace TeensyMonitor.Plotter.UserControls
         public void AddData(Dictionary<string, double> data)
         {
             var timeKey = data.Keys.FirstOrDefault(k => k.Equals("Time", StringComparison.OrdinalIgnoreCase));
-            var hasTime = data.TryGetValue(timeKey!, out var timeValue);
+            double timeValue = 0.0;
+            var hasTime = timeKey is not null && data.TryGetValue(timeKey!, out timeValue);
 
             foreach (var (key, value) in data)
             {
@@ -219,15 +219,14 @@ namespace TeensyMonitor.Plotter.UserControls
                     _latestValues[stateHash] = value;
 
 
-                if (key.StartsWith("-"))
-                    continue; // skip special keys
+                if (key.StartsWith('-')) continue;  // label only
 
                 if (!Plots.TryGetValue(stateHash, out var plot))
                 {
                     if (TestAndSetPending(stateHash))
                         continue;
 
-                    plot = new(WindowSize, this) { Yscale = 1.0, AutoScaling = this.AutoScaling };
+                    plot = new(WindowSize, this) { Yscale = 1.0, AutoScaling = key.StartsWith('+') };
 
                     lock (PlotsLock)
                         Plots[stateHash] = plot;

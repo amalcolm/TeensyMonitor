@@ -1,20 +1,28 @@
 ﻿using PsycSerial;
+using TeensyMonitor.Plotter.Helpers;
 
 namespace TeensyMonitor.Plotter.UserControls
 {
     public partial class MyTallForm : Form
     {
-        const double scale_C0 = 1.0 / 4660.100;
+        private const double scale_C0 = 1.0 / 4660.100;
 
         private double delta_Offset2 = 368.0;
 
-        readonly Dictionary<string, double> data = [];
+        private readonly Dictionary<string, double> data = [];
+
+        private readonly ZFixer fixer = new(2.01, baseNoiseY: 50, kSlope: 0.01, kCurve: 0.01, cooldownSamples: 2);
+
 
         public MyTallForm()
         {
             InitializeComponent();
 
-            chart.AllowPause = false;
+            FormClosing += (_, _) => fixer.Reset();
+
+            chart.AllowPause = false;   
+            fixer.Chart = chart;
+            fixer.Telemetry = data;
         }
         public void Process(BlockPacket blockPacket)
         {
@@ -24,10 +32,10 @@ namespace TeensyMonitor.Plotter.UserControls
 
             if (chart.GetMetrics() is var metrics && metrics != null)
             {
-                data["-Min"] = metrics.MinY;
-                data["-Max"] = metrics.MaxY;
-                data["-Range"] = metrics.RangeY;
-                data["-DesiredRange"] = metrics.DesiredRangeY;
+//                data["-Min"] = metrics.MinY;
+//                data["-Max"] = metrics.MaxY;
+//                data["-Range"] = metrics.RangeY;
+//                data["-DesiredRange"] = metrics.DesiredRangeY;
 
                 if (Offset2 == int.MaxValue)
                 {
@@ -38,27 +46,35 @@ namespace TeensyMonitor.Plotter.UserControls
 
             double value = CalcValue(packet);
 
-            data["Time"] = packet.TimeStamp;
-            data["Value"] = value;
+            if (skipValue)
+                return;
 
+            value = fixer.Fix(packet.TimeStamp, value);
+
+            data["Time"] = packet.TimeStamp;
+            data["+Value"] = value;
+//            data["preGain"] = -packet.preGainSensor;
             
             chart.AddData(data);
         }
 
+        bool skipValue = false;
         int Offset2 = int.MaxValue;
         int lastOffset2 = int.MinValue;
         private double CalcValue(DataPacket packet)
         {
             if (Offset2 == int.MinValue) return 0;  // wait for metrics to be initialised, sets lastOffset2
 
-            data["-Offset2"] = Offset2;
+//            data["-Offset2"] = Offset2;
             
+            skipValue = packet.Offset2 != lastOffset2;
+
             Offset2 += packet.Offset2 - lastOffset2;
             lastOffset2 = packet.Offset2;
 
             double C0 = packet.Channel[0] * scale_C0;
 
-            return C0 + Offset2 * delta_Offset2;
+            return C0 + packet.Offset2 * delta_Offset2;
         }
 
         bool isMouseDown = false;

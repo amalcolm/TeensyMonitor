@@ -97,7 +97,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
                 if (count < 10)
                     diffSum += fX - LastX;
-                else if (_ra == null)
+                else if (_ra == null && _parentMaxX > _parentMinX)
                 {
                     double avgDiff = Setup.STATE_DURATION_uS / 1_000_000.0;
                     float window = _parentMaxX - _parentMinX;
