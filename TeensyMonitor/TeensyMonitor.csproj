@@ -11,6 +11,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Resources\_References\ZFixer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Resources\_References\ZFixer.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="OpenTK.GLControl" Version="4.0.2" />
     <PackageReference Include="StbImageSharp" Version="2.30.15" />
   </ItemGroup>
