@@ -197,8 +197,7 @@ namespace TeensyMonitor
 
         private void cbPorts_SelectedIndexChanged(object sender, EventArgs e)
         {
-            if (cbPorts.SelectedItem == null) return;
-            if (cbPorts.SelectedText == "No ports found") return;
+            if (cbPorts.SelectedItem == null || cbPorts.SelectedItem.ToString() == "No ports found") return;
 
             SP?.Open(cbPorts.SelectedItem.ToString());
         }
@@ -214,9 +213,20 @@ namespace TeensyMonitor
             {
                 if (firstLoad)
                 {
-                    MessageBox.Show("Couldn't find the device.");
-                    Close();
-                    return;
+                    for (var res = DialogResult.Retry; res == DialogResult.Retry;)
+                    {
+                        ports = SerialHelper.GetUSBSerialPorts();
+                        if (ports.Length > 0)
+                            break;
+
+                        res = MessageBox.Show("Could not find any device", "Device Not Found", MessageBoxButtons.AbortRetryIgnore, MessageBoxIcon.Warning);
+
+                        if (res == DialogResult.Abort)
+                        {
+                            Close();
+                            return;
+                        }
+                    }
                 }
                 cbPorts.Items.Clear();
                 cbPorts.Items.Add("No ports found");
