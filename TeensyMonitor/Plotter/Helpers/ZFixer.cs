@@ -40,7 +40,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
             if (_count < 4) return y;
 
-            sb.Append($"{x:F3},{y:F6}");
+            sb.Append($"{_c.X:F3},{_c.Y:F6}");
 
 
             if (_cooldown > 0) _cooldown--;
