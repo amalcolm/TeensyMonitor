@@ -1,4 +1,5 @@
 ﻿using PsycSerial;
+using PsycSerial.Math;
 using TeensyMonitor.Plotter.Helpers;
 
 namespace TeensyMonitor.Plotter.UserControls
@@ -11,7 +12,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
         private readonly Dictionary<string, double> data = [];
 
-        private readonly ZFixer fixer = new(2.01, baseNoiseY: 50, kSlope: 0.01, kCurve: 0.01, cooldownSamples: 2);
+        private readonly ZFixer fixer = new();
 
 
         public MyTallForm()
@@ -21,7 +22,6 @@ namespace TeensyMonitor.Plotter.UserControls
             FormClosing += (_, _) => fixer.Reset();
 
             chart.AllowPause = false;   
-            fixer.Chart = chart;
             fixer.Telemetry = data;
         }
         public void Process(BlockPacket blockPacket)

@@ -77,6 +77,9 @@
     <ClInclude Include="src\Math\CQuadRegress.h">
       <Filter>Source Files\Math</Filter>
     </ClInclude>
+    <ClInclude Include="src\Math\CDiscontinuityAnalyzer.h">
+      <Filter>Source Files\Math</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />
@@ -120,6 +123,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\Math\Wrapper.cpp">
+      <Filter>Source Files\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Math\CDiscontinuityAnalyzer.cpp">
+      <Filter>Source Files\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Math\CDiscontinuityAnalyser_Test.cpp">
       <Filter>Source Files\Math</Filter>
     </ClCompile>
   </ItemGroup>
