@@ -2,7 +2,7 @@
 #pragma managed(push, off)
 
 #pragma once
-#include <vector>
+#include <span>
 #include <numeric>
 #include <stdexcept>
 
@@ -14,17 +14,17 @@ public:
         bool valid{ false };
     };
 
-    static Result Fit(const std::vector<double>& x, const std::vector<double>& y) noexcept {
-        const size_t n = x.size();
-        if (n < 2 || n != y.size())
+    static Result Fit(std::span<const XY> p) noexcept {
+        const size_t n = p.size();
+        if (n < 2)
             return {};
 
         double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
         for (size_t i = 0; i < n; ++i) {
-            sumX  += x[i];
-            sumY  += y[i];
-            sumXY += x[i] * y[i];
-            sumX2 += x[i] * x[i];
+            sumX  += p[i].x;
+            sumY  += p[i].y;
+            sumXY += p[i].x * p[i].y;
+            sumX2 += p[i].x * p[i].x;
         }
 
         const double denom = n * sumX2 - sumX * sumX;

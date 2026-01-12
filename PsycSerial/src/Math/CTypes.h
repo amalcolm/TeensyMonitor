@@ -9,3 +9,9 @@
 // useful type aliases
 using Vec3 = std::array<double, 3>;
 using Mat3 = std::array<std::array<double, 3>, 3>;
+
+struct XY {
+	double x;
+	double y;
+};
+#pragma managed(pop)
