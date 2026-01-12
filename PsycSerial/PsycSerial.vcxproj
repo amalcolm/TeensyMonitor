@@ -131,6 +131,11 @@
     <ClInclude Include="src\ManagedCallbacks.h" />
     <ClInclude Include="src\CHandleGuard.h" />
     <ClInclude Include="src\CSerial.h" />
+    <ClInclude Include="src\Math\CMatrix3x3.h" />
+    <ClInclude Include="src\Math\CLinearRegress.h" />
+    <ClInclude Include="src\Math\CQuadRegress.h" />
+    <ClInclude Include="src\Math\CTypes.h" />
+    <ClInclude Include="src\Math\Wrapper.h" />
     <ClInclude Include="src\Packets\CDecoder.h" />
     <ClInclude Include="src\Packets\CPackets.h" />
     <ClInclude Include="src\Packets\Decoder.h" />
@@ -146,6 +151,7 @@
     <ClCompile Include="src\AString.cpp" />
     <ClCompile Include="src\ManagedCallbacks.cpp" />
     <ClCompile Include="src\CSerial.cpp" />
+    <ClCompile Include="src\Math\Wrapper.cpp" />
     <ClCompile Include="src\Packets\CDecoder.cpp" />
     <ClCompile Include="src\Packets\CPackets.cpp" />
     <ClCompile Include="src\Packets\Decoder.cpp" />

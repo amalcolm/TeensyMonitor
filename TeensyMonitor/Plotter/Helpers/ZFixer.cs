@@ -40,11 +40,13 @@ namespace TeensyMonitor.Plotter.Helpers
 
             if (_count < 4) return y;
 
-            sb.Append($"{_c.X:F3},{_c.Y:F6}");
+            sb.Append($"{_c.X:F6},{_c.Y:F6}");
 
 
             if (_cooldown > 0) _cooldown--;
-            if (_cooldown == 0)
+            if (_cooldown != 0)
+                sb.Append($",{_globalOffset:F6}");
+            else
                 if (TryDetectDelta(out double deltaYMid))
                 {
                     _globalOffset += deltaYMid;
