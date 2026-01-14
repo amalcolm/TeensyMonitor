@@ -41,7 +41,7 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Process(CDiscontinuityAnalyzer:
 	auto rightCurve = CQuadRegress::Fit(std::span<const XY>{m_data.data() + m_data.size() - ZFIXER_WINDOW_SIZE, ZFIXER_WINDOW_EDGE});
 
 
-	for (int i = start; i < m_data.size() - ZFIXER_WINDOW_EDGE; i++)
+	for (size_t i = start; i < m_data.size() - ZFIXER_WINDOW_EDGE; i++)
 	{
 		double x = m_data[i].x();
 	
