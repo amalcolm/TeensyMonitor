@@ -19,8 +19,7 @@ namespace TeensyMonitor
         {
             ApplicationConfiguration.Initialize();
 
-            ZFixer.DoTest();
-            return;
+//            ZFixer.DoTest(); return;
 
             Application.ThreadException += (sender, e) =>
             {

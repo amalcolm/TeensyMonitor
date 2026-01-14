@@ -1,7 +1,6 @@
 #pragma once
 
 #include "CDiscontinuityAnalyzer.h"
-#include <vector>
 
 using namespace System::Collections::Generic;
 
@@ -10,16 +9,18 @@ namespace PsycSerial::Math
 	public ref class ZFixer {
 
 	private:
-		std::vector<XY>* m_data = nullptr;
 		
 		Dictionary<System::String^, double>^ m_telemetry = nullptr;
+
+		static System::String^ keyDeltaY         = gcnew System::String("DeltaY");
+		static System::String^ keyDeltaSlope     = gcnew System::String("DeltaSlope");
+		static System::String^ keyDeltaCurvature = gcnew System::String("DeltaCurvature");
+		static System::String^ keyScore          = gcnew System::String("Score");
+
 	public:
 		double Fix(double x, double y);
 
-		ZFixer();
-		~ZFixer();
-
-		void Reset();
+		void Close();
 
 		property Dictionary<System::String^, double>^ Telemetry {
 			Dictionary<System::String^, double>^ get() {return m_telemetry; }
@@ -27,5 +28,11 @@ namespace PsycSerial::Math
 		}
 
 		static void DoTest() { CDiscontinuityAnalyzer::DoTest(); }
+
+		static void GetTestValue( double% x, double% y ) {
+			auto v = CDiscontinuityAnalyzer::GetTestValue();
+			x = v.x();
+			y = v.y();
+		}
 	};
 }

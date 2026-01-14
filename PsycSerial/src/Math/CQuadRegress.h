@@ -8,12 +8,8 @@
 
 class CQuadRegress {
 public:
-    struct Result {
-        double a{}, b{}, c{};
-        bool valid{ false };
-    };
 
-    static Result Fit(std::span<const XY> p) noexcept {
+    static RegressResult Fit(std::span<const XY> p) noexcept {
         const size_t n = p.size();
         if (n < 3)
             return {};
@@ -22,7 +18,7 @@ public:
         double sumY = 0, sumXY = 0, sumX2Y = 0;
 
         for (size_t i = 0; i < n; ++i) {
-            const double xi = p[i].x, yi = p[i].y;
+            const double xi = p[i].x(), yi = p[i].y();
             const double xi2 = xi * xi;
             sumX   += xi;
             sumX2  += xi2;
@@ -41,12 +37,10 @@ public:
         Vec3 B = { sumX2Y, sumXY, sumY };
 
         auto solved = CMatrix3x3::TrySolve(A, B);
-        if (!solved) {
-			auto linResult = CLinearRegress::Fit(p);  // singular, fallback to linear
-            return {linResult.slope, linResult.intercept, 0.0, linResult.valid };
-        }
-
-        return { (*solved)[0], (*solved)[1], (*solved)[2], true };
+        if (!solved) 
+			return CLinearRegress::Fit(p);  // singular, fallback to linear
+        
+        return RegressResult::GetQuadraticResult(solved->at(0), solved->at(1), solved->at(2), true, p);
     }
 };
 

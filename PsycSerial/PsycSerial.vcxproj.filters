@@ -80,6 +80,9 @@
     <ClInclude Include="src\Math\CDiscontinuityAnalyzer.h">
       <Filter>Source Files\Math</Filter>
     </ClInclude>
+    <ClInclude Include="src\Math\CDiscontinuityFixer.h">
+      <Filter>Source Files\Math</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />
@@ -129,6 +132,9 @@
       <Filter>Source Files\Math</Filter>
     </ClCompile>
     <ClCompile Include="src\Math\CDiscontinuityAnalyser_Test.cpp">
+      <Filter>Source Files\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Math\CDiscontinuityFixer.cpp">
       <Filter>Source Files\Math</Filter>
     </ClCompile>
   </ItemGroup>

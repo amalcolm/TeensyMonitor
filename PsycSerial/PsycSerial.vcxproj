@@ -132,6 +132,7 @@
     <ClInclude Include="src\CHandleGuard.h" />
     <ClInclude Include="src\CSerial.h" />
     <ClInclude Include="src\Math\CDiscontinuityAnalyzer.h" />
+    <ClInclude Include="src\Math\CDiscontinuityFixer.h" />
     <ClInclude Include="src\Math\CMatrix3x3.h" />
     <ClInclude Include="src\Math\CLinearRegress.h" />
     <ClInclude Include="src\Math\CQuadRegress.h" />
@@ -154,6 +155,7 @@
     <ClCompile Include="src\CSerial.cpp" />
     <ClCompile Include="src\Math\CDiscontinuityAnalyser_Test.cpp" />
     <ClCompile Include="src\Math\CDiscontinuityAnalyzer.cpp" />
+    <ClCompile Include="src\Math\CDiscontinuityFixer.cpp" />
     <ClCompile Include="src\Math\Wrapper.cpp" />
     <ClCompile Include="src\Packets\CDecoder.cpp" />
     <ClCompile Include="src\Packets\CPackets.cpp" />

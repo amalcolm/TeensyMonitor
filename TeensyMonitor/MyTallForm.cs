@@ -19,11 +19,12 @@ namespace TeensyMonitor.Plotter.UserControls
         {
             InitializeComponent();
 
-            FormClosing += (_, _) => fixer.Reset();
+            FormClosing += (_, _) => fixer.Close();
 
             chart.AllowPause = false;   
             fixer.Telemetry = data;
         }
+
         public void Process(BlockPacket blockPacket)
         {
             if (blockPacket.Count == 0) return;
@@ -49,10 +50,16 @@ namespace TeensyMonitor.Plotter.UserControls
             if (skipValue)
                 return;
 
-            value = fixer.Fix(packet.TimeStamp, value);
+
+            double x = 0, y = 0;
+            ZFixer.GetTestValue(ref x, ref y); 
+
+            x = packet.TimeStamp;
+
+            value = fixer.Fix(x, y);
 
             data["Time"] = packet.TimeStamp;
-            data["+Value"] = value;
+            data["+Value"] = y; // value;
 //            data["preGain"] = -packet.preGainSensor;
             
             chart.AddData(data);
@@ -64,9 +71,9 @@ namespace TeensyMonitor.Plotter.UserControls
         private double CalcValue(DataPacket packet)
         {
             if (Offset2 == int.MinValue) return 0;  // wait for metrics to be initialised, sets lastOffset2
-
-//            data["-Offset2"] = Offset2;
             
+            //            data["-Offset2"] = Offset2;
+
             skipValue = packet.Offset2 != lastOffset2;
 
             Offset2 += packet.Offset2 - lastOffset2;
