@@ -6,6 +6,7 @@
 #include <optional>
 #include <cmath>
 #include <span>
+#include <stdexcept>
 
 // useful type aliases
 using Vec3 = std::array<double, 3>;
@@ -19,10 +20,25 @@ private:
 public:
 	inline double x() const { return _x; }
 	inline double y() const { return _y + _offsetY; }
+	XY(const XY& xy) = default;
 	XY(double x, double y, double offsetY) : _x(x), _y(y), _offsetY(offsetY) {}
 	XY(const XY& xy, double deltaOffsetY) : _x(xy._x), _y(xy._y), _offsetY(xy._offsetY + deltaOffsetY) {}
 
+	inline void adjustX(double deltaX) { _x += deltaX; }
 	inline void adjustOffsetY(double deltaOffsetY) { _offsetY += deltaOffsetY; }
+
+    static void CentreX(std::span<const XY> input, std::span<XY> output) {
+        if (input.size() != output.size()) throw std::invalid_argument("Input and output spans must have the same size.");
+        if (input.size() == 0) return;
+        double meanX = 0.0;
+        for (const auto& xy : input)
+            meanX += xy.x();
+        meanX /= input.size();
+
+		std::copy(input.begin(), input.end(), output.begin());
+        for (size_t i = 0; i < input.size(); i++) 
+            output[i].adjustX(-meanX);
+	}
 };
 
 struct RegressResult {
