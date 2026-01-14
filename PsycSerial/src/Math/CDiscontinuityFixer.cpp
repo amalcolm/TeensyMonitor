@@ -17,17 +17,16 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Fix(double x, double y) noexcep
 	auto span = std::span<const XY>(m_data.data() + start, ZFIXER_WINDOW_SIZE);
 
 	std::vector<XY> workingData(ZFIXER_WINDOW_SIZE);
-	std::span<XY> workingSpan = std::span<XY>(workingData.data(), ZFIXER_WINDOW_SIZE);
-	XY::CentreX(span, workingSpan);
+	XY::CentreX(span, workingData);
 
-	auto analysis = CDiscontinuityAnalyzer::Analyze(workingSpan, ZFIXER_WINDOW_EDGE);
+	auto analysis = CDiscontinuityAnalyzer::Analyze(workingData, ZFIXER_WINDOW_EDGE);
 
 	if (analysis.valid == false) return Result::FromFail(x, y, currentOffsetY);
 
-	return Process(workingSpan, analysis);
+	return Process(workingData, analysis);
 }
 
-CDiscontinuityFixer::Result CDiscontinuityFixer::Process(std::span<const XY> workingData, CDiscontinuityAnalyzer::Result analysis) noexcept
+CDiscontinuityFixer::Result CDiscontinuityFixer::Process(std::span<XY> workingData, CDiscontinuityAnalyzer::Result analysis) noexcept
 {
 	static constexpr double THRESHOLD_SCORE = 10.0;
 	Result result(analysis);
@@ -36,31 +35,38 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Process(std::span<const XY> wor
 	if (std::abs(analysis.score) <= THRESHOLD_SCORE)
 		return result;
 
-	auto start = m_data.size() - ZFIXER_WINDOW_SIZE + ZFIXER_WINDOW_EDGE;
+	// adjust right edge of WORKINGDATA down by deltaY
+	auto workingEdge = std::span<XY>(workingData.data() + (workingData.size() - ZFIXER_WINDOW_EDGE), ZFIXER_WINDOW_EDGE);
 	
-	// move right edge down by deltaY
-	for (size_t i = start; i < m_data.size(); i++)
-		m_data[i].adjustOffsetY(-analysis.deltaY);
+	for (size_t i = 0; i < ZFIXER_WINDOW_EDGE; i++)
+		workingEdge[i].adjustOffsetY(-analysis.deltaY);
 
-	// create working copy of right edge for fitting
-	std::vector<XY> workingEdge(ZFIXER_WINDOW_EDGE);
-	auto span = std::span<const XY>{ m_data.data() + m_data.size() - ZFIXER_WINDOW_EDGE, ZFIXER_WINDOW_EDGE };
-	XY::CentreX(span, workingEdge);
-
+	
 	// get fitted curves
 	auto  leftCurve = analysis.left;
 	auto rightCurve = CQuadRegress::Fit(workingEdge);
 
+
+
+
+	// move right edge of M_DATA down by deltaY
+	for (size_t i = m_data.size() - ZFIXER_WINDOW_EDGE; i < m_data.size(); i++)
+		m_data[i].adjustOffsetY(-analysis.deltaY);
+
+
+	size_t m_dataIndexOffset = m_data.size() - workingData.size();
+
 	// adjust all non-edge points to average of curves
-	for (size_t i = start; i < m_data.size() - ZFIXER_WINDOW_EDGE; i++)
+	for (size_t i = ZFIXER_WINDOW_EDGE; i < workingData.size() - ZFIXER_WINDOW_EDGE; i++)
 	{
-		double x = m_data[i].x();
+		double x = workingData[i].x();
 	
 		double yL = leftCurve.EvaluateAt(x);
 		double yR = rightCurve.EvaluateAt(x);
 		double averageY = 0.5 * (yL + yR);
 
-		m_data[i].adjustOffsetY(averageY - m_data[i].y());  // adjust offsetY to align curves
+		size_t m_dataIndex = i + m_dataIndexOffset;
+		m_data[m_dataIndex].adjustOffsetY(averageY - m_data[m_dataIndex].y());  // adjust offsetY to align curves
 	}
 
 	// the XY returned is last non-edge point

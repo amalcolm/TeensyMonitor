@@ -55,7 +55,7 @@ class CDiscontinuityFixer {
 		};
 
 		Result Fix(double x, double y) noexcept;
-		Result Process(std::span<const XY> workingData, CDiscontinuityAnalyzer::Result analysis) noexcept;
+		Result Process(std::span<XY> workingData, CDiscontinuityAnalyzer::Result analysis) noexcept;
 
 };
 

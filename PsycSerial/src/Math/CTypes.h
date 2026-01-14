@@ -20,6 +20,7 @@ private:
 public:
 	inline double x() const { return _x; }
 	inline double y() const { return _y + _offsetY; }
+    XY() noexcept = default;
 	XY(const XY& xy) = default;
 	XY(double x, double y, double offsetY) : _x(x), _y(y), _offsetY(offsetY) {}
 	XY(const XY& xy, double deltaOffsetY) : _x(xy._x), _y(xy._y), _offsetY(xy._offsetY + deltaOffsetY) {}
