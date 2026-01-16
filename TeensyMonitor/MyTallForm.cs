@@ -51,15 +51,15 @@ namespace TeensyMonitor.Plotter.UserControls
                 return;
 
 
-            double x = 0, y = 0;
-            ZFixer.GetTestValue(ref x, ref y); 
+//            double x = 0, y = 0;
+//            ZFixer.GetTestValue(ref x, ref y); 
 
-            x = packet.TimeStamp;
+//            x = packet.TimeStamp;
 
-            value = fixer.Fix(x, y);
+            value = fixer.Fix(packet.TimeStamp, value);
 
             data["Time"] = packet.TimeStamp;
-            data["+Value"] = y; // value;
+            data["+Value"] = value;
 //            data["preGain"] = -packet.preGainSensor;
             
             chart.AddData(data);

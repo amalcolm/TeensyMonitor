@@ -20,7 +20,7 @@ namespace PsycSerial
 
         static UInt32 MAX_BLOCKSIZE         =    164;  // max number of DataType entries in a BlockType
 
-        static String^ ProgramVersion = "v1.12";
+        static String^ ProgramVersion = "v1.20";
         static String^ DeviceVersion  = String::Empty;
 
 

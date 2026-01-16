@@ -14,6 +14,9 @@ CDiscontinuityAnalyzer::Result CDiscontinuityAnalyzer::Analyze(std::span<const X
     std::span<const XY>  leftEdge(data.data(), edgeCount);
     std::span<const XY> rightEdge(data.data() + data.size() - edgeCount, edgeCount);
 
+    if (data[data.size()-1].y() - data[data.size()-2].y() > 40)
+		r.score = 0.0;
+
     if (rightEdge.front().y() - leftEdge.back().y() > 40)
         r.score = 0.0;
 
@@ -31,15 +34,15 @@ CDiscontinuityAnalyzer::Result CDiscontinuityAnalyzer::Analyze(std::span<const X
     double yL = r. left.EvaluateAt(xMid);
     double yR = r.right.EvaluateAt(xMid);
 
-    r.deltaY         = yL - yR;
-    r.deltaSlope     = r.left.slopeMean - r.right.slopeMean;
-    r.deltaCurvature = r.left.curvature - r.right.curvature;
+    r.deltaY         = yR - yL;
+    r.deltaSlope     = r.right.slopeMean - r.left.slopeMean;
+    r.deltaCurvature = r.right.curvature - r.left.curvature;
 
     constexpr double kSlopeWeight = 0.05;
-    constexpr double kCurvWeight = 0.01;
+    constexpr double kCurveWeight = 0.01;
 
     // score is positive when deltaY is greater than threshold
-    r.score = std::abs(r.deltaY) - (kSlopeWeight * std::abs(r.deltaSlope) + kCurvWeight * std::abs(r.deltaCurvature));
+    r.score = std::abs(r.deltaY) - (kSlopeWeight * std::abs(r.deltaSlope) + kCurveWeight * std::abs(r.deltaCurvature));
     r.valid = true;
     return r;
 }

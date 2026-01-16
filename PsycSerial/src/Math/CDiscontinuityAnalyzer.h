@@ -2,7 +2,7 @@
 #pragma managed(push, off)
 
 #include "CTypes.h"
-#include "CLinearRegress.h"
+#include "CQuadRegress.h"
 #include <span>
 #include <cmath>
 
@@ -16,12 +16,13 @@ public:
         RegressResult left;
         RegressResult right;
 
+        std::span<const XY> dataSpan;   // original data span analyzed
+
         // Discontinuity metrics
-		std::span<const XY> dataSpan; // original data span analyzed
-        double deltaY{ 0.0 };       // offset difference at junction
-        double deltaSlope{ 0.0 };   // slope mismatch
-        double deltaCurvature{ 0.0 }; // curvature mismatch
-        double score{ 0.0 };        // optional combined score
+        double deltaY        { 0.0 };   // offset difference at junction
+        double deltaSlope    { 0.0 };   // slope mismatch
+        double deltaCurvature{ 0.0 };   // curvature mismatch
+        double score         { 0.0 };   // optional combined score
 
         // Optional helper for debugging
         std::string ToString() const;

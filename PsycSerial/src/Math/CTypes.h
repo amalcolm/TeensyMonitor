@@ -7,6 +7,7 @@
 #include <cmath>
 #include <span>
 #include <stdexcept>
+#include <fstream>
 
 // useful type aliases
 using Vec3 = std::array<double, 3>;
@@ -40,6 +41,9 @@ public:
         for (size_t i = 0; i < input.size(); i++) 
             output[i].adjustX(-meanX);
 	}
+
+    inline void dumpRawXY(std::ofstream& os) const { os << _x << "," << _y; }
+    
 };
 
 struct RegressResult {
@@ -61,37 +65,38 @@ struct RegressResult {
 
         for (auto& xy : data)
         {
-            double y_pred = a * xy.x() * xy.x() + b * xy.x() + c;   // or y_pred = slope*x + intercept
-            double diff = xy.y() - y_pred;
-            ss_res += diff * diff;
-            double dmean = xy.y() - meanY;
-            ss_tot += dmean * dmean;
+            double y_pred = EvaluateAt(xy.x());
+            double diff   = xy.y() - y_pred;    ss_res +=  diff *  diff;
+            double dmean  = xy.y() -  meanY;    ss_tot += dmean * dmean;
         }
 
         rmse = std::sqrt(ss_res / data.size());
         r2 = 1.0 - (ss_res / ss_tot);
 
+
+
         double dx = data.back().x() - data.front().x();
         double slope1 = 2 * a * data.front().x() + b;
-        double slope2 = 2 * a * data.back().x() + b;
+        double slope2 = 2 * a * data. back().x() + b;
         
         slopeMean = 0.5 * (slope1 + slope2);
         curvature = fabs(a) * dx * dx;  // dimensionless-ish normalization
 	}
 
-    double EvaluateAt(double x) const {
+    inline double EvaluateAt(double x) const {
         return a * x * x + b * x + c;
 	}
 
 
-	static RegressResult GetLinearResult(double slope, double intercept, bool valid, std::span<const XY> data) {
+	static RegressResult GetLinearResult(double slope, double intercept,   bool valid, std::span<const XY> data) {
 		RegressResult r{};
 		r.a = 0.0;
 		r.b = slope;
 		r.c = intercept;
-		r.valid = valid;
 
 		r.GetFit(data);
+
+		r.valid = valid && r.rmse < 1.0;
 
 		return r;
 	}
@@ -101,8 +106,11 @@ struct RegressResult {
         r.a = a;
         r.b = b;
         r.c = c;
-        r.valid = valid;
+
         r.GetFit(data);
+
+
+        r.valid = valid && r.rmse < 1.0;
         return r;
 	}
 };

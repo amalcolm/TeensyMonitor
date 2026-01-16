@@ -4,8 +4,20 @@
 
 CDiscontinuityFixer::CDiscontinuityFixer() {
 	m_data.reserve(ZFIXER_BUFFER_SIZE);
+
+	
+	if (ENABLE_DEBUG_LOG) {
+		debugFile.open("C:\\Temp\\CDiscontinuityFixer_Debug.csv");
+		Result::WriteDebugHeader(debugFile);
+	}
 }
 
+CDiscontinuityFixer::~CDiscontinuityFixer() {
+	if (debugFile.is_open()) {
+		debugFile.flush();
+		debugFile.close();
+	}
+}
 
 
 CDiscontinuityFixer::Result CDiscontinuityFixer::Fix(double x, double y) noexcept
@@ -21,8 +33,6 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Fix(double x, double y) noexcep
 
 	auto analysis = CDiscontinuityAnalyzer::Analyze(workingData, ZFIXER_WINDOW_EDGE);
 
-	if (analysis.valid == false) return Result::FromFail(x, y, currentOffsetY);
-
 	return Process(workingData, analysis);
 }
 
@@ -31,9 +41,16 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Process(std::span<XY> workingDa
 	static constexpr double THRESHOLD_SCORE = 10.0;
 	Result result(analysis);
 
-	// only process when score passes test
-	if (std::abs(analysis.score) <= THRESHOLD_SCORE)
+	size_t outputIndex = m_data.size() - ZFIXER_WINDOW_SIZE + ZFIXER_WINDOW_EDGE;
+
+	result.changed = analysis.valid && (analysis.score > THRESHOLD_SCORE);
+	result.output = m_data[outputIndex];
+
+	if (result.changed == false) {
+		if (ENABLE_DEBUG_LOG) result.WriteDebug(debugFile);
 		return result;
+	}
+
 
 	// adjust right edge of WORKINGDATA down by deltaY
 	auto workingEdge = std::span<XY>(workingData.data() + (workingData.size() - ZFIXER_WINDOW_EDGE), ZFIXER_WINDOW_EDGE);
@@ -46,12 +63,6 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Process(std::span<XY> workingDa
 	auto  leftCurve = analysis.left;
 	auto rightCurve = CQuadRegress::Fit(workingEdge);
 
-
-
-
-	// move right edge of M_DATA down by deltaY
-	for (size_t i = m_data.size() - ZFIXER_WINDOW_EDGE; i < m_data.size(); i++)
-		m_data[i].adjustOffsetY(-analysis.deltaY);
 
 
 	size_t m_dataIndexOffset = m_data.size() - workingData.size();
@@ -69,10 +80,17 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Process(std::span<XY> workingDa
 		m_data[m_dataIndex].adjustOffsetY(averageY - m_data[m_dataIndex].y());  // adjust offsetY to align curves
 	}
 
+
+	// move right edge of M_DATA down by deltaY
+	for (size_t i = m_data.size() - ZFIXER_WINDOW_EDGE; i < m_data.size(); i++)
+		m_data[i].adjustOffsetY(-analysis.deltaY);
+
+
 	// the XY returned is last non-edge point
-	result.output = m_data[m_data.size() - ZFIXER_WINDOW_EDGE - 1];
+	result.output = m_data[outputIndex];
 	result.changed = true;
 
 	currentOffsetY += -analysis.deltaY;
+	result.WriteDebug(debugFile);
 	return result;
 }
