@@ -116,5 +116,14 @@ namespace TeensyMonitor
             return maxBounds;
         }
 
+
+        public static Color Darken(this Color color, float factor = 0.5f)
+        {
+            return Color.FromArgb(
+                (int)(color.R * factor),
+                (int)(color.G * factor),
+                (int)(color.B * factor)
+            );
+        }
     }
 }

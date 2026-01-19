@@ -3,7 +3,7 @@
 
 CDiscontinuityAnalyzer::Result CDiscontinuityAnalyzer::Analyze(std::span<const XY> data, size_t edgeCount) noexcept
 {
-    Result r{data};
+    Result r{};
 
     if (edgeCount == 0)
 		edgeCount = data.size() / 2 - 1; // default to half the data, with one/two points in the center

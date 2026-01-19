@@ -35,7 +35,7 @@
             // 
             chart.AllowPause = true;
             chart.AutoClear = true;
-            chart.BackColor = Color.Linen;
+            chart.BackColor = Color.DarkSlateGray;
             chart.BorderStyle = BorderStyle.FixedSingle;
             chart.Dock = DockStyle.Fill;
             chart.EnableLabels = true;

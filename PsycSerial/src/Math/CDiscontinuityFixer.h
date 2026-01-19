@@ -19,11 +19,6 @@ class CDiscontinuityFixer {
 		static inline constexpr size_t ZFIXER_WINDOW_EDGE =     4;
 
 
-		std::vector<XY> m_data{};
-
-		double currentOffsetY{ 0.0 };
-		std::ofstream debugFile;
-
 	public:
 		CDiscontinuityFixer();
 	   ~CDiscontinuityFixer();
@@ -33,7 +28,8 @@ class CDiscontinuityFixer {
 
 			bool changed{ false };
 			XY output{ 0.0, 0.0, 0.0 };
-			std::span<const XY> dataSpan;
+
+//			std::span<const XY> dataSpan;
 			RegressResult left;
 			RegressResult right;
 
@@ -43,17 +39,22 @@ class CDiscontinuityFixer {
 			double deltaCurvature{ 0.0 };       // curvature mismatch
 			double score         { 0.0 };       // optional combined score
 
+			double deltaX        { 0.0 };       // input x - output x
+			double centreX       { 0.0 };       // centre x of the data window
 			Result() = default;
 
 			Result( const CDiscontinuityAnalyzer::Result& r ) :
 				valid          ( r.valid          ),
-				dataSpan	   ( r.dataSpan       ),
+//				dataSpan	   ( r.dataSpan       ),
 				left           ( r.left           ),
 				right          ( r.right          ),
 				deltaY         ( r.deltaY         ),
 				deltaSlope     ( r.deltaSlope     ),
 				deltaCurvature ( r.deltaCurvature ),
-				score          ( r.score          )
+				score          ( r.score          ),
+
+				deltaX         ( r.deltaX         ),
+				centreX        ( r.centreX        )
 			{}
 
 			static Result FromFail(double x, double y, double offsetY) {
@@ -78,7 +79,7 @@ class CDiscontinuityFixer {
 
 			void WriteDebug(std::ofstream& os) const {
 				if ((os.is_open() && ENABLE_DEBUG_LOG) == false) return;
-				// left edge data
+/*				// left edge data
 				for (size_t i = 0; i < ZFIXER_WINDOW_EDGE; i++) os << dataSpan[i].x() << ",";
 				for (size_t i = 0; i < ZFIXER_WINDOW_EDGE; i++) os << dataSpan[i].y() << ",";
 
@@ -88,7 +89,7 @@ class CDiscontinuityFixer {
 				for (size_t i = dataSpan.size() - ZFIXER_WINDOW_EDGE; i < dataSpan.size(); i++) os << dataSpan[i].y() << ",";
 
 				os << ",";
-				// curves
+	*/			// curves
 				os <<  left.a << "," <<  left.b << "," <<  left.c << ",";
 				os << right.a << "," << right.b << "," << right.c << ",";
 
@@ -120,8 +121,19 @@ class CDiscontinuityFixer {
 			}
 		};
 
+
 		Result Fix(double x, double y) noexcept;
+		void   Predict(double& x, double& y) noexcept;
 		Result Process(std::span<XY> workingData, CDiscontinuityAnalyzer::Result analysis) noexcept;
+
+	private:
+		CDiscontinuityAnalyzer::Result _lastAnalysis;
+		double lastY{ 0.0 };
+
+		std::vector<XY> m_data{};
+
+		double currentOffsetY{ 0.0 };
+		std::ofstream debugFile;
 
 };
 

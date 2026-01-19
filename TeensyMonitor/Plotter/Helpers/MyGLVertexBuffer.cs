@@ -130,7 +130,7 @@ namespace TeensyMonitor.Plotter.Helpers
                 if (WindowSize < 0) throw new InvalidOperationException("Vertex buffer is full.");
 
                 // Shift data left to make room for new vertex
-                Array.Copy(_vertexData, vertexCapacity - WindowSize * stride, _vertexData, 0, WindowSize * stride);
+                Array.Copy(_vertexData, (vertexCapacity - WindowSize) * stride, _vertexData, 0, WindowSize * stride);
                 _vertexCount = WindowSize;
             }
         }
@@ -215,7 +215,7 @@ namespace TeensyMonitor.Plotter.Helpers
             Upload();
 
             GL.BindVertexArray(_vao);
-            GL.DrawArrays(PrimitiveType.LineStrip, 0, _vertexCount);
+            GL.DrawArrays(PrimitiveType.LineStrip, 0, _vertexCount-1);
             GL.BindVertexArray(0);
         }
 

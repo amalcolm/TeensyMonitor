@@ -11,28 +11,20 @@ namespace PsycSerial
     public ref class RunningAverage sealed
     {
     private:
-        // If your native is templated, change this to e.g.:
-        // using Native = RunningAverageMinMax<uint32_t>;
-        using Native = CRunningAverageMinMax;
-
-        Native* _p = nullptr;
-
-        static size_t ToSizeT(int v)
-        {
-            if (v <= 0) throw gcnew ArgumentOutOfRangeException("windowSize");
-            return static_cast<size_t>(v);
-        }
+        CRunningAverageMinMax* _p = nullptr;
 
     public:
-        RunningAverage(int windowSize);
+        RunningAverage(size_t windowSize);
         ~RunningAverage();
 		!RunningAverage();
 
 
-        void Reset(int windowSize);
+        void Reset(size_t windowSize);
         void Add(double value);
 
-        property double Min { double get(); }
-        property double Max { double get(); }
+		property double   Average { inline double   get(); }
+        property double   Min     { inline double   get(); }
+        property double   Max     { inline double   get(); }
+        property uint32_t Count   { inline uint32_t get(); }
     };
 }

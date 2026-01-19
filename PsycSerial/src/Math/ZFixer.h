@@ -1,5 +1,6 @@
 #pragma once
 
+#include "CDiscontinuityFixer.h"
 #include "CDiscontinuityAnalyzer.h"
 
 using namespace System::Collections::Generic;
@@ -9,16 +10,20 @@ namespace PsycSerial::Math
 	public ref class ZFixer {
 
 	private:
-		
 		Dictionary<System::String^, double>^ m_telemetry = nullptr;
-
-		static System::String^ keyDeltaY         = gcnew System::String("DeltaY");
-		static System::String^ keyDeltaSlope     = gcnew System::String("DeltaSlope");
-		static System::String^ keyDeltaCurvature = gcnew System::String("DeltaCurvature");
-		static System::String^ keyScore          = gcnew System::String("Score");
-
+		CDiscontinuityFixer* m_fixer = nullptr;
+		 
+		static initonly System::String^ keyDeltaY         = "DeltaY";
+		static initonly System::String^ keyDeltaSlope     = "DeltaSlope";
+		static initonly System::String^ keyDeltaCurvature = "DeltaCurvature";
+		static initonly System::String^ keyScore          = "Score";
 	public:
-		double Fix(double x, double y);
+		ZFixer();
+	   ~ZFixer();
+
+
+		bool Fix(double% x, double% y);
+		void Predict(double% x, double% y);
 
 		void Close();
 
@@ -34,5 +39,7 @@ namespace PsycSerial::Math
 			x = v.x();
 			y = v.y();
 		}
+
+
 	};
 }

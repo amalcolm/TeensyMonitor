@@ -137,7 +137,7 @@
     <ClInclude Include="src\Math\CLinearRegress.h" />
     <ClInclude Include="src\Math\CQuadRegress.h" />
     <ClInclude Include="src\Math\CTypes.h" />
-    <ClInclude Include="src\Math\Wrapper.h" />
+    <ClInclude Include="src\Math\ZFixer.h" />
     <ClInclude Include="src\Packets\CDecoder.h" />
     <ClInclude Include="src\Packets\CPackets.h" />
     <ClInclude Include="src\Packets\Decoder.h" />
@@ -156,7 +156,7 @@
     <ClCompile Include="src\Math\CDiscontinuityAnalyser_Test.cpp" />
     <ClCompile Include="src\Math\CDiscontinuityAnalyzer.cpp" />
     <ClCompile Include="src\Math\CDiscontinuityFixer.cpp" />
-    <ClCompile Include="src\Math\Wrapper.cpp" />
+    <ClCompile Include="src\Math\ZFixer.cpp" />
     <ClCompile Include="src\Packets\CDecoder.cpp" />
     <ClCompile Include="src\Packets\CPackets.cpp" />
     <ClCompile Include="src\Packets\Decoder.cpp" />

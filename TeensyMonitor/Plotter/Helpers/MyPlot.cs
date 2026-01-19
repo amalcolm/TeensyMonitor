@@ -45,7 +45,7 @@ namespace TeensyMonitor.Plotter.Helpers
             _plotter = myPlotter;
             
             // Make the buffer larger than the history to avoid copying every single frame
-            int _bufferCapacity = _windowSize * 8 + Random.Shared.Next(0, _windowSize);  // stagger refreshes
+            int _bufferCapacity = _windowSize * 3 + Random.Shared.Next(0, _windowSize);  // stagger refreshes
 
             _bufMainPlot = new MyGLVertexBuffer(_bufferCapacity) { WindowSize = _windowSize };
 
@@ -101,7 +101,7 @@ namespace TeensyMonitor.Plotter.Helpers
                 {
                     double avgDiff = Setup.STATE_DURATION_uS / 1_000_000.0;
                     float window = _parentMaxX - _parentMinX;
-                    _ra = new RunningAverage( (int)(window / avgDiff) );
+                    _ra = new RunningAverage( (uint)(window / avgDiff) );
                 }
                 LastX = fX;
             }

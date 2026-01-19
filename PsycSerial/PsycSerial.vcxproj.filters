@@ -62,7 +62,7 @@
     <ClInclude Include="src\CRunningAverage.h">
       <Filter>Source Files\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Math\Wrapper.h">
+    <ClInclude Include="src\Math\ZFixer.h">
       <Filter>Source Files\Math</Filter>
     </ClInclude>
     <ClInclude Include="src\Math\CLinearRegress.h">
@@ -125,7 +125,7 @@
     <ClCompile Include="src\RunningAverage.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Math\Wrapper.cpp">
+    <ClCompile Include="src\Math\ZFixer.cpp">
       <Filter>Source Files\Math</Filter>
     </ClCompile>
     <ClCompile Include="src\Math\CDiscontinuityAnalyzer.cpp">

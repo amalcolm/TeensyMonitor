@@ -33,6 +33,12 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Fix(double x, double y) noexcep
 
 	auto analysis = CDiscontinuityAnalyzer::Analyze(workingData, ZFIXER_WINDOW_EDGE);
 
+	size_t outputIndex = m_data.size() - ZFIXER_WINDOW_SIZE + ZFIXER_WINDOW_EDGE;
+
+	_lastAnalysis = analysis;
+	_lastAnalysis.deltaX = m_data[outputIndex].x() - m_data[m_data.size() - 1].x();
+	_lastAnalysis.centreX = m_data[start].x() - workingData[0].x();
+
 	return Process(workingData, analysis);
 }
 
@@ -45,6 +51,7 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Process(std::span<XY> workingDa
 
 	result.changed = analysis.valid && (analysis.score > THRESHOLD_SCORE);
 	result.output = m_data[outputIndex];
+	lastY = result.output.y();
 
 	if (result.changed == false) {
 		if (ENABLE_DEBUG_LOG) result.WriteDebug(debugFile);
@@ -91,6 +98,17 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Process(std::span<XY> workingDa
 	result.changed = true;
 
 	currentOffsetY += -analysis.deltaY;
+
 	result.WriteDebug(debugFile);
+	
 	return result;
+}
+
+void CDiscontinuityFixer::Predict(double& x, double& y) noexcept
+{
+	y = lastY;
+//	if (_lastAnalysis.valid == false) return;
+
+//	x -= _lastAnalysis.deltaX;
+//	y = _lastAnalysis.left.EvaluateAt(x - _lastAnalysis.centreX);
 }

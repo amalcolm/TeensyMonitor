@@ -3,29 +3,22 @@
 namespace PsycSerial
 {
 
-
-    static size_t ToSizeT(int v)
-    {
-        if (v <= 0) throw gcnew ArgumentOutOfRangeException("windowSize");
-        return static_cast<size_t>(v);
-    }
-
-    // Deterministic cleanup
+        // Deterministic cleanup
     RunningAverage::~RunningAverage() { this->!RunningAverage(); }
 
     // Finalizer (in case user forgets to Dispose)
     RunningAverage::!RunningAverage() { delete _p; _p = nullptr; }
 
 
-    RunningAverage::RunningAverage(int windowSize)
+    RunningAverage::RunningAverage(size_t windowSize)
     {
-	    _p = new Native(ToSizeT(windowSize));
+	    _p = new CRunningAverageMinMax(windowSize);
     }
 
-    void RunningAverage::Reset(int windowSize)
+    void RunningAverage::Reset(size_t windowSize)
     {
         if (!_p) throw gcnew ObjectDisposedException("RunningAverage");
-        _p->Reset(ToSizeT(windowSize));
+        _p->Reset(windowSize);
     }
 
     void RunningAverage::Add(double value)
@@ -33,6 +26,12 @@ namespace PsycSerial
         if (!_p) throw gcnew ObjectDisposedException("RunningAverage");
         _p->Add(value);
     }
+
+    double RunningAverage::Average::get()
+    {
+        if (!_p) throw gcnew ObjectDisposedException("RunningAverage");
+        return _p->GetAverage();
+	}
 
     double RunningAverage::Min::get()
     {
@@ -46,4 +45,9 @@ namespace PsycSerial
         return _p->GetMax();
 	}
 
+    uint32_t RunningAverage::Count::get()
+    {
+        if (!_p) throw gcnew ObjectDisposedException("RunningAverage");
+        return static_cast<uint32_t>(_p->GetCount());
+	}
 } // namespace PsycSerial
