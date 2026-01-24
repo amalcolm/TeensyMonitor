@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SerialHelper.h"
+#include "ObjectPool.h"
 
 using namespace System;
 using namespace System::Diagnostics;
@@ -10,16 +11,28 @@ namespace PsycSerial
     // --- Define Private Helper Structs for Event Raising ---
 
     // Helper struct for raising DataReceived event
-    private ref struct DataEventRaiser {
+    private ref struct DataEventRaiser : IRaiser {
+    	static ObjectPool<DataEventRaiser^>^ s_pool = gcnew ObjectPool<DataEventRaiser^>(128);
+
         SerialHelper^ m_target;
         IPacket^ m_packet;
+
+		DataEventRaiser() : m_target(nullptr), m_packet(nullptr) {}
+
+		static DataEventRaiser^ Rent(SerialHelper^ target, IPacket^ packet) {
+			DataEventRaiser^ raiser = s_pool->Rent();
+			raiser->m_target = target;
+			raiser->m_packet = packet;
+			return raiser;
+		}
+		static void Return(IRaiser^ raiser) { s_pool->Return(safe_cast<DataEventRaiser^>(raiser)); }
 
         DataEventRaiser(SerialHelper^ target, IPacket^ packet) : m_target(target), m_packet(packet) {
             if (m_target == nullptr) throw gcnew System::ArgumentNullException("target");
             if (m_packet == nullptr) throw gcnew System::ArgumentNullException("packet");
         }
 
-        void Raise() {
+        virtual void Raise() {
             if (m_target->m_disposed) return;
 
             try { m_target->RaiseDataReceivedEvent(m_packet); }
@@ -36,16 +49,26 @@ namespace PsycSerial
     };
 
     // Helper struct for raising ErrorOccurred event
-    private ref struct ErrorEventRaiser {
+    private ref struct ErrorEventRaiser : IRaiser {
+		static ObjectPool<ErrorEventRaiser^>^ s_pool = gcnew ObjectPool<ErrorEventRaiser^>(128);
         SerialHelper^ m_target;
         Exception^ m_exception;
+		ErrorEventRaiser() : m_target(nullptr), m_exception(nullptr) {}
+
+		static ErrorEventRaiser^ Rent(SerialHelper^ target, Exception^ ex) {
+			ErrorEventRaiser^ raiser = s_pool->Rent();
+			raiser->m_target = target;
+			raiser->m_exception = ex;
+			return raiser;
+		}
+		static void Return(IRaiser^ raiser) { s_pool->Return(safe_cast<ErrorEventRaiser^>(raiser)); }
 
         ErrorEventRaiser(SerialHelper^ target, Exception^ ex) : m_target(target), m_exception(ex) {
             if (m_target    == nullptr) throw gcnew System::ArgumentNullException("target");
             if (m_exception == nullptr) throw gcnew System::ArgumentNullException("ex");
         }
 
-        void Raise() {
+        virtual void Raise() {
             if (m_target->m_disposed) return;
 
             try { m_target->RaiseErrorOccurredEvent(m_exception); }
@@ -54,15 +77,26 @@ namespace PsycSerial
     };
 
     // Helper struct for raising ConnectionChanged event
-    private ref struct ConnectionEventRaiser {
+    private ref struct ConnectionEventRaiser : IRaiser {
+		static ObjectPool<ConnectionEventRaiser^>^ s_pool = gcnew ObjectPool<ConnectionEventRaiser^>(128);
         SerialHelper^ m_target;
         ConnectionState m_state;
+
+		ConnectionEventRaiser() : m_target(nullptr), m_state(ConnectionState::Disconnected) {}
+
+		static ConnectionEventRaiser^ Rent(SerialHelper^ target, ConnectionState state) {
+			ConnectionEventRaiser^ raiser = s_pool->Rent();
+			raiser->m_target = target;
+			raiser->m_state = state;
+			return raiser;
+		}
+		static void Return(IRaiser^ raiser) { s_pool->Return(safe_cast<ConnectionEventRaiser^>(raiser)); }
 
         ConnectionEventRaiser(SerialHelper^ target, ConnectionState state) : m_target(target), m_state(state) {
             if (m_target == nullptr) throw gcnew System::ArgumentNullException("target");
         }
 
-        void Raise() {
+        virtual void Raise() {
             if (m_target->m_disposed) return;
 
             try { m_target->RaiseConnectionChangedEvent(m_state); }

@@ -138,6 +138,7 @@
     <ClInclude Include="src\Math\CQuadRegress.h" />
     <ClInclude Include="src\Math\CTypes.h" />
     <ClInclude Include="src\Math\ZFixer.h" />
+    <ClInclude Include="src\ObjectPool.h" />
     <ClInclude Include="src\Packets\CDecoder.h" />
     <ClInclude Include="src\Packets\CPackets.h" />
     <ClInclude Include="src\Packets\Decoder.h" />

@@ -439,12 +439,12 @@ namespace PsycSerial
             return;
         }
 
-        DataEventRaiser^ raiser = gcnew DataEventRaiser(this, managedPacket);
-        Action^ eventRaiser = gcnew Action(raiser, &DataEventRaiser::Raise);
+
+        DataEventRaiser^ raiser = DataEventRaiser::Rent(this, managedPacket);
 
         if (m_managedCallbacks != nullptr) {
             try {
-                m_managedCallbacks->Execute(eventRaiser);
+                m_managedCallbacks->Execute(raiser);
             }
             catch (ObjectDisposedException^) {
                 Debug::WriteLine("SerialHelper::OnDataReceived Warning: ManagedCallbacks was disposed.");
@@ -470,12 +470,11 @@ namespace PsycSerial
             managedException = gcnew Exception(String::Format("Failed to convert native exception: {0}", errMsg), conversionEx);
         }
 
-        ErrorEventRaiser^ raiser = gcnew ErrorEventRaiser(this, managedException);
-        Action^ eventRaiser = gcnew Action(raiser, &ErrorEventRaiser::Raise);
+        ErrorEventRaiser^ raiser = ErrorEventRaiser::Rent(this, managedException);
 
         if (m_managedCallbacks != nullptr) {
             try {
-                m_managedCallbacks->Execute(eventRaiser);
+                m_managedCallbacks->Execute(raiser);
             }
             catch (ObjectDisposedException^) {
                 Debug::WriteLine("SerialHelper::OnErrorOccurred Warning: ManagedCallbacks was disposed.");
@@ -490,13 +489,12 @@ namespace PsycSerial
     }
 
     void SerialHelper::OnConnectionChanged(ConnectionState state) {
-        ConnectionEventRaiser^ raiser = gcnew ConnectionEventRaiser(this, state);
-        Action^ eventRaiser = gcnew Action(raiser, &ConnectionEventRaiser::Raise);
+        ConnectionEventRaiser^ raiser = ConnectionEventRaiser::Rent(this, state);
 
         if (m_managedCallbacks != nullptr) {
             try {
 				m_connectionState = state;
-                m_managedCallbacks->Execute(eventRaiser);
+                m_managedCallbacks->Execute(raiser);
             }
             catch (ObjectDisposedException^) {
                 Debug::WriteLine("SerialHelper::OnConnectionChanged Warning: ManagedCallbacks was disposed.");

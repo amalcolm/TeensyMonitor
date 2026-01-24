@@ -47,6 +47,17 @@ namespace PsycSerial
         virtual void Cleanup();
     };
 
+    public enum class FieldEnum
+    {
+        Timestamp,
+        C0,
+        Offset1,
+        Offset2,
+        Gain,
+        preGainSensor,
+        postGainSensor,
+    };
+
 	public ref class DataPacket : IPacket, IDisposable
     {
 	public:
@@ -74,6 +85,19 @@ namespace PsycSerial
 
         property int  preGainSensor { int get() { return (SensorState   >> 16) & 0xFFFF; }}
 		property int postGainSensor { int get() { return (SensorState        ) & 0xFFFF; }}
+
+        double get(FieldEnum field) {
+            switch (field) {
+                case FieldEnum::Timestamp:      return StateTime;
+                case FieldEnum::C0:             return Channel[0];
+                case FieldEnum::Offset1:        return Offset1;
+                case FieldEnum::Offset2:        return Offset2;
+                case FieldEnum::Gain:           return Gain;
+                case FieldEnum::preGainSensor:  return preGainSensor;
+                case FieldEnum::postGainSensor: return postGainSensor;
+                default:                        return Double::NaN;
+			}
+        }
     
     protected:
 		DataPacket();

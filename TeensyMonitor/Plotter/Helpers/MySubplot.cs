@@ -17,9 +17,9 @@ namespace TeensyMonitor.Plotter.Helpers
 
         public MySubplot(MyPlotterBase myPlotter) : base(myPlotter)
         {
-            Margin = 20;
-            InRect = new RectangleF(0f, 0f, 0.5f, 0.35f);
-            OutRect = new RectangleF(0f, 1000000f, Setup.STATE_DURATION_uS/1000.0f, 4000000f);
+            base.Margin = 20;
+            base.InRect = new RectangleF(0f, 0f, 0.5f, 0.35f);
+            this.OutRect = new RectangleF(0f, 1000000f, Setup.STATE_DURATION_uS/1000.0f, 4000000f);
         }
 
         public override void Init()
@@ -66,7 +66,7 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             if (_waveBuffer.VertexCount <= 0) return;
 
-            SetupViewport();  // full base magic: viewport, scissor, ortho projection from OutRect
+            SetupViewport();  // viewport, scissor, ortho projection from OutRect
 
             _waveBuffer.Upload();
 

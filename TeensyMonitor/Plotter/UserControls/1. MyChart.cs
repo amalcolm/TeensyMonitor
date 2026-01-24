@@ -1,6 +1,7 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using PsycSerial;
+using PsycSerial.Math;
 using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
@@ -34,9 +35,9 @@ namespace TeensyMonitor.Plotter.UserControls
 
         struct DataSelectorInfo
         {
-            public string Name;
-            public DataSelector Selector;
-            public uint AdditionalMask;
+            public string    Name;
+            public FieldEnum Selector;
+            public uint      AdditionalMask;
         }
 
         static readonly List<DataSelectorInfo> dataSelectorsToOutput = [];
@@ -83,23 +84,12 @@ namespace TeensyMonitor.Plotter.UserControls
             {
                 var property = properties.First(p => p.Name == allDataFields[count - 1]);  // must declare a local to capture correctly in lambda
 
-                DataSelector selector;
-
-                if (property.PropertyType.IsArray)
-                    selector = data =>
-                    {
-                        if (property.GetValue(data) is Array arr && arr.Length > 0)
-                            return Convert.ToDouble(arr.GetValue(0));
-                        else
-                            return 0.0;
-                    };
-                else
-                    selector = data => Convert.ToDouble(property.GetValue(data));
+                if (Enum.TryParse<FieldEnum>(property.Name, ignoreCase: true, out var field) == false) continue;
 
                 var dsInfo = new DataSelectorInfo
                 {
                     Name = property.Name,
-                    Selector = selector,
+                    Selector = field,
                     AdditionalMask = count << 12 // 12 > number of red LEDs, and < 16 (IR1) so as not to overlap state bits
                 };
 
@@ -190,8 +180,7 @@ namespace TeensyMonitor.Plotter.UserControls
                     _latestValues[state] = c0_percentage;
                     foreach (var info in dataSelectorsToOutput)
                     {
-                        var val = info.Selector(data);
-                        _latestValues[state | info.AdditionalMask] = val;
+                        _latestValues[state | info.AdditionalMask] = data.get(info.Selector);
                     }
                 }
             }
@@ -202,7 +191,7 @@ namespace TeensyMonitor.Plotter.UserControls
         public void AddData(Dictionary<string, double> data)
         {
             var timeKey = data.Keys.FirstOrDefault(k => k.Equals("Time", StringComparison.OrdinalIgnoreCase));
-            double timeValue = 0.0;
+            double timeValue = 0;
             var hasTime = timeKey is not null && data.TryGetValue(timeKey!, out timeValue);
 
             foreach (var (key, value) in data)
@@ -236,6 +225,33 @@ namespace TeensyMonitor.Plotter.UserControls
                     plot.Add(timeValue, value);
                 else if (!hasTime)
                     plot.Add(value);
+            }
+        }
+
+        public void AddData(Dictionary<string, XY> data)
+        {
+            foreach (var (key, xy) in data)
+            {
+                if (string.IsNullOrWhiteSpace(key))
+                    continue;
+                uint stateHash = (uint)key.GetHashCode();
+                if (!_blocks.ContainsKey(stateHash))
+                    CreateTextBlocksForLabel(stateHash, key);
+
+
+                lock (_lock)
+                    _latestValues[stateHash] = xy.y;
+
+                if (key.StartsWith('-')) continue;  // label only
+                if (!Plots.TryGetValue(stateHash, out var plot))
+                {
+                    if (TestAndSetPending(stateHash))
+                        continue;
+                    plot = new(WindowSize, this) { Yscale = 1.0, AutoScaling = key.StartsWith('+') };
+                    lock (PlotsLock)
+                        Plots[stateHash] = plot;
+                }
+                plot.Add(xy.x, xy.y);
             }
         }
 

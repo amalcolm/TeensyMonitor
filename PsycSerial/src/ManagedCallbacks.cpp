@@ -1,6 +1,6 @@
 #pragma once
 #include "ManagedCallbacks.h"
-
+#include "EventRaisers.h"
 using namespace System;
 using namespace System::Diagnostics; // For Debug::WriteLine
 
@@ -10,16 +10,23 @@ namespace PsycSerial
 {
     void ManagedCallbacks::WorkerLoop(CancellationToken token) {
         try {
-            for each(Action ^ task in m_callbackQueue->GetConsumingEnumerable(token)) {
+            for each(IRaiser ^ ev in m_callbackQueue->GetConsumingEnumerable(token)) {
                 try {
-                    if (task != nullptr) {
-                        task->Invoke();
+                    if (ev != nullptr) {
+                        ev->Raise();
                     } else {
 						Debug::WriteLine("ManagedCallbacks: Null task in queue.");
                     }
                 }
                 catch (OperationCanceledException^) { Debug::WriteLine("ManagedCallbacks: Queued task cancelled during execution.");  }
                 catch (Exception^ ex)               { Debug::WriteLine("ManagedCallbacks: Exception in queued task: " + ex->Message); }
+                finally {
+                    // Return to pool if applicable
+                    try {
+                        PoolRegistry::Return(ev);
+                    }
+                    catch (Exception^ ex) { Debug::WriteLine("ManagedCallbacks: Exception returning task to pool: " + ex->Message); }
+				}
             }
         }
         catch (OperationCanceledException^) { Debug::WriteLine("ManagedCallbacks: WorkerLoop cancelled."); }
@@ -49,9 +56,13 @@ namespace PsycSerial
         m_cts(nullptr),
         m_disposed(false)
     {
+		PoolRegistry::Register(DataEventRaiser::typeid, gcnew Action<IRaiser^>(&DataEventRaiser::Return));
+		PoolRegistry::Register(ErrorEventRaiser::typeid, gcnew Action<IRaiser^>(&ErrorEventRaiser::Return));
+		PoolRegistry::Register(ConnectionEventRaiser::typeid, gcnew Action<IRaiser^>(&ConnectionEventRaiser::Return));
+
         if (m_policy == CallbackPolicy::Queued) {
             m_cts = gcnew CancellationTokenSource();
-            m_callbackQueue = gcnew BlockingCollection<Action^>(gcnew ConcurrentQueue<Action^>());
+            m_callbackQueue = gcnew BlockingCollection<IRaiser^>(gcnew ConcurrentQueue<IRaiser^>());
             CancellationToken token = m_cts->Token;
             // Pass the token as state object for WorkerLoopInternal
             m_workerTask = Task::Factory->StartNew(gcnew Action<Object^>(this, &ManagedCallbacks::WorkerLoopInternal),
@@ -66,7 +77,7 @@ namespace PsycSerial
 
 
     // Execute a callback (Action delegate) according to the policy
-    void ManagedCallbacks::Execute(Action^ action) {
+    void ManagedCallbacks::Execute(IRaiser^ action) {
         if (action == nullptr) { Debug::WriteLine("ManagedCallbacks: Attempted to execute a null action."); return; }
         if (m_disposed) { throw gcnew ObjectDisposedException("ManagedCallbacks"); }
 
@@ -74,11 +85,18 @@ namespace PsycSerial
         {
             case CallbackPolicy::Direct:
                 try {
-                    action->Invoke();
+                    action->Raise();
                 }
                 catch (Exception^ ex) {
                     Debug::WriteLine("ManagedCallbacks: Exception in direct execution: " + ex->Message);
                 }
+                finally {
+                    // Return to pool if applicable
+                    try {
+                        PoolRegistry::Return(action);
+                    }
+					catch (Exception^ ex) { Debug::WriteLine("ManagedCallbacks: Exception returning action to pool: " + ex->Message); }
+				}
                 break;
 
             case CallbackPolicy::ThreadPool:

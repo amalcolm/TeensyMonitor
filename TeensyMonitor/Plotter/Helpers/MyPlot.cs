@@ -8,13 +8,13 @@ namespace TeensyMonitor.Plotter.Helpers
 {
     public class MyPlot
     {
-        public float  LastX    { get; private set; } = 0;
-        public double Yscale   { get; set;         } = 0.0; // overridden by MyPlotter if 0.0.  If not overridden, use 1.0.
-        public Color  Colour   { get; set;         } = MyColours.GetNextColour();
-        public double XCounter { get; set;         } = -Math.Pow(2, 20) + 2; // X value counter, for signals without timestamps
-                                                                             // Starts at a large negative value to avoid issues with float precision with ++;
-        public bool   Visible  { get; set;         } = true;
-        public DataSelector? Selector { get; set; }
+        public float      LastX    { get; private set; } = 0;
+        public double     Yscale   { get; set;         } = 0.0; // overridden by MyPlotter if 0.0.  If not overridden, use 1.0.
+        public Color      Colour   { get; set;         } = MyColours.GetNextColour();
+        public double     XCounter { get; set;         } = -Math.Pow(2, 20) + 2; // X value counter, for signals without timestamps
+                                                                                 // Starts at a large negative value to avoid issues with float precision with ++;
+        public bool       Visible  { get; set;         } = true;
+        public FieldEnum? Selector { get; set;         } = null;
 
         public bool AutoScaling { get; set; } = false;
 

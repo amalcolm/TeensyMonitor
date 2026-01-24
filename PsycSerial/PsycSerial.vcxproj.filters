@@ -83,6 +83,9 @@
     <ClInclude Include="src\Math\CDiscontinuityFixer.h">
       <Filter>Source Files\Math</Filter>
     </ClInclude>
+    <ClInclude Include="src\ObjectPool.h">
+      <Filter>Source Files\Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />

@@ -8,14 +8,6 @@ namespace TeensyMonitor.Plotter.Helpers
     /// </summary>
     public struct Vertex(float x, float y, float z) { public float X = x, Y = y, Z = z; }
 
-    /// <summary>
-    /// Selects a specific data point from a data packet.
-    /// </summary>
-    /// <param name="data"></param>
-    /// <returns></returns>
-    public delegate double DataSelector(DataPacket data);
-
-
 
     /// <summary>
     /// Creates a fixed-size vertex buffer for a given number of vertices.
@@ -94,7 +86,7 @@ namespace TeensyMonitor.Plotter.Helpers
             }
         }
 
-        public void AddBlock(ref BlockPacket packet, DataSelector? selector, bool onlyLast)
+        public void AddBlock(ref BlockPacket packet, FieldEnum? selector, bool onlyLast)
         {
             lock (_lock)
             {
@@ -105,7 +97,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
                     float x = (float)packet.BlockData[i].TimeStamp;
                     float y = (selector == null) ? (float)packet.BlockData[i].Channel[0] * ChannelScale + 40.0f 
-                                                 : (float)selector(packet.BlockData[i]);
+                                                 : (float)packet.BlockData[i].get(selector.Value);
 
                     AddUnderLock(x, y, 0.0f);
                 
@@ -114,7 +106,7 @@ namespace TeensyMonitor.Plotter.Helpers
             }
         }
 
-        private float[] _latestX = new float[10240];
+        private float[] _latestX = new float[16];
         private int _latestXCount = 0;
 
         public int LatestXCount => _latestXCount;
@@ -125,14 +117,12 @@ namespace TeensyMonitor.Plotter.Helpers
 
         void CheckSize()
         {
-            if (_vertexCount >= vertexCapacity)
-            {
-                if (WindowSize < 0) throw new InvalidOperationException("Vertex buffer is full.");
+            if (_vertexCount < vertexCapacity) return;
+            int windowMax = WindowSize - 1;
 
-                // Shift data left to make room for new vertex
-                Array.Copy(_vertexData, (vertexCapacity - WindowSize) * stride, _vertexData, 0, WindowSize * stride);
-                _vertexCount = WindowSize;
-            }
+            // Shift data left to make room for new vertex
+            Array.Copy(_vertexData, (vertexCapacity - windowMax) * stride, _vertexData, 0, windowMax * stride);
+            _vertexCount = windowMax;
         }
 
         float[] subPlotData = new float[1024 * 3];
@@ -215,7 +205,7 @@ namespace TeensyMonitor.Plotter.Helpers
             Upload();
 
             GL.BindVertexArray(_vao);
-            GL.DrawArrays(PrimitiveType.LineStrip, 0, _vertexCount-1);
+            GL.DrawArrays(PrimitiveType.LineStrip, 0, _vertexCount);
             GL.BindVertexArray(0);
         }
 
