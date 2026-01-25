@@ -125,6 +125,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="src\ADictionary.h" />
     <ClInclude Include="src\AString.h" />
     <ClInclude Include="src\CRunningAverage.h" />
     <ClInclude Include="src\EventRaisers.h" />
@@ -151,6 +152,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />
+    <ClCompile Include="src\ADictionary.cpp" />
     <ClCompile Include="src\AString.cpp" />
     <ClCompile Include="src\ManagedCallbacks.cpp" />
     <ClCompile Include="src\CSerial.cpp" />

@@ -54,8 +54,11 @@ namespace TeensyMonitor.Plotter.UserControls
 
         public void Clear()
         {
-            while (qLinesToAdd.TryDequeue(out _)) ;
-            while (qStringsToAdd.TryDequeue(out _)) ;
+            while (qLinesToAdd.TryDequeue(out var v)) 
+
+            while (qStringsToAdd.TryDequeue(out AString? s))
+                s?.Dispose();
+
             for (int i = 0; i < LineBuffers.Length; i++)
                 if (LineBuffers[i].Vertices != null)
                     pool.Return(LineBuffers[i].Vertices);
@@ -105,12 +108,19 @@ namespace TeensyMonitor.Plotter.UserControls
             {
                 if (str?.Length > 0)
                 {
-                    var buf = pool.Rent(str.Length * 6);
-                    var numVerts = FontVertex.BuildString(buf, 0, str.Buffer.AsSpan(), FontFile.Default, 0, buildY, control.fontRenderer.Scaling, TextAlign.Left);
+                    try
+                    {
+                        var buf = pool.Rent(str.Length * 6);
+                        var numVerts = FontVertex.BuildString(buf, 0, str.Buffer.AsSpan(), FontFile.Default, 0, buildY, control.fontRenderer.Scaling, TextAlign.Left);
 
-                    qLinesToAdd.Enqueue(new LineVertices { Vertices = buf, Length = numVerts });
+                        qLinesToAdd.Enqueue(new LineVertices { Vertices = buf, Length = numVerts });
 
-                    buildY -= lineHeight;
+                        buildY -= lineHeight;
+                    }
+                    finally
+                    {
+                        str?.Dispose();
+                    }
                 }
             }
 

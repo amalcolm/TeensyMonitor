@@ -15,9 +15,7 @@ namespace PsycSerial
         s_pool = gcnew ConcurrentBag<array<wchar_t>^>();
 
         for (int i = 0; i < InitialBagSize; ++i)
-        {
             s_pool->Add(gcnew array<wchar_t>(BufferSize));
-        }
     }
 
     array<wchar_t>^ CharPool::Rent()
@@ -31,10 +29,7 @@ namespace PsycSerial
 
     void CharPool::Return(array<wchar_t>^ buffer)
     {
-        if (buffer == nullptr)
-            return;
-
-        if (buffer->Length != BufferSize) return;
+        if (buffer == nullptr || buffer->Length != BufferSize) return;
 
         Array::Clear(buffer);;
 
@@ -195,8 +190,7 @@ namespace PsycSerial
     {
         if (_buffer != nullptr)
         {
-			if (_buffer->Length == CharPool::BufferSize)
-                CharPool::Return(_buffer);
+            CharPool::Return(_buffer);
 
             _buffer = nullptr;
         }

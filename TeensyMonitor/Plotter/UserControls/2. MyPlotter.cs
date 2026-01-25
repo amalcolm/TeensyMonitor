@@ -1,6 +1,5 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 using PsycSerial;
-using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
 using TeensyMonitor.Plotter.Helpers;
@@ -15,7 +14,7 @@ namespace TeensyMonitor.Plotter.UserControls
         public        float Yscale { get; set; } = 1.0f;
 
 
-        protected ConcurrentDictionary<uint, MyPlot> Plots = [];
+        protected ADictionary<uint, MyPlot> Plots = new();
         protected readonly object PlotsLock = new();
 
         
@@ -52,9 +51,18 @@ namespace TeensyMonitor.Plotter.UserControls
             if (Plots.IsEmpty) return;
 
             // 1. Get the latest time from all plots
+            float maxTime = float.MinValue;
+
             lock (PlotsLock)
-                _maxTime = Plots.Values.Max(p => p?.LastX ?? float.MinValue);
-            if (_maxTime == float.MinValue) return; // work around synchronization issue
+            {
+                foreach (var plot in Plots.Values)   // iterate kvp directly
+                    if (plot.LastX > maxTime)
+                        maxTime = plot.LastX;
+                
+            }
+
+            _maxTime = maxTime;
+            if (_maxTime == float.MinValue) return;
 
             if (SW.IsRunning == false)
             {
@@ -82,16 +90,16 @@ namespace TeensyMonitor.Plotter.UserControls
 
             int colorLocation = GL.GetUniformLocation(_plotShaderProgram, "uColor");
             lock (PlotsLock)
-                foreach (var key in Plots.Keys)
+            {
+                foreach (var plot in Plots.Values)
                 {
-                    var plot = Plots[key]; if (plot == null) continue;
-                    
                     if (plot.Yscale == 0.0f)
                         plot.Yscale = Yscale;
 
                     GL.Uniform4(colorLocation, plot.Colour);
                     plot.Render();
                 }
+            }
         }
 
         protected virtual void SP_ConnectionChanged(ConnectionState state)

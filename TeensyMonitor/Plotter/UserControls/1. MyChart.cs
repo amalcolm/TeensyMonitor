@@ -440,7 +440,7 @@ namespace TeensyMonitor.Plotter.UserControls
             sb.Append($"Chart {Tag}: ");
             lock (PlotsLock)
             {
-                var orderedPlots = Plots.OrderBy(p => p.Key);
+                var orderedPlots = Plots.OrderedByKey();
 
                 for (int i = 0; i < orderedPlots.Count(); i++)
                 {
