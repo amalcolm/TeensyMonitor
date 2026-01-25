@@ -14,11 +14,11 @@ namespace TeensyMonitor.Plotter.UserControls
         public        float Yscale { get; set; } = 1.0f;
 
 
-        protected ADictionary<uint, MyPlot> Plots = new();
+        protected Dictionary<uint, MyPlot> Plots = [];
         protected readonly object PlotsLock = new();
 
-        
         protected string Debug = string.Empty;
+
         protected override void Init()
         {
             base.Init();
@@ -28,6 +28,15 @@ namespace TeensyMonitor.Plotter.UserControls
             if (SP == null) return;
 
             SP.ConnectionChanged += SP_ConnectionChanged;
+        }
+
+        private MyPlot[] _plotsSnapshot = [];
+        private bool _plotsDirty = true;
+
+        protected void AddPlot(uint key, MyPlot plot)
+        {
+            Plots[key] = plot;
+            _plotsDirty = true;
         }
 
         private float _currentViewRight = 0.0f;
@@ -48,20 +57,29 @@ namespace TeensyMonitor.Plotter.UserControls
                 lastTime = DateTime.Now;
             }
 
-            if (Plots.IsEmpty) return;
+            if (Plots.Count == 0) return;
+
+            // 0. Take a snapshot of the current plots
+            MyPlot[] plotsSnapshot;
+            lock (PlotsLock)
+            {
+                if (_plotsDirty)
+                {
+                    _plotsSnapshot = [.. Plots.Values];
+                    _plotsDirty = false;
+                }
+                plotsSnapshot = _plotsSnapshot;
+            }
 
             // 1. Get the latest time from all plots
             float maxTime = float.MinValue;
-
-            lock (PlotsLock)
+            for (int i = 0; i < plotsSnapshot.Length; i++)
             {
-                foreach (var plot in Plots.Values)   // iterate kvp directly
-                    if (plot.LastX > maxTime)
-                        maxTime = plot.LastX;
-                
+                float lastX = plotsSnapshot[i].LastX;
+                if (lastX > maxTime) maxTime = lastX;
             }
-
             _maxTime = maxTime;
+
             if (_maxTime == float.MinValue) return;
 
             if (SW.IsRunning == false)
@@ -89,16 +107,14 @@ namespace TeensyMonitor.Plotter.UserControls
 
 
             int colorLocation = GL.GetUniformLocation(_plotShaderProgram, "uColor");
-            lock (PlotsLock)
+            // 5. Render each plot from the snapshot.
+            for (int i = 0; i < plotsSnapshot.Length; i++)
             {
-                foreach (var plot in Plots.Values)
-                {
-                    if (plot.Yscale == 0.0f)
-                        plot.Yscale = Yscale;
+                var plot = plotsSnapshot[i];
+                if (plot.Yscale == 0.0f) plot.Yscale = Yscale;
 
-                    GL.Uniform4(colorLocation, plot.Colour);
-                    plot.Render();
-                }
+                GL.Uniform4(colorLocation, plot.Colour);
+                plot.Render();
             }
         }
 

@@ -116,6 +116,26 @@ namespace TeensyMonitor
             return maxBounds;
         }
 
+        public static RectangleF CalculateTotalBounds(this TextBlock[] textBlocks, ref RectangleF maxBounds)
+        {
+            RectangleF totalBounds = RectangleF.Empty;
+
+            foreach (ref var block in textBlocks.AsSpan())
+            {
+                if (block.Bounds.IsEmpty) continue;
+
+                if (totalBounds.IsEmpty)
+                    totalBounds = block.Bounds;
+                else
+                    totalBounds = RectangleF.Union(totalBounds, block.Bounds);
+            }
+
+            if (maxBounds.Width < totalBounds.Width)
+                maxBounds = totalBounds;
+
+            return maxBounds;
+        }
+
 
         public static Color Darken(this Color color, float factor = 0.5f)
         {

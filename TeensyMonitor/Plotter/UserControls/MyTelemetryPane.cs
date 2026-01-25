@@ -85,6 +85,7 @@ namespace TeensyMonitor.Plotter.UserControls
         const int RedrawCount = 2;
         int redrawCounter = 0;
 
+        uint[] _keyCache = [];
         protected override void DrawText()
         {
             if (font == null || needUpdate == false) return;
@@ -93,8 +94,13 @@ namespace TeensyMonitor.Plotter.UserControls
             // 1. Populate the list of blocks to render and flag if their content has changed.
             lock (_lock)
             {
-                foreach (var key in _latestValues.Keys)
+                if (_keyCache.Length != _latestValues.Count)
+                    _keyCache = [.. _latestValues.Keys];
+
+
+                for (int i = 0; i < _latestValues.Count; i++)
                 {
+                    uint key = _keyCache[i];
                     if (_blocks.TryGetValue(key, out var tuple))
                     {
                         var item = _latestValues[key];

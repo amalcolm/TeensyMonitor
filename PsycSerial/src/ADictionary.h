@@ -145,5 +145,6 @@ namespace PsycSerial
                 Interlocked::Exchange(_changed, 0);
             }
             return _orderedValues;
-        }    };
+        }
+    };
 }

@@ -25,8 +25,8 @@ namespace TeensyMonitor.Plotter.Fonts
 
         public static FontFile LoadJson(string filePath)
         {
-            var jsonString = File.ReadAllText(filePath);
-            var jsonFontFile = JsonSerializer.Deserialize<JsonFontFile>(jsonString);
+            using var fs = File.OpenRead(filePath);
+            var jsonFontFile = JsonSerializer.Deserialize<JsonFontFile>(fs);
 
             if (jsonFontFile == null || jsonFontFile.Info == null || jsonFontFile.Common == null)
                 throw new InvalidDataException("JSON font file is missing required sections (info, common).");

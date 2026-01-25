@@ -134,15 +134,15 @@ namespace TeensyMonitor.Plotter.UserControls
                     if (Plots.ContainsKey(state) == false)
                         if (TestAndSetPending(state) == false)
                         {
-                            Plots[state] = new MyPlot(WindowSize, this);
+                            AddPlot(state, new MyPlot(WindowSize, this));
 
                             foreach (var info in dataSelectorsToPlot)
-                                Plots[state | info.AdditionalMask] = new MyPlot(WindowSize, this)
+                                AddPlot(state | info.AdditionalMask, new MyPlot(WindowSize, this)
                                 {
                                     Yscale = 1.0,
                                     Colour = MyColours.GetNextColour(),
                                     Selector = info.Selector
-                                };
+                                });
                         }
                         else
                             return;
@@ -218,7 +218,7 @@ namespace TeensyMonitor.Plotter.UserControls
                     plot = new(WindowSize, this) { Yscale = 1.0, AutoScaling = key.StartsWith('+') };
 
                     lock (PlotsLock)
-                        Plots[stateHash] = plot;
+                        AddPlot(stateHash, plot);
                 }
 
                 if (hasTime && !key.Equals(timeKey, StringComparison.OrdinalIgnoreCase))
@@ -249,19 +249,11 @@ namespace TeensyMonitor.Plotter.UserControls
                         continue;
                     plot = new(WindowSize, this) { Yscale = 1.0, AutoScaling = key.StartsWith('+') };
                     lock (PlotsLock)
-                        Plots[stateHash] = plot;
+                        AddPlot(stateHash, plot);
                 }
                 plot.Add(xy.x, xy.y);
             }
         }
-
-
-        
-
-
-
-
-
 
         public void AddData(Dictionary<string, double[]> data)
         {
@@ -304,7 +296,7 @@ namespace TeensyMonitor.Plotter.UserControls
                     plot = new(WindowSize, this) { Yscale = 1.0 };
 
                     lock (PlotsLock)
-                        Plots[stateHash] = plot;
+                        AddPlot(stateHash, plot);
 
                     CreateTextBlocksForLabel(stateHash, key);
                 }
@@ -363,6 +355,10 @@ namespace TeensyMonitor.Plotter.UserControls
             }
             _pendingStates.TryRemove(state, out _);
         }
+
+
+        uint[] _keyCache = [];
+
         protected override void DrawText()
         {
             if (font == null) return;
@@ -371,16 +367,17 @@ namespace TeensyMonitor.Plotter.UserControls
 
             lock (_lock)
             {
-                // Sort by state for consistent order (important for stable layout)
-
                 int index = 1;
 
-                foreach (var stateKey in _latestValues.Keys)
+                if (_keyCache.Length < _latestValues.Count)
+                    _keyCache = [.. _latestValues.Keys];
+
+                for (int i = 0; i < _latestValues.Count; i++)
                 {
+                    uint stateKey = _keyCache[i];
                     if (_blocks.TryGetValue(stateKey, out var tuple))
                     {
                         tuple.Item2.SetValue(_latestValues[stateKey]);
-
 
                         _textBlocksToRender.Add(tuple.Item1);
                         _textBlocksToRender.Add(tuple.Item2);
@@ -440,7 +437,7 @@ namespace TeensyMonitor.Plotter.UserControls
             sb.Append($"Chart {Tag}: ");
             lock (PlotsLock)
             {
-                var orderedPlots = Plots.OrderedByKey();
+                var orderedPlots = Plots.OrderBy(p => p.Key);
 
                 for (int i = 0; i < orderedPlots.Count(); i++)
                 {

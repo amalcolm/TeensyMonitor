@@ -174,6 +174,8 @@ namespace TeensyMonitor.Plotter.Helpers
             grid[idx++] = xMax; grid[idx++] = yMin; grid[idx++] = 0f;
 
             _gridBuffer.Set(ref grid, vertexCount);
+
+            _gridDirty = false;
         }
         #endregion
     }
