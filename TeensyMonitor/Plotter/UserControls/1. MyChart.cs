@@ -173,7 +173,7 @@ namespace TeensyMonitor.Plotter.UserControls
             {
                 ref DataPacket data = ref blockPacket.BlockData[blockPacket.Count - 1];
 
-                float c0_percentage = data.Channel[0] / 4660100.0f;
+                float c0_percentage = (float)(data.Channel[0] * 100.0  * Config.ChannelScale);
 
                 lock (_lock)
                 {

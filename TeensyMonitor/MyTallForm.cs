@@ -14,6 +14,22 @@ namespace TeensyMonitor.Plotter.UserControls
             chart.BackColor = chart.BackColor.Darken();
 
 
+            switch (Environment.MachineName)
+            {
+                case "BOX":
+                    this.StartPosition = FormStartPosition.Manual;
+                    this.Location = new Point(3840, -200);
+                    this.WindowState = FormWindowState.Maximized;
+                    break;
+
+                case "PSYC-ANDREW":
+                    this.StartPosition = FormStartPosition.Manual;
+                    this.Location = new Point(180, 100);
+                    this.WindowState = FormWindowState.Maximized;
+                    break;
+            }
+
+
             extractor.Chart = chart;
 
             FormClosing += (_, _) => extractor.Dispose();

@@ -146,13 +146,12 @@
     <ClInclude Include="src\Packets\Packets.h" />
     <ClInclude Include="src\RunningAverage.h" />
     <ClInclude Include="src\SerialHelper.h" />
-    <ClInclude Include="src\Setup.h" />
+    <ClInclude Include="src\_Config.h" />
     <ClInclude Include="src\TeensySerial.h" />
     <ClInclude Include="src\Utilities.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />
-    <ClCompile Include="src\ADictionary.cpp" />
     <ClCompile Include="src\AString.cpp" />
     <ClCompile Include="src\ManagedCallbacks.cpp" />
     <ClCompile Include="src\CSerial.cpp" />
@@ -167,7 +166,7 @@
     <ClCompile Include="src\RunningAverage.cpp" />
     <ClCompile Include="src\SerialHelper.cpp" />
     <ClCompile Include="src\SerialHelper_GetUSBSerialPorts.cpp" />
-    <ClCompile Include="src\Setup.cpp" />
+    <ClCompile Include="src\_Config.cpp" />
     <ClCompile Include="src\TeensySerial.cpp" />
     <ClCompile Include="src\Utilities.cpp" />
   </ItemGroup>

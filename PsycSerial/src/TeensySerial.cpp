@@ -1,6 +1,6 @@
 #include "TeensySerial.h"
 #include "Utilities.h"
-#include "Setup.h"
+#include "_Config.h"
 
 namespace PsycSerial
 {
@@ -94,12 +94,12 @@ namespace PsycSerial
 				if (devAck)
 				{
 //					Clear();
-					Write(">" + Setup::ProgramVersion + "\n");
+					Write(">" + Config::ProgramVersion + "\n");
 
 					received = m_handshakeEvent->WaitOne(500);
 					if (received)
 					{
-						Setup::ParseHandshakeResponse(GetHandshakeResponse());
+						Config::ParseHandshakeResponse(GetHandshakeResponse());
 
 						m_connectionState = ConnectionState::HandshakeSuccessful;
 //						Clear();

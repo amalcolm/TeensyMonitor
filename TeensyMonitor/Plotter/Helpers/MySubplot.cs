@@ -6,20 +6,25 @@ namespace TeensyMonitor.Plotter.Helpers
 {
      class MySubplot : MyGLViewport
     {
-        private readonly MyGLVertexBuffer _waveBuffer = new(1024);
+        private readonly MyGLVertexBuffer _waveBuffer_C0 = new(1024);
+        private readonly MyGLVertexBuffer _waveBuffer_PG = new(1024);
+
+        private readonly double _C0_Scale = Config.C0to1024;
+        private readonly double _PG_Scale = 1.0;
+
         private readonly MyGLVertexBuffer _gridBuffer = new(4096);
         private bool _gridDirty = true;
         
         private int _colorLoc = -1;
 
-        public int GridDivisions { get; set; } = (int)Math.Round(Setup.STATE_DURATION_uS/1000.0f);
+        public int GridDivisions { get; set; } = (int)Math.Round(Config.STATE_DURATION_uS/1000.0f);
         public bool UniformGrid { get; set; } = false;
 
         public MySubplot(MyPlotterBase myPlotter) : base(myPlotter)
         {
             base.Margin = 20;
             base.InRect = new RectangleF(0f, 0f, 0.5f, 0.35f);
-            this.OutRect = new RectangleF(0f, 1000000f, Setup.STATE_DURATION_uS/1000.0f, 4000000f);
+            this.OutRect = new RectangleF(0f, -50f, Config.STATE_DURATION_uS/1000.0f, 1050f);
         }
 
         public override void Init()
@@ -28,7 +33,8 @@ namespace TeensyMonitor.Plotter.Helpers
 
             _colorLoc = GL.GetUniformLocation(_myPlotter.GetPlotShader(), "uColor");
 
-            _waveBuffer.Init();
+            _waveBuffer_C0.Init();
+            _waveBuffer_PG.Init();
             _gridBuffer.Init();
         }
 
@@ -36,7 +42,8 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             base.Shutdown();
             _gridBuffer.Dispose();
-            _waveBuffer.Dispose();
+            _waveBuffer_C0.Dispose();
+            _waveBuffer_PG.Dispose();
         }
 
         /// <summary>
@@ -59,22 +66,21 @@ namespace TeensyMonitor.Plotter.Helpers
 
         public void SetBlock(BlockPacket block)
         {
-            _waveBuffer.SetBlock(block);
+            _waveBuffer_C0.SetBlock(block, FieldEnum.C0            , _C0_Scale);
+            _waveBuffer_PG.SetBlock(block, FieldEnum.postGainSensor, _PG_Scale);
         }
 
         public void Render()
         {
-            if (_waveBuffer.VertexCount <= 0) return;
+            if (_waveBuffer_C0.VertexCount <= 0) return;
 
             SetupViewport();  // viewport, scissor, ortho projection from OutRect
-
-            _waveBuffer.Upload();
 
             if (_gridDirty)
                 if (UniformGrid)
                     BuildGrid();
                 else
-                    BuildGrid(_waveBuffer);
+                    BuildGrid(_waveBuffer_C0);
             
             // Dim grey grid
             GL.Uniform4(_colorLoc, 0.35f, 0.35f, 0.35f, 0.28f);
@@ -82,7 +88,10 @@ namespace TeensyMonitor.Plotter.Helpers
 
             // Teal/cyan waveform
             GL.Uniform4(_colorLoc, 0.0f, 0.3f, 0.3f, 1.0f);
-            _waveBuffer.DrawLineStrip();
+            _waveBuffer_C0.DrawLineStrip();
+
+            GL.Uniform4(_colorLoc, 1.0f, 0.0f, 0.0f, 1.0f);
+            _waveBuffer_PG.DrawLineStrip();
 
             ResetViewport(_myPlotter.getPlotTransform());  // clean restore to parent viewport
         }

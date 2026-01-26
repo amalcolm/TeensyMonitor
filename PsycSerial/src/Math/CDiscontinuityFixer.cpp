@@ -36,7 +36,7 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Fix(double x, double y) noexcep
 	size_t outputIndex = m_data.size() - ZFIXER_WINDOW_SIZE + ZFIXER_WINDOW_EDGE;
 
 	_lastAnalysis = analysis;
-	_lastAnalysis.deltaX = m_data[outputIndex].x() - m_data[m_data.size() - 1].x();
+	_lastAnalysis.deltaX = m_data[m_data.size() - 1].x() - m_data[outputIndex].x();
 	_lastAnalysis.centreX = m_data[start].x() - workingData[0].x();
 
 	return Process(workingData, analysis);
@@ -106,9 +106,8 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Process(std::span<XY> workingDa
 
 void CDiscontinuityFixer::Predict(double& x, double& y) noexcept
 {
-	y = lastY;
-//	if (_lastAnalysis.valid == false) return;
+	if (_lastAnalysis.valid == false) return;
 
-//	x -= _lastAnalysis.deltaX;
-//	y = _lastAnalysis.left.EvaluateAt(x - _lastAnalysis.centreX);
+	x -= _lastAnalysis.deltaX;
+	y = _lastAnalysis.left.EvaluateAt(x - _lastAnalysis.centreX);
 }

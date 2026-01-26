@@ -5,7 +5,7 @@ using namespace System;
 namespace PsycSerial
 {
 
-    public ref class Setup
+    public ref class Config
     {
     public:
         static UInt32 STATE_DURATION_uS     =  3'050;  // 20ms for each atate, mean's loop will be slightly longer than this
@@ -20,9 +20,11 @@ namespace PsycSerial
 
         static UInt32 MAX_BLOCKSIZE         =    164;  // max number of DataType entries in a BlockType
 
-        static String^ ProgramVersion = "v0.2.2";
+        static String^ ProgramVersion = "v0.2.3";
         static String^ DeviceVersion  = String::Empty;
 
+        static double ChannelScale = 1.0 / 466010000.0;
+        static double C0to1024     = 1.0 / 5000.0;
 
         static void ParseHandshakeResponse(System::String^ response);
     };

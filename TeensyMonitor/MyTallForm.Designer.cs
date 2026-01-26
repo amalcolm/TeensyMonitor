@@ -59,7 +59,6 @@
             Name = "MyTallForm";
             StartPosition = FormStartPosition.Manual;
             Text = "MyTallForm";
-            WindowState = FormWindowState.Maximized;
             MouseDown += MyTallForm_MouseDown;
             MouseLeave += MyTallForm_MouseLeave;
             MouseMove += MyTallForm_MouseMove;

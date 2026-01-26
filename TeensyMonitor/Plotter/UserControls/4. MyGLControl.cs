@@ -28,6 +28,10 @@ namespace TeensyMonitor.Plotter.UserControls
         public delegate void LoadedEventHandler(object sender, bool isLoaded);
         public event LoadedEventHandler? LoadedChanged;
 
+        public delegate void GLResizeEventHandler(object sender, RectangleF viewPort);
+        public event GLResizeEventHandler? GLResize;
+
+
         private static readonly ThreadLocal<ConcurrentDictionary<string, FontFile>> _fontCache = new(() => new());
 
         public static FontFile GetFont(string name)
@@ -174,6 +178,7 @@ namespace TeensyMonitor.Plotter.UserControls
             }
         }
 
+
         private void GL_Resize()
         {   if (!_isLoaded || IsDisposed) return;
 
@@ -182,6 +187,8 @@ namespace TeensyMonitor.Plotter.UserControls
                 0, MyGL.ClientSize.Width,
                 0, MyGL.ClientSize.Height,
                 -1, 1);
+
+            GLResize?.Invoke(this, ViewPort);
         }
 
         public void ClearViewport()
@@ -231,6 +238,12 @@ namespace TeensyMonitor.Plotter.UserControls
             GL.Uniform4(colorLocation, Color.Black);
 
             DrawText();
+        }
+
+        public void Close()
+        {
+            GLThread?.Dispose();     // block until render thread exits
+            GLThread = null;
         }
 
         protected override void OnHandleDestroyed(EventArgs e)

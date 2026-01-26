@@ -1,4 +1,4 @@
-#include "Setup.h"
+#include "_Config.h"
 
 using namespace System;
 using namespace System::Reflection;
@@ -6,10 +6,10 @@ using namespace System::Reflection;
 
 namespace PsycSerial
 {
-    void Setup::ParseHandshakeResponse(String^ response)
+    void Config::ParseHandshakeResponse(String^ response)
     {
         array<String^>^ parts = response->TrimStart('<')->Split(':');
-        Type^ t = Setup::typeid;
+        Type^ t = Config::typeid;
 
         for each(String ^ part in parts)
         {

@@ -30,18 +30,24 @@
         {
             cbPorts = new ComboBox();
             labPorts = new Label();
-            dbg = new TeensyMonitor.Plotter.UserControls.MyDebugPane();
             chart0 = new TeensyMonitor.Plotter.UserControls.MyChart();
-            myTelemetryPane1 = new TeensyMonitor.Plotter.UserControls.MyTelemetryPane();
             tlpCharts = new TableLayoutPanel();
             butDBG = new Button();
+            pHeader = new Panel();
+            pDebugPane = new Panel();
+            dbg = new TeensyMonitor.Plotter.UserControls.MyDebugPane();
+            pTelemetryPane = new Panel();
+            TelemetryPane = new TeensyMonitor.Plotter.UserControls.MyTelemetryPane();
             tlpCharts.SuspendLayout();
+            pHeader.SuspendLayout();
+            pDebugPane.SuspendLayout();
+            pTelemetryPane.SuspendLayout();
             SuspendLayout();
             // 
             // cbPorts
             // 
             cbPorts.FormattingEnabled = true;
-            cbPorts.Location = new Point(1050, 6);
+            cbPorts.Location = new Point(1060, 10);
             cbPorts.Name = "cbPorts";
             cbPorts.Size = new Size(121, 23);
             cbPorts.TabIndex = 3;
@@ -50,25 +56,15 @@
             // labPorts
             // 
             labPorts.AutoSize = true;
-            labPorts.Location = new Point(981, 9);
+            labPorts.Location = new Point(991, 13);
             labPorts.Name = "labPorts";
             labPorts.Size = new Size(63, 15);
             labPorts.TabIndex = 4;
             labPorts.Text = "COM Port:";
             // 
-            // dbg
-            // 
-            dbg.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-            dbg.AutoClear = true;
-            dbg.BackColor = Color.AliceBlue;
-            dbg.BorderStyle = BorderStyle.FixedSingle;
-            dbg.Location = new Point(5, 986);
-            dbg.Name = "dbg";
-            dbg.Size = new Size(1040, 306);
-            dbg.TabIndex = 5;
-            // 
             // chart0
             // 
+            chart0.AllowPause = true;
             chart0.AutoClear = true;
             chart0.BackColor = Color.Cornsilk;
             chart0.BorderStyle = BorderStyle.FixedSingle;
@@ -77,20 +73,10 @@
             chart0.EnablePlots = true;
             chart0.Location = new Point(3, 3);
             chart0.Name = "chart0";
-            chart0.Size = new Size(1040, 929);
+            chart0.Padding = new Padding(4);
+            chart0.Size = new Size(1054, 948);
             chart0.TabIndex = 6;
             chart0.Yscale = 1F;
-            // 
-            // myTelemetryPane1
-            // 
-            myTelemetryPane1.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
-            myTelemetryPane1.AutoClear = true;
-            myTelemetryPane1.BackColor = Color.PapayaWhip;
-            myTelemetryPane1.BorderStyle = BorderStyle.FixedSingle;
-            myTelemetryPane1.Location = new Point(1050, 47);
-            myTelemetryPane1.Name = "myTelemetryPane1";
-            myTelemetryPane1.Size = new Size(342, 1245);
-            myTelemetryPane1.TabIndex = 7;
             // 
             // tlpCharts
             // 
@@ -98,17 +84,18 @@
             tlpCharts.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             tlpCharts.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             tlpCharts.Controls.Add(chart0, 0, 0);
-            tlpCharts.Location = new Point(2, 45);
+            tlpCharts.Dock = DockStyle.Fill;
+            tlpCharts.Location = new Point(0, 42);
             tlpCharts.Name = "tlpCharts";
             tlpCharts.RowCount = 1;
             tlpCharts.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             tlpCharts.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            tlpCharts.Size = new Size(1046, 935);
+            tlpCharts.Size = new Size(1060, 954);
             tlpCharts.TabIndex = 8;
             // 
             // butDBG
             // 
-            butDBG.Location = new Point(5, 5);
+            butDBG.Location = new Point(15, 9);
             butDBG.Name = "butDBG";
             butDBG.Size = new Size(75, 23);
             butDBG.TabIndex = 9;
@@ -116,35 +103,94 @@
             butDBG.UseVisualStyleBackColor = true;
             butDBG.Click += butDBG_Click;
             // 
+            // pHeader
+            // 
+            pHeader.Controls.Add(butDBG);
+            pHeader.Controls.Add(cbPorts);
+            pHeader.Controls.Add(labPorts);
+            pHeader.Dock = DockStyle.Top;
+            pHeader.Location = new Point(0, 0);
+            pHeader.Name = "pHeader";
+            pHeader.Size = new Size(1395, 42);
+            pHeader.TabIndex = 10;
+            // 
+            // pDebugPane
+            // 
+            pDebugPane.Controls.Add(dbg);
+            pDebugPane.Dock = DockStyle.Bottom;
+            pDebugPane.Location = new Point(0, 996);
+            pDebugPane.Name = "pDebugPane";
+            pDebugPane.Padding = new Padding(4);
+            pDebugPane.Size = new Size(1395, 308);
+            pDebugPane.TabIndex = 11;
+            // 
+            // dbg
+            // 
+            dbg.AllowPause = true;
+            dbg.AutoClear = true;
+            dbg.BackColor = Color.AliceBlue;
+            dbg.BorderStyle = BorderStyle.FixedSingle;
+            dbg.Dock = DockStyle.Fill;
+            dbg.Location = new Point(4, 4);
+            dbg.Name = "dbg";
+            dbg.Size = new Size(1387, 300);
+            dbg.TabIndex = 6;
+            // 
+            // pTelemetryPane
+            // 
+            pTelemetryPane.Controls.Add(TelemetryPane);
+            pTelemetryPane.Dock = DockStyle.Right;
+            pTelemetryPane.Location = new Point(1060, 42);
+            pTelemetryPane.Name = "pTelemetryPane";
+            pTelemetryPane.Padding = new Padding(3);
+            pTelemetryPane.Size = new Size(335, 954);
+            pTelemetryPane.TabIndex = 12;
+            // 
+            // TelemetryPane
+            // 
+            TelemetryPane.AllowPause = true;
+            TelemetryPane.AutoClear = true;
+            TelemetryPane.BackColor = Color.PapayaWhip;
+            TelemetryPane.BorderStyle = BorderStyle.FixedSingle;
+            TelemetryPane.Dock = DockStyle.Fill;
+            TelemetryPane.Location = new Point(3, 3);
+            TelemetryPane.Name = "TelemetryPane";
+            TelemetryPane.Padding = new Padding(4);
+            TelemetryPane.Size = new Size(329, 948);
+            TelemetryPane.TabIndex = 8;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1395, 1304);
-            Controls.Add(butDBG);
             Controls.Add(tlpCharts);
-            Controls.Add(myTelemetryPane1);
-            Controls.Add(dbg);
-            Controls.Add(labPorts);
-            Controls.Add(cbPorts);
+            Controls.Add(pTelemetryPane);
+            Controls.Add(pDebugPane);
+            Controls.Add(pHeader);
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "Form1";
-            FormClosing += Form1_FormClosing;
+            Text = "fNIRS Prototype Data Monitor";
             Load += Form1_Load;
             Shown += Form1_Shown;
             tlpCharts.ResumeLayout(false);
+            pHeader.ResumeLayout(false);
+            pHeader.PerformLayout();
+            pDebugPane.ResumeLayout(false);
+            pTelemetryPane.ResumeLayout(false);
             ResumeLayout(false);
-            PerformLayout();
         }
 
         #endregion
         private ComboBox cbPorts;
         private Label labPorts;
-        private Plotter.UserControls.MyDebugPane dbg;
         private Plotter.UserControls.MyChart chart0;
-        private Plotter.UserControls.MyTelemetryPane myTelemetryPane1;
         private TableLayoutPanel tlpCharts;
         private Button butDBG;
+        private Panel pHeader;
+        private Panel pDebugPane;
+        private Plotter.UserControls.MyDebugPane dbg;
+        private Panel pTelemetryPane;
+        private Plotter.UserControls.MyTelemetryPane TelemetryPane;
     }
 }

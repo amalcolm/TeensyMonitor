@@ -21,8 +21,10 @@ namespace TeensyMonitor.DataTools
         private uint _ra_index = 0;
 
         public SignalExtractor() => fixer.Telemetry = telemetry;
-        public void Dispose() => fixer.Dispose();
 
+
+        public void Dispose() { _isDisposed = true; fixer.Dispose(); }
+        private  bool _isDisposed = false;
 
         public MyChart? Chart { get; set; } = null;
         public bool chartSet = false;
@@ -32,13 +34,13 @@ namespace TeensyMonitor.DataTools
 
         public bool Process(DataPacket packet)
         {
-            SetChart(packet); // keeps your existing init logic
+            if (_isDisposed) return false;
+            SetChart(packet); 
 
             double C0 = packet.Channel[0] * scale_C0;
 
             bool isDiscontinuity = packet.Offset2 != lastOffset2;
 
-            // Update last for next time (do this regardless)
             lastOffset2 = packet.Offset2;
 
             double x = packet.TimeStamp;
@@ -50,8 +52,8 @@ namespace TeensyMonitor.DataTools
             else
                 changed = fixer.Fix(ref x, ref y);
 
-            telemetry["Time"] = new XY(x, 0);
-            telemetry["+Value"] = new XY(x, y);
+            telemetry["-Time"] = new XY(x, x);  // - means label only, do not plot.  Also, output time as value (y)
+            telemetry["+Value"] = new XY(x, y);  // + means auto-scale  
 
             ra.Add(y);
             _buffer[_ra_index++] = new XY(x, y);

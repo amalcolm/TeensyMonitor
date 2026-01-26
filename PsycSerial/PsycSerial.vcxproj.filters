@@ -53,7 +53,7 @@
     <ClInclude Include="src\TeensySerial.h">
       <Filter>Source Files\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Setup.h">
+    <ClInclude Include="src\_Config.h">
       <Filter>Source Files\Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\RunningAverage.h">
@@ -125,7 +125,7 @@
     <ClCompile Include="src\TeensySerial.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Setup.cpp">
+    <ClCompile Include="src\_Config.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\RunningAverage.cpp">
@@ -142,9 +142,6 @@
     </ClCompile>
     <ClCompile Include="src\Math\CDiscontinuityFixer.cpp">
       <Filter>Source Files\Math</Filter>
-    </ClCompile>
-    <ClCompile Include="ADictionary.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -16,7 +16,6 @@ namespace TeensyMonitor.Plotter.Helpers
     /// <param name="stride">Number of floats per vertex (e.g. 3 for XYZ).</param>
     public class MyGLVertexBuffer(int vertexCapacity, int stride = 3) : IDisposable
     {
-        public float ChannelScale { get; set; } = 0.0002f;
         public int VertexCount { get => _vertexCount; }
 
 
@@ -96,8 +95,8 @@ namespace TeensyMonitor.Plotter.Helpers
                     CheckSize();
 
                     float x = (float)packet.BlockData[i].TimeStamp;
-                    float y = (selector == null) ? (float)packet.BlockData[i].Channel[0] * ChannelScale + 40.0f 
-                                                 : (float)packet.BlockData[i].get(selector.Value);
+                    float y = (selector == null) ? (float)(packet.BlockData[i].Channel[0] * Config.C0to1024) 
+                                                 : (float)(packet.BlockData[i].get(selector.Value)         );
 
                     AddUnderLock(x, y, 0.0f);
                 
@@ -126,7 +125,7 @@ namespace TeensyMonitor.Plotter.Helpers
         }
 
         float[] subPlotData = new float[1024 * 3];
-        public void SetBlock(BlockPacket block)
+        public void SetBlock(BlockPacket block, FieldEnum field, double scale)
         {
             if (subPlotData.Length < block.Count * 3)
                 subPlotData = new float[block.Count * 3 * 2];
@@ -135,8 +134,10 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 int baseIndex = i * 3;
 
+                double value = block.BlockData[i].get(field) * scale;
+
                 subPlotData[baseIndex] = (float)block.BlockData[i].StateTime * 1000.0f;  // milliseconds for subplot visibility
-                subPlotData[baseIndex + 1] = (float)block.BlockData[i].Channel[0];
+                subPlotData[baseIndex + 1] = (float)value;
                 subPlotData[baseIndex + 2] = 0.0f;
             }
 

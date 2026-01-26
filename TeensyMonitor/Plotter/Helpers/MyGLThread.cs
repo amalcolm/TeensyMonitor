@@ -24,6 +24,7 @@ namespace TeensyMonitor.Plotter.Helpers
         }
         private Action? _renderAction;
 
+        public bool AutoStart { get; set; } = true;
 
         private readonly Thread _thread;
         private readonly CancellationTokenSource _cts = new();
@@ -69,7 +70,7 @@ namespace TeensyMonitor.Plotter.Helpers
         }
 
 
-        static List<MyGLThread> ActiveGLThreads = [];
+        static readonly List<MyGLThread> ActiveGLThreads = [];
 
         public MyGLThread(GLControl glControl)
         {
@@ -82,11 +83,9 @@ namespace TeensyMonitor.Plotter.Helpers
             _thread = new(Run)
             {
                 IsBackground = true,
-                Name = "MyGLThread",
+                Name = $"MyGLThread_{ActiveGLThreads.Count:01}",
                 Priority = ThreadPriority.Highest
             };
-
-            Debug.WriteLine($"[MyGLThread] Creating GL thread for {RenderAction?.Target?.GetType().Name}.");
 
 
             _glControl.HandleCreated += (s,e) =>
@@ -102,8 +101,11 @@ namespace TeensyMonitor.Plotter.Helpers
 
                 _glControl.Context.MakeNoneCurrent();
 
-                _isRunning = true;
-                _thread.Start();
+                if (AutoStart)
+                {
+                    _isRunning = true;
+                    _thread.Start();
+                }
             };
         }
 
@@ -158,6 +160,7 @@ namespace TeensyMonitor.Plotter.Helpers
                     {
                         try
                         {
+                            _glControl.MakeCurrent(); if (_glControl.Context == null) throw new InvalidOperationException("GLControl context is not initialized.");
                             RenderAction?.Invoke();
                         }
                         catch (Exception ex)

@@ -5,7 +5,7 @@ using TeensyMonitor.Plotter.UserControls;
 namespace TeensyMonitor.Plotter.Helpers
 {
 
-    class MyGLViewport
+    class MyGLViewport(MyPlotterBase myPlotter)
     {
         public int         Margin { get =>  _margin; set {  _margin = value; Update(); } }   private int        _margin = 10;
         public RectangleF  InRect { get =>  _inRect; set {  _inRect = value; Update(); } }   private RectangleF _inRect  = RectangleF.Empty;
@@ -15,12 +15,8 @@ namespace TeensyMonitor.Plotter.Helpers
         private Rectangle _parentRect = Rectangle.Empty;
         private int _transformLoc  = -1;
         protected bool _canUpdate = false;
-        protected MyPlotterBase _myPlotter;
+        protected MyPlotterBase _myPlotter = myPlotter;
 
-        public MyGLViewport(MyPlotterBase myPlotter)
-        {
-            _myPlotter = myPlotter;
-        }
         public virtual void Init()
         {
             _myPlotter.Resize += (s, e) => _myPlotter.GLThread?.Enqueue(() => Update());
@@ -35,7 +31,7 @@ namespace TeensyMonitor.Plotter.Helpers
             _canUpdate = false;
         }
 
-        public void Update()
+        public void Update()    
         { 
             if (!_canUpdate) return;
 

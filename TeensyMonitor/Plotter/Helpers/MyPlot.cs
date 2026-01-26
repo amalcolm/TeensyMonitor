@@ -22,13 +22,12 @@ namespace TeensyMonitor.Plotter.Helpers
 
 
 
-
         private readonly object _lock = new();
 
         public string DBG { get; set; } = string.Empty;
         
         private MyGLVertexBuffer _bufMainPlot = default!;
-        private MyGLVertexBuffer _bufSubPlot = new(4096) { ChannelScale = 1.0f };
+        private MyGLVertexBuffer _bufSubPlot = new(4096);
         private MyGLVertexBuffer _bufSubPlotGrid = new(4096);
 
         private MySubplot _subPlot = default!;
@@ -38,6 +37,9 @@ namespace TeensyMonitor.Plotter.Helpers
         int _transformLoc = -1;
         private readonly MyPlotterBase _plotter;
         private readonly int _windowSize;
+
+        private float _parentMinX = 0;
+        private float _parentMaxX = 0;
 
         public MyPlot(int windowSize, MyPlotterBase myPlotter)
         {
@@ -53,10 +55,11 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 Margin  = 10,
                 InRect  = new RectangleF(0, 0, 0.5f, 0.35f),
-                OutRect = new RectangleF(0, 1000000f, Setup.STATE_DURATION_uS/1000.0f, 4000000f)
+                OutRect = new RectangleF(0, -50f, Config.STATE_DURATION_uS/1000.0f, 1050f)
             };
 
             _plotter.Setup(initAction:Init, shutdownAction:Shutdown);
+            _plotter.GLResize += (s, p) => _ra = null; // reset running average on resize
         }
 
 
@@ -97,9 +100,12 @@ namespace TeensyMonitor.Plotter.Helpers
 
                 if (count < 10)
                     diffSum += fX - LastX;
-                else if (_ra == null && _parentMaxX > _parentMinX)
+                else if (_ra == null)
                 {
-                    double avgDiff = Setup.STATE_DURATION_uS / 1_000_000.0;
+                    RectangleF viewport = _plotter.ViewPort;
+                    _parentMinX = viewport.Left;
+                    _parentMaxX = viewport.Right;
+                    double avgDiff = Config.STATE_DURATION_uS / 1_000_000.0;
                     float window = _parentMaxX - _parentMinX;
                     _ra = new RunningAverage( (uint)(window / avgDiff) );
                 }
@@ -114,8 +120,6 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             if (count++ < 0) return;
 
-            double scale = Yscale == 0.0 ? 1.0 : Yscale;                     // debugQueue.Enqueue(new DebugPoint { SW = sw.Elapsed.TotalMilliseconds, Timestamp = block.BlockData[0].TimeStamp });
-
             if (Selector == null)
                 SetSubplot(block);
 
@@ -125,20 +129,11 @@ namespace TeensyMonitor.Plotter.Helpers
         }
 
 
-        float _parentMinX = 0.0f;
-        float _parentMaxX = 0.0f;
-
         /// <summary>
         /// Renders the plot. Assumes the correct shader program is already active.
         /// </summary>
         public void Render()
         {
-            var plotTransform = _plotter.getPlotTransform();
-            plotTransform.ExtractOrthographicOffCenter(
-                out _parentMinX, out _parentMaxX,
-                out _, out _,
-                out float zNear, out float zFar);
-
             if (_ra != null && AutoScaling)
             {
                 float minY, maxY;
@@ -174,8 +169,12 @@ namespace TeensyMonitor.Plotter.Helpers
                 float bottom = midY - desiredHeight * 0.5f;
                 float top = midY + desiredHeight * 0.5f;
 
-        
-                var transform = Matrix4.CreateOrthographicOffCenter(_parentMinX, _parentMaxX, bottom, top, zNear, zFar);
+                RectangleF viewport = _plotter.ViewPort;
+                _parentMinX = viewport.Left;
+                _parentMaxX = viewport.Right;
+
+
+                var transform = Matrix4.CreateOrthographicOffCenter(_parentMinX, _parentMaxX, bottom, top, -1.0f, 1.0f);
                 GL.UniformMatrix4(_transformLoc, false, ref transform);
 
                 _plotter.SetMetrics(minY, maxY, range, desiredHeight);
