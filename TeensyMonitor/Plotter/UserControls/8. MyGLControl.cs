@@ -89,7 +89,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
             GLThread = new(MyGL);
 
-            this.Resize += (s,e) => GLThread.Enqueue(GL_Resize);
+            this.Resize += (s,e) => GLThread?.Enqueue(GL_Resize);
             MyGL.MouseDown += (s,e) => IsPaused = true;
             MyGL.MouseUp += (s,e) => IsPaused = false;
 
@@ -174,7 +174,7 @@ namespace TeensyMonitor.Plotter.UserControls
             // Break on errors so you see the stack trace immediately
             if (type == DebugType.DebugTypeError)
             {
-                throw new Exception(log);
+//              throw new Exception(log);
             }
         }
 

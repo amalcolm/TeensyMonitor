@@ -7,20 +7,16 @@ namespace TeensyMonitor.Plotter.Helpers
         internal struct ShaderProgram
         {
             public string Name;
+            public int    ProgramId;
 
-            public int ProgramId;
-
-            public string FragmentShaderSource;
-            public string VertexShaderSource;
         }
 
 
-        [ThreadStatic]
-        private static Dictionary<string, ShaderProgram>? _shaderPrograms;
+        private static ThreadLocal<Dictionary<string, ShaderProgram>?> _allShaderPrograms = new(() => []);
 
         public static int Get(string name)
         {
-            _shaderPrograms ??= [];
+            var _shaderPrograms = _allShaderPrograms.Value!;
             if (_shaderPrograms.Count == 0) Init();
 
             if (_shaderPrograms.TryGetValue(name, out var program))
@@ -34,6 +30,7 @@ namespace TeensyMonitor.Plotter.Helpers
             var files = Directory.GetFiles(@"Resources\Shaders", "*.*", SearchOption.AllDirectories);
             Array.Sort(files, StringComparer.OrdinalIgnoreCase);
 
+            var _shaderPrograms = _allShaderPrograms.Value!;
             for (int i = 0; i < files.Length; i+=2)  // process in pairs, .frag then .vert
             {   if (i+1 >= files.Length) break;
 
@@ -43,13 +40,14 @@ namespace TeensyMonitor.Plotter.Helpers
                 if (!fragFile.EndsWith(".frag", StringComparison.OrdinalIgnoreCase)) continue;
                 if (!vertFile.EndsWith(".vert", StringComparison.OrdinalIgnoreCase)) continue;
 
+                var vertexSource = File.ReadAllText(vertFile);
+                var fragmentSource = File.ReadAllText(fragFile);
+
                 var program = new ShaderProgram
                 {
                     Name = Path.GetFileNameWithoutExtension(fragFile),
-                    FragmentShaderSource = File.ReadAllText(fragFile),
-                    VertexShaderSource = File.ReadAllText(vertFile)
+                    ProgramId = CompileShaders(vertexSource, fragmentSource)
                 };
-                program.ProgramId = CompileShaders(program.VertexShaderSource, program.FragmentShaderSource);
 
                 _shaderPrograms!.Add(program.Name, program);
             }
@@ -57,8 +55,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
         public static void Clear()
         {
-            if (_shaderPrograms == null) return;
-
+            var _shaderPrograms = _allShaderPrograms.Value!;
             foreach (var program in _shaderPrograms.Values)
                 GL.DeleteProgram(program.ProgramId);
 

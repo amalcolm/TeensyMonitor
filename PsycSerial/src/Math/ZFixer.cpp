@@ -32,7 +32,7 @@ void ZFixer::Predict(double% x, double% y) {
     pin_ptr<double> py = &y;
 
     m_fixer->Predict(*px, *py);
-}
+ }
 
 
 void ZFixer::Close() {

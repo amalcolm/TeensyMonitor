@@ -23,7 +23,8 @@ namespace TeensyMonitor
 
             switch (state)
             {
-                case 0b00000000_00000000_00000000_00000000: return "OFF";
+                case 0b00000000_00000000_00000000_00000000: return "ALL_OFF";
+                case 0b00000001_11111111_00000001_11111111: return "ALL_ON";
 
                 case 0b00000000_00000000_00000000_00000001: return "RED1";
                 case 0b00000000_00000000_00000000_00000010: return "RED2";

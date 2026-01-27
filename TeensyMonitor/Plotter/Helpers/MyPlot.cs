@@ -17,6 +17,10 @@ namespace TeensyMonitor.Plotter.Helpers
         public FieldEnum? Selector { get; set;         } = null;
 
         public bool AutoScaling { get; set; } = false;
+        public bool SharedScaling { get; set; } = false;
+
+        public static double Shared_MinY { get; set; } = -10.0;
+        public static double Shared_MaxY { get; set; } = 1050.0;
 
         private RunningAverage? _ra = null;
 
@@ -55,7 +59,7 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 Margin  = 10,
                 InRect  = new RectangleF(0, 0, 0.5f, 0.35f),
-                OutRect = new RectangleF(0, -50f, Config.STATE_DURATION_uS/1000.0f, 1050f)
+                OutRect = new RectangleF(0, -10f, Config.STATE_DURATION_uS/1000.0f, 1050f)
             };
 
             _plotter.Setup(initAction:Init, shutdownAction:Shutdown);
@@ -134,9 +138,15 @@ namespace TeensyMonitor.Plotter.Helpers
         /// </summary>
         public void Render()
         {
-            if (_ra != null && AutoScaling)
+            if ((_ra != null && AutoScaling) || SharedScaling)
             {
                 float minY, maxY;
+                if (SharedScaling)
+                {
+                    minY = (float)Shared_MinY;
+                    maxY = (float)Shared_MaxY;
+                }
+                else
                 lock (_lock)
                 {
                     minY = (float)_ra.Min;
@@ -144,40 +154,7 @@ namespace TeensyMonitor.Plotter.Helpers
                 }
 
                 // Guard bad values / zero range
-                if (!float.IsFinite(minY) || !float.IsFinite(maxY))
-                    return;
-
-                if (maxY < minY) (minY, maxY) = (maxY, minY);
-
-                float range = maxY - minY;
-                if (range < 1e-6f) range = 1e-6f;
-
-                float midY = (minY + maxY) * 0.5f;
-
-                float padding = 200f;
-                float targetHeight = range + padding;
-
-                // Ramp-in based on sample count
-                float t = Math.Clamp(count / 100f, 0f, 1f);
-//                t = t * t * (3f - 2f * t); // smoothstep (optional but nicer)
-
-                float startHeight = 120000f;              // big & stable at the beginning
-                float desiredHeight = startHeight + (targetHeight - startHeight) * t;
-
-                desiredHeight = Math.Clamp(desiredHeight, 500f, 120000f);
-
-                float bottom = midY - desiredHeight * 0.5f;
-                float top = midY + desiredHeight * 0.5f;
-
-                RectangleF viewport = _plotter.ViewPort;
-                _parentMinX = viewport.Left;
-                _parentMaxX = viewport.Right;
-
-
-                var transform = Matrix4.CreateOrthographicOffCenter(_parentMinX, _parentMaxX, bottom, top, -1.0f, 1.0f);
-                GL.UniformMatrix4(_transformLoc, false, ref transform);
-
-                _plotter.SetMetrics(minY, maxY, range, desiredHeight);
+                SetScaling(minY, maxY);
             }
 
             if (Visible)
@@ -190,6 +167,44 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 DBG = "Not Visible";
             }
+        }
+
+        public void SetScaling(float minY, float maxY)
+        {
+            if (!float.IsFinite(minY) || !float.IsFinite(maxY))
+                return;
+
+            if (maxY < minY) (minY, maxY) = (maxY, minY);
+
+            float range = maxY - minY;
+            if (range < 1e-6f) range = 1e-6f;
+
+            float midY = (minY + maxY) * 0.5f;
+
+            float padding = 200f;
+            float targetHeight = range + padding;
+
+            // Ramp-in based on sample count
+            float t = Math.Clamp(count / 100f, 0f, 1f);
+//          t = t * t * (3f - 2f * t); // smoothstep (optional but nicer)
+
+            float startHeight = 120000f;              // big & stable at the beginning
+            float desiredHeight = startHeight + (targetHeight - startHeight) * t;
+
+            desiredHeight = Math.Clamp(desiredHeight, 500f, 120000f);
+
+            float bottom = midY - desiredHeight * 0.5f;
+            float top = midY + desiredHeight * 0.5f;
+
+            RectangleF viewport = _plotter.ViewPort;
+            _parentMinX = viewport.Left;
+            _parentMaxX = viewport.Right;
+
+
+            var transform = Matrix4.CreateOrthographicOffCenter(_parentMinX, _parentMaxX, bottom, top, -1.0f, 1.0f);
+            GL.UniformMatrix4(_transformLoc, false, ref transform);
+
+            _plotter.SetMetrics(minY, maxY, range, desiredHeight);
         }
 
         /// <summary>

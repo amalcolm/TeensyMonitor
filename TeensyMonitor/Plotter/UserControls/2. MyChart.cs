@@ -2,7 +2,6 @@
 using OpenTK.Mathematics;
 using PsycSerial;
 using PsycSerial.Math;
-using System;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
@@ -17,7 +16,7 @@ namespace TeensyMonitor.Plotter.UserControls
     [ToolboxItem(true)]
     public partial class MyChart : MyPlotter
     {
-        private const int WindowSize = 1536;
+        private const int WindowSize = 3072;
 
         public bool EnablePlots  { get; set; } = true;
         public bool EnableLabels { get; set; } = true;
@@ -58,7 +57,7 @@ namespace TeensyMonitor.Plotter.UserControls
             "postGainSensor",
             };
 
-        private readonly float _labelLineSpacing = 45f;
+        private readonly float _labelLineSpacing = 35f;
         private readonly float _labelTopMargin   = 20f;
 
         public MyChart()
@@ -95,7 +94,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
                 dataSelectorsToOutput.Add(dsInfo); // for latest values tracking, which handles both plots and labels
 
-                if (dataFieldsToPlot.Contains(property.Name)) dataSelectorsToPlot.Add(dsInfo);
+                if (dataFieldsToPlot   .Contains(property.Name)) dataSelectorsToPlot   .Add(dsInfo);
                 if (dataFieldsForLabels.Contains(property.Name)) dataSelectorsForLabels.Add(dsInfo);
             }
 
@@ -215,7 +214,7 @@ namespace TeensyMonitor.Plotter.UserControls
                     if (TestAndSetPending(stateHash))
                         continue;
 
-                    plot = new(WindowSize, this) { Yscale = 1.0, AutoScaling = key.StartsWith('+') };
+                    plot = new(WindowSize, this) { Yscale = 1.0, AutoScaling = key.StartsWith('+'), SharedScaling = key.StartsWith('*') };
 
                     lock (PlotsLock)
                         AddPlot(stateHash, plot);
@@ -247,7 +246,7 @@ namespace TeensyMonitor.Plotter.UserControls
                 {
                     if (TestAndSetPending(stateHash))
                         continue;
-                    plot = new(WindowSize, this) { Yscale = 1.0, AutoScaling = key.StartsWith('+') };
+                    plot = new(WindowSize, this) { Yscale = 1.0, AutoScaling = key.StartsWith('+'), SharedScaling = key.StartsWith('*') };
                     lock (PlotsLock)
                         AddPlot(stateHash, plot);
                 }
@@ -345,7 +344,7 @@ namespace TeensyMonitor.Plotter.UserControls
                 _numLabels++;
                 float yPos = MyGL.Height - _labelTopMargin - (_numLabels * _labelLineSpacing);
 
-                var labelBlock = new TextBlock(labelText, 126, 0, font);                                 // yPos set on render
+                var labelBlock = new TextBlock(labelText, 126, 0, font);
                 var valueBlock = new TextBlock("0.00", 120, 0, font, TextAlign.Right, valueFormat);
 
                 labelBlock.Y = yPos;

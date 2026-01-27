@@ -160,7 +160,7 @@ namespace TeensyMonitor.Plotter.Helpers
                     {
                         try
                         {
-                            _glControl.MakeCurrent(); if (_glControl.Context == null) throw new InvalidOperationException("GLControl context is not initialized.");
+                            _glControl.MakeCurrent();                        if (_glControl.Context == null) throw new InvalidOperationException("GLControl context is not initialized.");
                             RenderAction?.Invoke();
                         }
                         catch (Exception ex)
@@ -169,10 +169,14 @@ namespace TeensyMonitor.Plotter.Helpers
                         }
                         nTotalFrames++;
                         nFramesThisSecond++;
+
+
                         do
                         {
                             while (_taskQueue.TryDequeue(out var action))
                                 action.Invoke();
+
+                            Thread.Yield();
                         }
                         while ((frameTime = stopwatch.Elapsed.TotalMilliseconds) < targetFrameTime && !_cts.IsCancellationRequested);
 

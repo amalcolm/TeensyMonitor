@@ -36,7 +36,7 @@ struct CDataPacket
 	uint32_t sensorState{};
     uint32_t channel[A2D_NUM_CHANNELS]{};
 
-    static constexpr uint32_t STATE_UNSET = 0b10000000000000000000000000000000;
+    static constexpr uint32_t STATE_UNSET = 0b1000'0000'0000'0000'0000'0000'0000'0000;
 
 };
 

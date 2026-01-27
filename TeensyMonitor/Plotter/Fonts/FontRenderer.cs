@@ -7,7 +7,7 @@ namespace TeensyMonitor.Plotter.Fonts
     
     public class FontRenderer
     {
-        public float Scaling { get; set; } = 0.5f;
+        public float Scaling { get; set; } = 0.4f;
 
         private int _vbo;
         private int _vao;

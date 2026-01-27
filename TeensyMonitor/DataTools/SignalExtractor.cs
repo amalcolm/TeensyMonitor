@@ -1,5 +1,6 @@
 ﻿using PsycSerial;
 using PsycSerial.Math;
+using TeensyMonitor.Plotter.Helpers;
 using TeensyMonitor.Plotter.UserControls;
 
 namespace TeensyMonitor.DataTools
@@ -9,6 +10,10 @@ namespace TeensyMonitor.DataTools
     {
 
         public  readonly Dictionary<string, XY> telemetry = [];
+        private readonly HeadState _state;
+        private readonly string _stateLabel_Raw;
+        private readonly string _stateLabel_Signal;
+
 
         private readonly ZFixer fixer = new();
         private const double scale_C0 = 1.0 / 4660.100;
@@ -16,11 +21,23 @@ namespace TeensyMonitor.DataTools
 
         private const uint ra_Size = 99;
 
-        private readonly RunningAverage ra = new(ra_Size);
-        private readonly XY[] _buffer = new XY[ra_Size];
-        private uint _ra_index = 0;
+        public sealed class StateData
+        {
+            public RunningAverage RA     = new(ra_Size);
+            public XY[]           Buffer = new XY[ra_Size];
+            public uint           Index  = 0;
+        }
 
-        public SignalExtractor() => fixer.Telemetry = telemetry;
+        public static Dictionary<HeadState, StateData> Stats { get; } = [];
+
+        public SignalExtractor(HeadState state)
+        {
+            _state = state;
+            _stateLabel_Raw    = $"*{       state.Description()}";  // * means shared scaling, + means own auto-scaling
+            _stateLabel_Signal = $"*Signal {state.Description()}";
+
+            fixer.Telemetry = telemetry;
+        }
 
 
         public void Dispose() { _isDisposed = true; fixer.Dispose(); }
@@ -31,7 +48,7 @@ namespace TeensyMonitor.DataTools
 
 
         int lastOffset2 = 0;
-
+        HeadState[] headStates = [];
         public bool Process(DataPacket packet)
         {
             if (_isDisposed) return false;
@@ -51,10 +68,17 @@ namespace TeensyMonitor.DataTools
                 fixer.Predict(ref x, ref y);
             else
                 changed = fixer.Fix(ref x, ref y);
-
+            
             telemetry["-Time"] = new XY(x, x);  // - means label only, do not plot.  Also, output time as value (y)
-            telemetry["+Value"] = new XY(x, y);  // + means auto-scale  
 
+            telemetry[_stateLabel_Raw] = new XY(x, y); 
+
+            var stateData = Stats.TryGetValue(_state, out var sd) ? sd : Stats[_state] = new StateData();
+
+            var ra = stateData.RA;
+            var _buffer = stateData.Buffer;
+            var _ra_index = stateData.Index;
+            
             ra.Add(y);
             _buffer[_ra_index++] = new XY(x, y);
             if (_ra_index == ra_Size) _ra_index = 0;
@@ -63,9 +87,27 @@ namespace TeensyMonitor.DataTools
             {
                 uint delay = (ra_Size - 1) / 2;
                 uint bufferIndex = (_ra_index + delay) % ra_Size;
-                telemetry["+Signal"] = new XY(_buffer[bufferIndex].x, _buffer[bufferIndex].y - ra.Average);
+                telemetry[_stateLabel_Signal] = new XY(_buffer[bufferIndex].x, _buffer[bufferIndex].y - ra.Average);
             }
 
+
+            if (headStates.Length != Stats.Count)
+                headStates = [.. Stats.Keys];
+
+            double min = double.MaxValue;
+            double max = double.MinValue;
+
+            for (int i = 0; i < headStates.Length; i++)
+                if (Stats.TryGetValue(headStates[i], out var stat))
+                {
+                    if (stat.RA.Min < min) min = stat.RA.Min;
+                    if (stat.RA.Max > max) max = stat.RA.Max;
+                }
+
+            MyPlot.Shared_MinY = min;
+            MyPlot.Shared_MaxY = max;
+
+            stateData.Index = _ra_index;
             Chart?.AddData(telemetry);
 
             return changed;

@@ -63,6 +63,8 @@ namespace TeensyMonitor
             SP.DataReceived += SP_DataReceived;
             SP.ConnectionChanged += SP_ConnectionChanged;
             SP.ErrorOccurred += SP_ErrorOccurred;
+
+            Init_Clear();
         }
 
         private readonly Timer monitorTimer = new() { Interval = 1000, Enabled = false };
@@ -87,34 +89,18 @@ namespace TeensyMonitor
 
             if (State != FormState.Running) { Init_Packet(blockPacket); return; }
 
-            if (Charts.Count == 0)
-            {
-                Charts[blockPacket.State] = chart0;
-                chart0.Tag = blockPacket.State.Description();
-            }
             if (Charts.TryGetValue(blockPacket.State, out MyChart? chart) && chart != null)
             {
                 chart.SP_DataReceived(blockPacket);
 
-                if (chart == chart0)
-                    tallForm?.Process(blockPacket);
+                tallForm?.Process(blockPacket);
             }
-/*          else
+            else
             {
-                MyColours.Reset();
-                MyChart newChart = new()
-                {
-                    BackColor = chart0.BackColor,
-                    Dock = chart0.Dock,
-                    Tag = blockPacket.State.Description(),
-                };
-
-                Charts[blockPacket.State] = newChart;
-                newChart.SP_DataReceived(blockPacket);
-
-                AddNewChart(newChart);
+                dbg.Log(AString.FromString($"Chart not found for state {blockPacket.State.Description()}"));
             }
-*/        }
+
+        }
 
         private void AddTextPacket(TextPacket textPacket)
         {
@@ -185,6 +171,8 @@ namespace TeensyMonitor
                     State = FormState.Initialising;
                     break;
                 case ConnectionState.Disconnected:
+                    State = FormState.None;
+
                     if (SocketWatcher.ReceivedDisconnect)
                     {
                         dbg.Log(AString.FromString("Disconnected by request, waiting for reconnect..."));
@@ -280,24 +268,14 @@ namespace TeensyMonitor
             set
             {
                 _state = value;
+                _swInit.Restart();
 
                 switch (_state)
                 {
-                    case FormState.None: throw new InvalidOperationException("Cannot set state to None");
-                    case FormState.Initialising:
-                        Init_Clear();
-                        _swInit.Restart();
-                        break;
-
-                    case FormState.Building:
-                        _swInit.Restart();
-                        this.Invoker(Init_Set);
-                        break;
-
-                    case FormState.Running:
-                        _swInit.Restart();
-                        break;
-
+                    case FormState.None        : this.Invoker(Init_Clear);  break;
+                    case FormState.Initialising:                            break;
+                    case FormState.Building    : this.Invoker(Init_Set);    break;
+                    case FormState.Running     :                            break;
                 }
             }
         }
@@ -307,9 +285,22 @@ namespace TeensyMonitor
 
         private void Init_Clear()
         {
-            foreach (var chart in Charts.Values)
-                if (chart != chart0)
-                    chart.Close();
+
+            for (int r = tlpCharts.RowCount - 1; r >= 0; r--)
+                for (int c = tlpCharts.ColumnCount - 1; c >= 0; c--)
+                {
+                    var control = tlpCharts.GetControlFromPosition(c, r);
+                    if (control is not null && control is MyChart chart && chart != chart0)
+                    {
+                        tlpCharts.Controls.Remove(control);
+                        chart.Close();
+                    }
+                }
+
+            tlpCharts.RowCount = 1;
+            tlpCharts.ColumnCount = 1;
+            tlpCharts.RowStyles.Clear();
+            tlpCharts.ColumnStyles.Clear();
 
             Charts.Clear();
 
@@ -344,7 +335,7 @@ namespace TeensyMonitor
             HeadState[] states = [.. initStates.Keys];
             Array.Sort(states);
 
-            if (states.Length > 0)
+            if (states.Length > 4)
             {
                 WindowState = FormWindowState.Normal;
                 Location = Point.Empty;
@@ -392,7 +383,7 @@ namespace TeensyMonitor
                     {
                         if (r == 0 && c == 0) continue; // skip chart0
 
-                        var chart = tabCharts[c, r];
+                        var chart = tabCharts[c, r]; if (chart == null) continue;
 
                         try { tlpCharts.Controls.Add(chart, c, r); }
                         catch (Exception)
@@ -415,23 +406,13 @@ namespace TeensyMonitor
             tlpCharts.SuspendLayout();
             try
             {
-                // IMPORTANT: stop accumulating styles
-                tlpCharts.ColumnStyles.Clear();
-                tlpCharts.RowStyles.Clear();
+                // tlpCharts already cleared in Init_Clear
 
                 tlpCharts.ColumnCount = cols;
                 tlpCharts.RowCount = rows;
 
-                float colPct = 100f / cols;
-                for (int c = 0; c < cols; c++)
-                    tlpCharts.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, colPct));
-
-                float rowPct = 100f / rows;
-                for (int r = 0; r < rows; r++)
-                    tlpCharts.RowStyles.Add(new RowStyle(SizeType.Percent, rowPct));
-
-                // If you add controls after this, make sure they fill the cell:
-                // control.Dock = DockStyle.Fill;
+                for (int c = 0; c < cols; c++) tlpCharts.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100.0f / cols));
+                for (int r = 0; r < rows; r++) tlpCharts.   RowStyles.Add(new    RowStyle(SizeType.Percent, 100.0f / rows));
 
                 tlpCharts.GrowStyle = TableLayoutPanelGrowStyle.FixedSize; // optional but avoids surprise growth
             }

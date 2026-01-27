@@ -5,7 +5,7 @@ namespace TeensyMonitor.Plotter.UserControls
 {
     public partial class MyTallForm : Form
     {
-        private readonly SignalExtractor extractor = new();
+        private readonly Dictionary<HeadState, SignalExtractor> _extractors = [];
 
         public MyTallForm()
         {
@@ -30,9 +30,12 @@ namespace TeensyMonitor.Plotter.UserControls
             }
 
 
-            extractor.Chart = chart;
-
-            FormClosing += (_, _) => extractor.Dispose();
+            FormClosing += (_, _) =>
+            {
+                foreach (var extractor in _extractors.Values)
+                    extractor.Dispose();
+                _extractors.Clear();
+            };
         }
 
         public void Process(BlockPacket blockPacket)
@@ -40,11 +43,11 @@ namespace TeensyMonitor.Plotter.UserControls
             if (blockPacket.Count == 0) return;
 
             DataPacket packet = blockPacket.BlockData[blockPacket.Count - 1];
+            
+            if (!_extractors.TryGetValue(packet.State, out var extractor))
+                _extractors[packet.State] = extractor = new SignalExtractor(packet.State) { Chart = chart };
 
             extractor.Process(packet);
-
-            
-
         }
 
         bool isMouseDown = false;
