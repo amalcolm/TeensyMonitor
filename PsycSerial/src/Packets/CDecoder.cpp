@@ -6,16 +6,24 @@
 
 #pragma managed(push, off)
 
+#ifndef _DEBUG
+#define _DEBUG 0
+#endif // !_Debug
+
+
 namespace
 {
     constexpr size_t kFrameSize = sizeof(Frame);
 
     constexpr size_t kBlockHeaderSize      = sizeof(uint32_t)                                  // block state
                                            + sizeof(double)                                    // block timeStamp
-                                           + sizeof(uint32_t);                                 // block count
+                                           + sizeof(uint32_t)                                  // block count
+                                           + sizeof(uint32_t);                                 // block numEvents
+
     constexpr size_t kBlockStateOffset     =  0u;
     constexpr size_t kBlockTimeStampOffset = sizeof(uint32_t);                  // after state
     constexpr size_t kBlockCountOffset     = sizeof(uint32_t) + sizeof(double); // after state + timeStamp
+	constexpr size_t kBlockNumEvOffset     = kBlockCountOffset + sizeof(uint32_t); // after count
 
 	// this is the size of the incoming data for each block item.
     // It does not include the state field, (as it's the same for the whole block).
@@ -24,6 +32,9 @@ namespace
                                            + sizeof(uint32_t)                                  // hardwareState
                                            + sizeof(uint32_t)                                  // sensorState
                                            + CDataPacket::A2D_NUM_CHANNELS * sizeof(uint32_t); // channel data
+
+    constexpr size_t kBlockEventSize       = sizeof(uint8_t)  // eventKind
+                                   		   + sizeof(double);   // eventTimeStamp
 
     constexpr size_t kTelemetryPayloadSize = sizeof(double)   // timeStamp
                                            + sizeof(uint8_t)  // group
@@ -253,8 +264,12 @@ namespace
 
         uint32_t start = 0; readU32(buf + 0, start);                                                    if (start != CBlockPacket::frameStart) return FrameParseResult::InvalidHeader;
         uint32_t count = 0; readU32(buf + kFrameSize + kBlockCountOffset, count);
+        uint32_t numEv = 0; readU32(buf + kFrameSize + kBlockNumEvOffset, numEv);
 
-        const size_t payloadBytes = kBlockHeaderSize + static_cast<size_t>(count) * kBlockItemSize;
+        const size_t data_bytes = static_cast<size_t>(count) * kBlockItemSize;
+        const size_t eventbytes = static_cast<size_t>(numEv) * kBlockEventSize;
+
+        const size_t payloadBytes = kBlockHeaderSize + data_bytes + eventbytes;
         const size_t need = kFrameSize + payloadBytes + kFrameSize;                                     if (n < need)  return FrameParseResult::IncompletePacket;
 
         uint32_t end = 0; readU32(buf + kFrameSize + payloadBytes, end);                                if (end != CBlockPacket::frameEnd) return FrameParseResult::InvalidFooter;
@@ -307,9 +322,6 @@ inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexce
     }
 
 	double lastTimeStamp = 0;
-#ifndef _DEBUG
-#define _DEBUG 0
-#endif // !_Debug
 
 
     FrameParseResult readBlockPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept
@@ -318,21 +330,20 @@ inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexce
         uint32_t state = 0; readU32   (payload + kBlockStateOffset,     state);
         double   ts    = 0; readDouble(payload + kBlockTimeStampOffset, ts   );
 		uint32_t count = 0; readU32   (payload + kBlockCountOffset,     count);                         if (count > CBlockPacket::MAX_BLOCK_SIZE && _DEBUG) ::OutputDebugString(L"CDecoder: Block count exceeds maximum allowed size.");
+   		uint32_t numEv = 0; readU32   (payload + kBlockNumEvOffset,     numEv);                         if (numEv > CBlockPacket::MAX_EVENTS_PER_BLOCK && _DEBUG) ::OutputDebugString(L"CDecoder: Event count exceeds maximum allowed size.");
 
         const size_t itemsBytes = static_cast<size_t>(count) * kBlockItemSize;
-        const size_t need = kBlockHeaderSize + itemsBytes;
+        const size_t eventbytes = static_cast<size_t>(numEv) * kBlockEventSize;
+        const size_t need = kBlockHeaderSize + itemsBytes + eventbytes;
         
         if (payloadBytes < need) return FrameParseResult::IncompletePacket;
 
 		CBlockPacket bp{};
 
-        if (count > CBlockPacket::MAX_BLOCK_SIZE)
-			count = CBlockPacket::MAX_BLOCK_SIZE; // clamp to max size
-
-
         bp.state     = state;
         bp.timeStamp = ts;
         bp.count     = count;
+		bp.numEvents = numEv;
 
         // Copy the packed Data items
         const uint8_t* rP = payload + kBlockHeaderSize;
@@ -352,15 +363,28 @@ inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexce
                 readU32(rP, dp.channel[ch]);
         }
 
-
         for (uint32_t i = 0; i < count; ++i)
         {
             CDataPacket& dp = bp.blockData[i];
 
             if (dp.timeStamp < lastTimeStamp)
-				dp.timeStamp = lastTimeStamp; // prevent time going backwards in case of bad data
-    
+                dp.timeStamp = lastTimeStamp; // prevent time going backwards in case of bad data
+
         }
+
+
+        for (uint32_t i = 0; i < numEv; ++i)
+        {
+            CEventPacket& ep = bp.eventData[i];
+
+			uint8_t eventKind;
+
+            readU8    (rP,    eventKind ); rP += sizeof(uint8_t);
+            readDouble(rP, ep.stateTime ); rP += sizeof(double);
+
+			ep.eventKind = static_cast<uint32_t>(eventKind);
+        }
+
 
 
         consumed = need;

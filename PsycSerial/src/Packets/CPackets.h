@@ -37,12 +37,18 @@ struct CDataPacket
     uint32_t channel[A2D_NUM_CHANNELS]{};
 
     static constexpr uint32_t STATE_UNSET = 0b1000'0000'0000'0000'0000'0000'0000'0000;
+};
 
+struct CEventPacket
+{
+    uint32_t eventKind{};
+    double   stateTime{};
 };
 
 struct CBlockPacket
 {
     static constexpr size_t MAX_BLOCK_SIZE = 164;
+	static constexpr size_t MAX_EVENTS_PER_BLOCK = 256;
 
 	static constexpr Frame frameStart = 0xEDB1FAB4;  // B1/B2 = Block Packet
     static constexpr Frame frameEnd   = 0xEDB2FAB4;
@@ -51,6 +57,9 @@ struct CBlockPacket
     double   timeStamp{};
     uint32_t count{}; // number of valid entries in blockData
     CDataPacket   blockData[MAX_BLOCK_SIZE]{};
+
+	uint32_t numEvents{}; // number of valid entries in eventData
+	CEventPacket  eventData[MAX_EVENTS_PER_BLOCK]{};
 };
 
 struct CTextPacket

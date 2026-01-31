@@ -146,12 +146,12 @@ namespace TeensyMonitor.Plotter.Helpers
                     minY = (float)Shared_MinY;
                     maxY = (float)Shared_MaxY;
                 }
-                else
-                lock (_lock)
-                {
-                    minY = (float)_ra.Min;
-                    maxY = (float)_ra.Max;
-                }
+                else  // AutoScaling
+                    lock (_lock)
+                    {
+                        minY = (float)_ra!.Min;
+                        maxY = (float)_ra!.Max;
+                    }
 
                 // Guard bad values / zero range
                 SetScaling(minY, maxY);

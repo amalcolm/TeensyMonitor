@@ -34,7 +34,7 @@ namespace PsycSerial
 
         virtual void Raise() {
             if (m_target->m_disposed) return;
-
+            
             try { m_target->RaiseDataReceivedEvent(m_packet); }
             catch (Exception^ ex) 
             {

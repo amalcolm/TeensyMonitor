@@ -1,4 +1,5 @@
 #include "Packets.h"
+#include "../_Config.h"
 
 namespace PsycSerial
 {
@@ -69,9 +70,40 @@ namespace PsycSerial
 
 
 
+    EventPacket::EventPacket()
+    {
+        Reset();
+    }
+
+    EventPacket^ EventPacket::Rent()
+    {
+        EventPacket^ p; if (s_pool->TryDequeue(p)) return p;
+        return gcnew EventPacket();
+    }
+
+    void EventPacket::Cleanup()
+    {
+        Reset();
+        s_pool->Enqueue(this);
+	}
+
+	EventPacket::~EventPacket() { Cleanup(); GC::SuppressFinalize(this); }
+	EventPacket::!EventPacket() {}
+
+    void EventPacket::Reset()
+    {
+        Kind = EventKind::NONE;
+        StateTime = 0.0;
+    }
+
+
+
+
     BlockPacket::BlockPacket()
     {
-        BlockData = gcnew array<DataPacket^>(320);
+        BlockData = gcnew array<DataPacket ^>( Config::MAX_BLOCKSIZE        );
+		EventData = gcnew array<EventPacket^>( Config::MAX_EVENTS_PER_BLOCK );
+
         Reset();
 	}
     
@@ -94,6 +126,7 @@ namespace PsycSerial
         State = HeadState::None;
         TimeStamp = 0.0;
         Count = 0;
+		NumEvents = 0;
         // BlockData array is reused, no need to clean it.
 	}
 

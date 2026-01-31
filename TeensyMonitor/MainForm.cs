@@ -76,9 +76,9 @@ namespace TeensyMonitor
         {
             if (IsHandleCreated == false) return;
 
-            if (packet is BlockPacket blockPacket) AddBlockPacket(blockPacket);
-            if (packet is TextPacket textPacket) AddTextPacket(textPacket);
-            if (packet is TelemetryPacket telePacket) AddTelePacket(telePacket);
+            if (packet is     BlockPacket blockPacket) AddBlockPacket(blockPacket);
+            if (packet is      TextPacket textPacket ) AddTextPacket( textPacket);
+            if (packet is TelemetryPacket telePacket ) AddTelePacket( telePacket);
 
             packet.Cleanup();
         }

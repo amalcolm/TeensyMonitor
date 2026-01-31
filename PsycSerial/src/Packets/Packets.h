@@ -104,6 +104,40 @@ namespace PsycSerial
         static ConcurrentQueue<DataPacket^>^ s_pool = gcnew ConcurrentQueue<DataPacket^>();
     };
 
+
+    public enum class EventKind : System::UInt32
+    {
+        NONE = 0,
+        A2D_DATA_READY = 1,
+
+        HW_UPDATE_START = 2,
+        HW_UPDATE_COMPLETE = 3,
+
+        SPI_DMA_START = 4,
+        SPI_DMA_COMPLETE = 5,
+
+        RESERVED = 255
+    };
+
+    public ref class EventPacket : IDisposable
+    {
+    public:
+        static EventPacket^ Rent();
+		virtual void Cleanup();
+
+        ~EventPacket();
+        !EventPacket();
+
+        void Reset();
+        property EventKind Kind;
+        property double    StateTime;
+
+    protected:
+        EventPacket();
+
+        static ConcurrentQueue<EventPacket^>^ s_pool = gcnew ConcurrentQueue<EventPacket^>();
+    };
+
 	public ref class BlockPacket : IPacket, IDisposable
     {
     public:
@@ -115,11 +149,13 @@ namespace PsycSerial
 
 		void Reset();
 
-        virtual property HeadState State;
-        virtual property double    TimeStamp;
+        virtual property HeadState    State;
+        virtual property double       TimeStamp;
 
-        property int                 Count;
-        property array<DataPacket^>^ BlockData;
+        property int                  Count;
+		property int				  NumEvents;
+        property array<DataPacket^>^  BlockData;
+		property array<EventPacket^>^ EventData;
 
 	protected:
 		BlockPacket();

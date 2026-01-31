@@ -33,6 +33,7 @@ namespace PsycSerial
 				blockPkt->State     = static_cast<HeadState>(nativePacket.block.state);
 
 				blockPkt->Count		= nativePacket.block.count;
+				blockPkt->NumEvents = nativePacket.block.numEvents;
 
 				for (size_t i = 0; i < nativePacket.block.count; ++i)
 				{
@@ -52,7 +53,21 @@ namespace PsycSerial
 					{
 						dataPkt->Channel[ch] = nativePacket.block.blockData[i].channel[ch];
 					}
+
 					blockPkt->BlockData[i] = dataPkt;
+				}
+
+				for (size_t i = 0; i < nativePacket.block.numEvents; ++i)
+				{
+					EventPacket^ eventPkt = blockPkt->EventData[i];
+					if (eventPkt == nullptr)
+						eventPkt = blockPkt->EventData[i] = EventPacket::Rent();
+					else
+						eventPkt->Reset();
+
+					eventPkt->Kind         = static_cast<EventKind>(nativePacket.block.eventData[i].eventKind);
+					eventPkt->StateTime    = nativePacket.block.eventData[i].stateTime;
+					blockPkt->EventData[i] = eventPkt;
 				}
 
 				return blockPkt;
