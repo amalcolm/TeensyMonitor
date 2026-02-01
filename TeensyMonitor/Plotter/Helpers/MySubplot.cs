@@ -8,6 +8,7 @@ namespace TeensyMonitor.Plotter.Helpers
     {
         private readonly MyGLVertexBuffer _waveBuffer_C0 = new(1024);
         private readonly MyGLVertexBuffer _waveBuffer_PG = new(1024);
+        private readonly MyGLVertexBuffer _waveBuffer_EV = new(1024);
 
         private readonly double _C0_Scale = Config.C0to1024;
         private readonly double _PG_Scale = 1.0;
@@ -35,6 +36,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
             _waveBuffer_C0.Init();
             _waveBuffer_PG.Init();
+            _waveBuffer_EV.Init();
             _gridBuffer.Init();
         }
 
@@ -44,6 +46,7 @@ namespace TeensyMonitor.Plotter.Helpers
             _gridBuffer.Dispose();
             _waveBuffer_C0.Dispose();
             _waveBuffer_PG.Dispose();
+            _waveBuffer_EV.Dispose();
         }
 
         /// <summary>
@@ -68,6 +71,7 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             _waveBuffer_C0.SetBlock(block, FieldEnum.C0            , _C0_Scale);
             _waveBuffer_PG.SetBlock(block, FieldEnum.postGainSensor, _PG_Scale);
+            _waveBuffer_EV.SetBlock(block, FieldEnum.Events        , 1.0);
         }
 
         public void Render()
@@ -114,24 +118,24 @@ namespace TeensyMonitor.Plotter.Helpers
             int verticalPairs = GridDivisions + 1;
             int vertexCount = verticalPairs * 2 + 4;  // verticals + top/bottom horiz
 
-            float[] grid = new float[vertexCount * 3];
+            Vertex[] grid = new Vertex[vertexCount];
             int idx = 0;
 
             // Vertical lines (evenly spaced across current X range)
             for (int i = 0; i <= GridDivisions; i++)
             {
                 float x = xMin + i * xStep;
-                grid[idx++] = x; grid[idx++] = yMin; grid[idx++] = 0f;
-                grid[idx++] = x; grid[idx++] = yMax; grid[idx++] = 0f;
+                grid[idx++] = new Vertex(x, yMin, 0f);
+                grid[idx++] = new Vertex(x, yMax, 0f);
             }
 
             // Top horizontal
-            grid[idx++] = xMin; grid[idx++] = yMax; grid[idx++] = 0f;
-            grid[idx++] = xMax; grid[idx++] = yMax; grid[idx++] = 0f;
+            grid[idx++] = new Vertex(xMin, yMax, 0f);
+            grid[idx++] = new Vertex(xMax, yMax, 0f);
 
             // Bottom horizontal
-            grid[idx++] = xMin; grid[idx++] = yMin; grid[idx++] = 0f;
-            grid[idx++] = xMax; grid[idx++] = yMin; grid[idx++] = 0f;
+            grid[idx++] = new Vertex(xMin, yMin, 0f);
+            grid[idx++] = new Vertex(xMax, yMin, 0f);
 
             _gridBuffer.Set(ref grid, vertexCount);
 
@@ -146,41 +150,40 @@ namespace TeensyMonitor.Plotter.Helpers
             float yMin = data.Bottom;
             float yMax = data.Top;
 
-            GridDivisions = waveBuffer.LatestXCount + 1;
-            var spanX = waveBuffer.LatestX;
-            var numX = waveBuffer.LatestXCount;
+            waveBuffer.getLatestX(out var spanX, out var numX);
+
+            GridDivisions = numX + 1;
 
             // how many verticals we *want* (same as before), but never more than we have samples
             int verticalLines = GridDivisions + 1;
             if (verticalLines <= 0) return;
 
             int vertexCount = verticalLines * 2 + 4;   // verticals + top/bottom horiz
-            float[] grid = new float[vertexCount * 3];
+            Vertex[] grid = new Vertex[vertexCount * 3];
             int idx = 0;
 
             // Left vertical
-            grid[idx++] = xMin; grid[idx++] = yMin; grid[idx++] = 0f;
-            grid[idx++] = xMin; grid[idx++] = yMax; grid[idx++] = 0f;
+            grid[idx++] = new Vertex(xMin, yMin, 0f);
+            grid[idx++] = new Vertex(xMin, yMax, 0f);
 
             for (int i = 0; i < numX; i++)
             {
                 float x = spanX[i];
 
-                grid[idx++] = x; grid[idx++] = yMin; grid[idx++] = 0f;
-                grid[idx++] = x; grid[idx++] = yMax; grid[idx++] = 0f;
+                grid[idx++] = new Vertex(x, yMin, 0f);
+                grid[idx++] = new Vertex(x, yMax, 0f);
             }
 
             // Right vertical
-            grid[idx++] = xMax; grid[idx++] = yMin; grid[idx++] = 0f;
-            grid[idx++] = xMax; grid[idx++] = yMax; grid[idx++] = 0f;
+            grid[idx++] = new Vertex(xMax, yMin, 0f);
+            grid[idx++] = new Vertex(xMax, yMax, 0f);
 
             // Top horizontal
-            grid[idx++] = xMin; grid[idx++] = yMax; grid[idx++] = 0f;
-            grid[idx++] = xMax; grid[idx++] = yMax; grid[idx++] = 0f;
-
+            grid[idx++] = new Vertex(xMin, yMax, 0f);
+            grid[idx++] = new Vertex(xMax, yMax, 0f);
             // Bottom horizontal
-            grid[idx++] = xMin; grid[idx++] = yMin; grid[idx++] = 0f;
-            grid[idx++] = xMax; grid[idx++] = yMin; grid[idx++] = 0f;
+            grid[idx++] = new Vertex(xMin, yMin, 0f);
+            grid[idx++] = new Vertex(xMax, yMin, 0f);
 
             _gridBuffer.Set(ref grid, vertexCount);
 

@@ -3,8 +3,7 @@ using Timer = System.Windows.Forms.Timer;
 namespace TeensyMonitor
 {
     using PsycSerial;
-    using System.Diagnostics;
-    using System.Net.Sockets;
+    using System.Diagnostics;\
     using TeensyMonitor.Plotter.Helpers;
     using TeensyMonitor.Plotter.UserControls;
 

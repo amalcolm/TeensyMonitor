@@ -1,25 +1,62 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 using PsycSerial;
+using System.Runtime.InteropServices;
+using OpenTK.Mathematics;
 
 namespace TeensyMonitor.Plotter.Helpers
 {
     /// <summary>
     /// Represents a single vertex in 3D space.
     /// </summary>
-    public struct Vertex(float x, float y, float z) { public float X = x, Y = y, Z = z; }
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public record struct Vertex
+    {
+        public Vector4 Position; // location 0
+        public Vector4 Normal;   // location 1
+        public Vector4 Colour;   // location 2
+        public Vector2 uv0;      // location 3
+        public Vector2 uv1;      // location 4
 
+        public Vertex(Vector4 position)
+        {
+            Position = position;
+            Normal   = Vector4.UnitZ;
+            Colour   = Vector4.One;
+            uv0      = Vector2.Zero;
+            uv1      = Vector2.Zero;
+        }
+    
+        public Vertex(float x, float y, float z)
+        {
+            Position = new Vector4(x, y, z, 1.0f);
+            Normal   = Vector4.UnitZ;
+            Colour   = Vector4.One;
+            uv0      = Vector2.Zero;
+            uv1      = Vector2.Zero;
+        }
+
+        public Vertex(float x, float y, float z, float r, Color colour)
+        {
+            Position = new Vector4(x, y, z, 1.0f);
+            Normal   = Vector4.UnitZ;
+            Colour   = new Vector4(colour.R / 255.0f, colour.G / 255.0f, colour.B / 255.0f, 1.0f);
+            uv0      = Vector2.Zero;
+            uv1      = Vector2.Zero;
+        }
+
+        public static readonly int Size = Marshal.SizeOf<Vertex>();
+    }
 
     /// <summary>
     /// Creates a fixed-size vertex buffer for a given number of vertices.
     /// </summary>
     /// <param name="vertexCapacity">Maximum vertex count to allocate space for.</param>
     /// <param name="stride">Number of floats per vertex (e.g. 3 for XYZ).</param>
-    public class MyGLVertexBuffer(int vertexCapacity, int stride = 3) : IDisposable
+    public class MyGLVertexBuffer(int vertexCapacity) : IDisposable
     {
         public int VertexCount { get => _vertexCount; }
-
-
-        private float[] _vertexData = new float[vertexCapacity * stride];
+  
+        private Vertex[] _vertexData = new Vertex[vertexCapacity];
         private int _vao;
         private int _vbo;
         private bool _disposed;
@@ -38,22 +75,20 @@ namespace TeensyMonitor.Plotter.Helpers
             GL.BindVertexArray(_vao);
             GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
 
-            // Allocate GPU memory
+
+            
+            // Allocate GPU memory (bytes)
             GL.BufferData(BufferTarget.ArrayBuffer,
-                vertexCapacity * stride * sizeof(float),
+                vertexCapacity * Vertex.Size,
                 IntPtr.Zero,
                 BufferUsageHint.DynamicDraw);
 
-            // Default vertex attribute layout (location 0 = vec3 position)
-            GL.EnableVertexAttribArray(0);
-            GL.VertexAttribPointer(
-                index: 0,
-                size: stride,
-                type: VertexAttribPointerType.Float,
-                normalized: false,
-                stride: stride * sizeof(float),
-                offset: 0);
-
+            /* Attribute 0: vec4 position */  GL.EnableVertexAttribArray(0); GL.VertexAttribPointer( index: 0, size: 4, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, (IntPtr)Marshal.OffsetOf<Vertex>(nameof(Vertex.Position)));
+            /* Attribute 1: vec4 normal   */  GL.EnableVertexAttribArray(1); GL.VertexAttribPointer( index: 1, size: 4, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, (IntPtr)Marshal.OffsetOf<Vertex>(nameof(Vertex.Normal  )));
+            /* Attribute 2: vec4 colour   */  GL.EnableVertexAttribArray(2); GL.VertexAttribPointer( index: 2, size: 4, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, (IntPtr)Marshal.OffsetOf<Vertex>(nameof(Vertex.Colour  )));
+            /* Attribute 3: vec2 uv0      */  GL.EnableVertexAttribArray(3); GL.VertexAttribPointer( index: 3, size: 2, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, (IntPtr)Marshal.OffsetOf<Vertex>(nameof(Vertex.uv0     )));
+            /* Attribute 4: vec2 uv1      */  GL.EnableVertexAttribArray(4); GL.VertexAttribPointer( index: 4, size: 2, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, (IntPtr)Marshal.OffsetOf<Vertex>(nameof(Vertex.uv1     )));
+            
             GL.BindVertexArray(0);
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
         }
@@ -67,11 +102,8 @@ namespace TeensyMonitor.Plotter.Helpers
         }
 
         private void AddUnderLock(float x, float y, float z)
-        {
-            int baseIndex = _vertexCount * stride;
-            _vertexData[baseIndex    ] = x;
-            _vertexData[baseIndex + 1] = y;
-            _vertexData[baseIndex + 2] = z;
+        {;
+            _vertexData[_vertexCount] = new Vertex { Position = new Vector4(x, y, z, 1.0f) };
             _vertexCount++;
         }
 
@@ -111,38 +143,67 @@ namespace TeensyMonitor.Plotter.Helpers
         public int LatestXCount => _latestXCount;
         public ReadOnlySpan<float> LatestX => _latestX.AsSpan(0, _latestXCount);
 
+        public void getLatestX(out Span<float> dest, out int count)
+        {
+            dest = _latestX.AsSpan(0, _latestXCount);
+            count = _latestXCount;
+        }
+
         public int Count => _vertexCount;
 
 
         void CheckSize()
         {
-            if (_vertexCount < vertexCapacity) return;
+            if (_vertexCount < vertexCapacity || WindowSize < 0) return;
             int windowMax = WindowSize - 1;
 
             // Shift data left to make room for new vertex
-            Array.Copy(_vertexData, (vertexCapacity - windowMax) * stride, _vertexData, 0, windowMax * stride);
+            Array.Copy(_vertexData, (vertexCapacity - windowMax), _vertexData, 0, windowMax);
             _vertexCount = windowMax;
         }
 
-        float[] subPlotData = new float[1024 * 3];
+        Vertex[] subPlotData = new Vertex[1024];
         public void SetBlock(BlockPacket block, FieldEnum field, double scale)
         {
-            if (subPlotData.Length < block.Count * 3)
-                subPlotData = new float[block.Count * 3 * 2];
+            if (subPlotData.Length < block.Count)
+                subPlotData = new Vertex[block.Count * 2];
+
+            if (field == FieldEnum.Events)
+            {
+                SetEvents(block, scale);
+                return;
+            }
 
             for (int i = 0; i < block.Count; i++)
             {
-                int baseIndex = i * 3;
-
                 double value = block.BlockData[i].get(field) * scale;
 
-                subPlotData[baseIndex] = (float)block.BlockData[i].StateTime * 1000.0f;  // milliseconds for subplot visibility
-                subPlotData[baseIndex + 1] = (float)value;
-                subPlotData[baseIndex + 2] = 0.0f;
+                float x = (float)block.BlockData[i].StateTime * 1000.0f;  // milliseconds for subplot visibility
+                float y = (float)value;
+                float z = 0.0f;
+                subPlotData[i] = new Vertex(x, y, z);
             }
 
             Set(ref subPlotData, block.Count);
 
+        }
+
+        private void SetEvents(BlockPacket block, double scale)
+        {
+            Clear();
+            for (int i = 0; i < block.NumEvents; i++)
+            {
+                var ev = block.EventData[i];
+                if (ev.Kind == EventKind.NONE) continue;
+
+                ref Vertex v = ref _vertexData[_vertexCount];
+
+                double value = 1024.0 * scale;
+                v.Position.X = (float)ev.StateTime * 1000.0f;  // milliseconds for subplot visibility
+                v.Position.Y = (float)ev.Kind;
+                _vertexCount++;
+                CheckSize();
+            }
         }
 
         /// <summary>
@@ -150,22 +211,21 @@ namespace TeensyMonitor.Plotter.Helpers
         /// </summary>
         /// <param name="data">Flat array of floats (must be multiple of stride)</param>
         /// <param name="vertexCount">Number of vertices (not floats!)</param>
-        public void Set(ref float[] data, int vertexCount)
+        public void Set(ref Vertex[] data, int vertexCount)
         {
             if (vertexCount > vertexCapacity)       throw new ArgumentOutOfRangeException(nameof(vertexCount));
-
-            if (data.Length < vertexCount * stride) throw new ArgumentException("Data array too small for vertex count");
+            if (data.Length < vertexCount) throw new ArgumentException("Data array too small for vertex count");
 
             _vertexCount = vertexCount;
             // Copy only the used portion
-            Array.Copy(data, _vertexData, vertexCount * stride);
+            Array.Copy(data, _vertexData, vertexCount);
 
             _latestXCount = vertexCount;
             if (_latestX.Length < _latestXCount)
                 _latestX = new float[_latestXCount * 2];
 
             for (int i = 0; i < _latestXCount; i++)
-                _latestX[i] = _vertexData[i * stride];
+                _latestX[i] = _vertexData[i].Position.X;
         }
 
         /// <summary>
@@ -177,7 +237,7 @@ namespace TeensyMonitor.Plotter.Helpers
             if (_vertexCount < 2) return;
 
             GL.BindBuffer   (BufferTarget.ArrayBuffer, _vbo);
-            GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, _vertexCount * stride * sizeof(float), _vertexData);
+            GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, _vertexCount * Vertex.Size, _vertexData);
             GL.BindBuffer   (BufferTarget.ArrayBuffer, 0);
         }
 

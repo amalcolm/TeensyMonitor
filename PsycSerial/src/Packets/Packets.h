@@ -51,6 +51,7 @@ namespace PsycSerial
     {
         Timestamp,
         C0,
+        Events,
         Offset1,
         Offset2,
         Gain,
@@ -108,14 +109,15 @@ namespace PsycSerial
     public enum class EventKind : System::UInt32
     {
         NONE = 0,
-        A2D_DATA_READY = 1,
 
-        HW_UPDATE_START = 2,
-        HW_UPDATE_COMPLETE = 3,
-
-        SPI_DMA_START = 4,
-        SPI_DMA_COMPLETE = 5,
-
+        A2D_DATA_READY     = 0x11,
+   
+        HW_UPDATE_START    = 0x21,
+        HW_UPDATE_COMPLETE = 0x22,
+   
+        SPI_DMA_START      = 0x31,
+        SPI_DMA_COMPLETE   = 0x32,
+    
         RESERVED = 255
     };
 
