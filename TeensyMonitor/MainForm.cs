@@ -96,7 +96,6 @@ namespace TeensyMonitor
             }
             else
             {
-                MyColours.Reset();
                 MyChart newChart = new()
                 {
                     BackColor = chart0.BackColor,
@@ -107,10 +106,22 @@ namespace TeensyMonitor
                 Charts[blockPacket.State] = newChart;
                 newChart.SP_DataReceived(blockPacket);
 
-                AddNewChart(newChart);
-            }
+                this.Invoker(() =>
+                {
+                    SuspendLayout();
 
+                    tlpCharts.RowCount += 1;
+                    tlpCharts.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                    tlpCharts.Controls.Add(newChart, 0, tlpCharts.RowCount - 1);
+
+                    ResumeLayout(true);
+
+                    this.Focus();
+                });
+            }
         }
+
+
 
         private void AddTextPacket(TextPacket textPacket)
         {
@@ -253,9 +264,9 @@ namespace TeensyMonitor
             }
         }
 
+        private void Form1_Shown(object sender, EventArgs e) => this.Focus();
 
-        private void Form1_Shown(object sender, EventArgs e)
-            => this.Focus();
+
 
         int index = -1;
         private void butDBG_Click(object sender, EventArgs e)
@@ -359,8 +370,6 @@ namespace TeensyMonitor
 
             foreach (var state in states)
             {
-                MyColours.Reset();
-
                 MyChart newChart;
                 if (_tlpColumn == 0 && _tlpRow == 0)
                     newChart = chart0;

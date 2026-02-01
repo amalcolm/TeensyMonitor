@@ -1,11 +1,24 @@
 ﻿using OpenTK.Mathematics;
+using PsycSerial;
 
 namespace TeensyMonitor.Plotter.Helpers
 {
-    internal class MyColours
-    {
 
-        public static List<Color> BaseColours = [
+    public struct MyColour(float R, float G, float B, float A)
+    {
+        public static readonly MyColour Unset = Color.Magenta;
+
+        public float r = R, g = G, b = B, a = A;
+
+
+
+        public MyColour(Color c) : this(c.R / 255f, c.G / 255f, c.B / 255f, c.A / 255f) { }
+
+
+        public static implicit operator MyColour(Color c) => new(c.R / 255f, c.G / 255f, c.B / 255f, c.A / 255f);
+
+
+        public static List<MyColour> BaseColours = [
             Color.FromArgb(0x4E, 0x79, 0xA7), // Muted Blue
             Color.FromArgb(0xF2, 0x8E, 0x2B), // Orange
             Color.FromArgb(0xE1, 0x57, 0x59), // Red
@@ -28,11 +41,25 @@ namespace TeensyMonitor.Plotter.Helpers
             Color.FromArgb(0x17, 0xBE, 0xCF)  // Cyan
         ];
 
-        public static List<Vector4> ShaderColours = [.. BaseColours.Select(c => new Vector4(c.R / 255f, c.G / 255f, c.B / 255f, c.A / 255f)) ];
+        public static MyColour GetFieldColour(FieldEnum field)
+        {
+            return field switch
+            {
+                FieldEnum.C0             => BaseColours[0],
+                FieldEnum.Gain           => BaseColours[1],
+                FieldEnum.Offset1        => BaseColours[2],
+                FieldEnum.Offset2        => BaseColours[3],
+                FieldEnum.postGainSensor => BaseColours[4],
+                FieldEnum.preGainSensor  => BaseColours[5],
+                FieldEnum.Timestamp      => BaseColours[6],
+
+                _                        => Color.Magenta
+            };
+        }
 
         private static int _colourIndex = 0;
 
-        public static Color GetNextColour()
+        public static MyColour GetNextColour()
         {
             _colourIndex %= BaseColours.Count;
             return BaseColours[_colourIndex++];

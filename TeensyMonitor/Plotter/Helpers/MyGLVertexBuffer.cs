@@ -9,19 +9,19 @@ namespace TeensyMonitor.Plotter.Helpers
     /// Represents a single vertex in 3D space.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public record struct Vertex
+    public struct Vertex
     {
-        public Vector4 Position; // location 0
-        public Vector4 Normal;   // location 1
-        public Vector4 Colour;   // location 2
-        public Vector2 uv0;      // location 3
-        public Vector2 uv1;      // location 4
+        public Vector4  Position; // location 0
+        public Vector4  Normal;   // location 1
+        public MyColour Colour;   // location 2
+        public Vector2  uv0;      // location 3
+        public Vector2  uv1;      // location 4
 
         public Vertex(Vector4 position)
         {
             Position = position;
             Normal   = Vector4.UnitZ;
-            Colour   = Vector4.One;
+            Colour   = MyColour.Unset;
             uv0      = Vector2.Zero;
             uv1      = Vector2.Zero;
         }
@@ -30,16 +30,16 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             Position = new Vector4(x, y, z, 1.0f);
             Normal   = Vector4.UnitZ;
-            Colour   = Vector4.One;
+            Colour   = MyColour.Unset;
             uv0      = Vector2.Zero;
             uv1      = Vector2.Zero;
         }
 
-        public Vertex(float x, float y, float z, float r, Color colour)
+        public Vertex(float x, float y, float z, MyColour colour)
         {
             Position = new Vector4(x, y, z, 1.0f);
             Normal   = Vector4.UnitZ;
-            Colour   = new Vector4(colour.R / 255.0f, colour.G / 255.0f, colour.B / 255.0f, 1.0f);
+            Colour   = colour;
             uv0      = Vector2.Zero;
             uv1      = Vector2.Zero;
         }
@@ -101,9 +101,9 @@ namespace TeensyMonitor.Plotter.Helpers
             }
         }
 
-        private void AddUnderLock(float x, float y, float z)
-        {;
-            _vertexData[_vertexCount] = new Vertex { Position = new Vector4(x, y, z, 1.0f) };
+        private void AddUnderLock(float x, float y, float z, MyColour colour)
+        {
+            _vertexData[_vertexCount] = new Vertex(x,y,z, colour);
             _vertexCount++;
         }
 
@@ -113,12 +113,25 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 CheckSize();
 
-                AddUnderLock(x, y, z);
+                AddUnderLock(x, y, z, Color.Magenta);
             }
         }
 
+        public void AddVertex(float x, float y, float z, MyColour colour)
+        {
+            lock (_lock)
+            {
+                CheckSize();
+         
+                AddUnderLock(x, y, z, colour);
+            }
+        }
+
+        
         public void AddBlock(ref BlockPacket packet, FieldEnum? selector, bool onlyLast)
         {
+            MyColour color = MyColour.GetFieldColour(selector ?? FieldEnum.C0);
+
             lock (_lock)
             {
                 int start = onlyLast ? packet.Count - 1 : 0;
@@ -130,10 +143,8 @@ namespace TeensyMonitor.Plotter.Helpers
                     float y = (selector == null) ? (float)(packet.BlockData[i].Channel[0] * Config.C0to1024) 
                                                  : (float)(packet.BlockData[i].get(selector.Value)         );
 
-                    AddUnderLock(x, y, 0.0f);
-                
+                    AddUnderLock(x, y, 0.0f, color);
                 }
-
             }
         }
 
@@ -174,6 +185,8 @@ namespace TeensyMonitor.Plotter.Helpers
                 return;
             }
 
+            MyColour colour = MyColour.GetFieldColour(field);
+
             for (int i = 0; i < block.Count; i++)
             {
                 double value = block.BlockData[i].get(field) * scale;
@@ -181,7 +194,7 @@ namespace TeensyMonitor.Plotter.Helpers
                 float x = (float)block.BlockData[i].StateTime * 1000.0f;  // milliseconds for subplot visibility
                 float y = (float)value;
                 float z = 0.0f;
-                subPlotData[i] = new Vertex(x, y, z);
+                subPlotData[i] = new Vertex(x, y, z, colour);
             }
 
             Set(ref subPlotData, block.Count);

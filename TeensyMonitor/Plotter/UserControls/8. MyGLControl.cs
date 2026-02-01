@@ -121,6 +121,7 @@ namespace TeensyMonitor.Plotter.UserControls
             GL.ClearColor(BackColor);
 
             GL.Enable(EnableCap.Blend);
+            GL.BlendEquation(BlendEquationMode.FuncAdd);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
             GL.Disable(EnableCap.DepthTest);

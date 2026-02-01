@@ -139,7 +139,7 @@ namespace TeensyMonitor.Plotter.UserControls
                                 AddPlot(state | info.AdditionalMask, new MyPlot(WindowSize, this)
                                 {
                                     Yscale = 1.0,
-                                    Colour = MyColours.GetNextColour(),
+                                    Colour = MyColour.GetNextColour(),
                                     Selector = info.Selector
                                 });
                         }
@@ -426,7 +426,7 @@ namespace TeensyMonitor.Plotter.UserControls
                     _latestValues.Clear();
                     _pendingStates.Clear();
                     _numLabels = 0;
-                    MyColours.Reset();
+                    MyColour.Reset();
                 }
         }
 

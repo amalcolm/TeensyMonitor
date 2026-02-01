@@ -16,8 +16,7 @@ namespace TeensyMonitor.Plotter.Helpers
         private readonly MyGLVertexBuffer _gridBuffer = new(4096);
         private bool _gridDirty = true;
         
-        private int _colorLoc = -1;
-
+        
         public int GridDivisions { get; set; } = (int)Math.Round(Config.STATE_DURATION_uS/1000.0f);
         public bool UniformGrid { get; set; } = false;
 
@@ -31,8 +30,6 @@ namespace TeensyMonitor.Plotter.Helpers
         public override void Init()
         {
             base.Init();
-
-            _colorLoc = GL.GetUniformLocation(_myPlotter.GetPlotShader(), "uColor");
 
             _waveBuffer_C0.Init();
             _waveBuffer_PG.Init();
@@ -86,17 +83,11 @@ namespace TeensyMonitor.Plotter.Helpers
                 else
                     BuildGrid(_waveBuffer_C0);
             
-            // Dim grey grid
-            GL.Uniform4(_colorLoc, 0.35f, 0.35f, 0.35f, 0.28f);
             _gridBuffer.DrawLines();
 
-            // Teal/cyan waveform
-            GL.Uniform4(_colorLoc, 0.0f, 0.3f, 0.3f, 1.0f);
             _waveBuffer_C0.DrawLineStrip();
-
-            GL.Uniform4(_colorLoc, 1.0f, 0.0f, 0.0f, 1.0f);
             _waveBuffer_PG.DrawLineStrip();
-
+            _waveBuffer_EV.DrawLines();
             ResetViewport(_myPlotter.getPlotTransform());  // clean restore to parent viewport
         }
 
@@ -105,88 +96,57 @@ namespace TeensyMonitor.Plotter.Helpers
 
 
         #region Build Grid Methods
-        private void BuildGrid()
+        Color _gridColor = Color.FromArgb(50, 64, 64, 64);
+
+        private void BuildGrid(MyGLVertexBuffer? waveBuffer = null)
         {
-            var data = OutRect;
-            float xMin = data.Left;
-            float xMax = data.Right;
-            float yMin = data.Bottom;
-            float yMax = data.Top;
+            var r = OutRect;
+            float xMin = r.Left, xMax = r.Right, yMin = r.Bottom, yMax = r.Top;
 
-            float xStep = (xMax - xMin) / GridDivisions;
+            // 1) Get the X positions for vertical lines
+            float[] xs;
 
-            int verticalPairs = GridDivisions + 1;
-            int vertexCount = verticalPairs * 2 + 4;  // verticals + top/bottom horiz
+            if (waveBuffer is null)
+            {
+                int div = Math.Max(1, GridDivisions);
+                xs = new float[div + 1];
 
+                float step = (xMax - xMin) / div;
+                for (int i = 0; i <= div; i++)
+                    xs[i] = xMin + i * step;
+            }
+            else
+            {
+                waveBuffer.getLatestX(out var spanX, out var numX);
+                xs = new float[numX + 2];
+
+                xs[0] = xMin;
+                for (int i = 0; i < numX; i++)
+                    xs[i + 1] = spanX[i];
+                xs[^1] = xMax;
+
+                GridDivisions = xs.Length - 1;
+            }
+
+            // 2) Allocate and emit geometry once
+            int vertexCount = xs.Length * 2 + 4; // verticals + top/bottom
             Vertex[] grid = new Vertex[vertexCount];
             int idx = 0;
 
-            // Vertical lines (evenly spaced across current X range)
-            for (int i = 0; i <= GridDivisions; i++)
+            foreach (float x in xs)
             {
-                float x = xMin + i * xStep;
-                grid[idx++] = new Vertex(x, yMin, 0f);
-                grid[idx++] = new Vertex(x, yMax, 0f);
+                grid[idx++] = new Vertex(x, yMin, 0f, _gridColor);
+                grid[idx++] = new Vertex(x, yMax, 0f, _gridColor);
             }
 
-            // Top horizontal
-            grid[idx++] = new Vertex(xMin, yMax, 0f);
-            grid[idx++] = new Vertex(xMax, yMax, 0f);
+            // top
+            grid[idx++] = new Vertex(xMin, yMax, 0f, _gridColor);
+            grid[idx++] = new Vertex(xMax, yMax, 0f, _gridColor);
+            // bottom
+            grid[idx++] = new Vertex(xMin, yMin, 0f, _gridColor);
+            grid[idx++] = new Vertex(xMax, yMin, 0f, _gridColor);
 
-            // Bottom horizontal
-            grid[idx++] = new Vertex(xMin, yMin, 0f);
-            grid[idx++] = new Vertex(xMax, yMin, 0f);
-
-            _gridBuffer.Set(ref grid, vertexCount);
-
-            _gridDirty = false;
-        }
-
-        private void BuildGrid(MyGLVertexBuffer waveBuffer)
-        {
-            var data = OutRect;
-            float xMin = data.Left;
-            float xMax = data.Right;
-            float yMin = data.Bottom;
-            float yMax = data.Top;
-
-            waveBuffer.getLatestX(out var spanX, out var numX);
-
-            GridDivisions = numX + 1;
-
-            // how many verticals we *want* (same as before), but never more than we have samples
-            int verticalLines = GridDivisions + 1;
-            if (verticalLines <= 0) return;
-
-            int vertexCount = verticalLines * 2 + 4;   // verticals + top/bottom horiz
-            Vertex[] grid = new Vertex[vertexCount * 3];
-            int idx = 0;
-
-            // Left vertical
-            grid[idx++] = new Vertex(xMin, yMin, 0f);
-            grid[idx++] = new Vertex(xMin, yMax, 0f);
-
-            for (int i = 0; i < numX; i++)
-            {
-                float x = spanX[i];
-
-                grid[idx++] = new Vertex(x, yMin, 0f);
-                grid[idx++] = new Vertex(x, yMax, 0f);
-            }
-
-            // Right vertical
-            grid[idx++] = new Vertex(xMax, yMin, 0f);
-            grid[idx++] = new Vertex(xMax, yMax, 0f);
-
-            // Top horizontal
-            grid[idx++] = new Vertex(xMin, yMax, 0f);
-            grid[idx++] = new Vertex(xMax, yMax, 0f);
-            // Bottom horizontal
-            grid[idx++] = new Vertex(xMin, yMin, 0f);
-            grid[idx++] = new Vertex(xMax, yMin, 0f);
-
-            _gridBuffer.Set(ref grid, vertexCount);
-
+            _gridBuffer.Set(ref grid, idx);
             _gridDirty = false;
         }
         #endregion

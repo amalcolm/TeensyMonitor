@@ -106,14 +106,12 @@ namespace TeensyMonitor.Plotter.UserControls
             ViewPort = new RectangleF(viewLeft, -6, Window, 1030);
 
 
-            int colorLocation = GL.GetUniformLocation(_plotShaderProgram, "uColor");
             // 5. Render each plot from the snapshot.
             for (int i = 0; i < plotsSnapshot.Length; i++)
             {
                 var plot = plotsSnapshot[i];
                 if (plot.Yscale == 0.0f) plot.Yscale = Yscale;
 
-                GL.Uniform4(colorLocation, plot.Colour);
                 plot.Render();
             }
         }
