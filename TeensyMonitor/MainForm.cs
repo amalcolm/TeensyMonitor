@@ -3,7 +3,7 @@ using Timer = System.Windows.Forms.Timer;
 namespace TeensyMonitor
 {
     using PsycSerial;
-    using System.Diagnostics;\
+    using System.Diagnostics;
     using TeensyMonitor.Plotter.Helpers;
     using TeensyMonitor.Plotter.UserControls;
 
@@ -96,7 +96,18 @@ namespace TeensyMonitor
             }
             else
             {
-                dbg.Log(AString.FromString($"Chart not found for state {blockPacket.State.Description()}"));
+                MyColours.Reset();
+                MyChart newChart = new()
+                {
+                    BackColor = chart0.BackColor,
+                    Dock = chart0.Dock,
+                    Tag = blockPacket.State.Description(),
+                };
+
+                Charts[blockPacket.State] = newChart;
+                newChart.SP_DataReceived(blockPacket);
+
+                AddNewChart(newChart);
             }
 
         }
