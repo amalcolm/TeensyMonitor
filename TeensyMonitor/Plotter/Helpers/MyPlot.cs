@@ -59,7 +59,7 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 Margin  = 10,
                 InRect  = new RectangleF(0, 0, 0.5f, 0.35f),
-                OutRect = new RectangleF(0, -10f, Config.STATE_DURATION_uS/1000.0f, 1050f)
+                OutRect = new RectangleF(0, -10f, Config.STATE_DURATION_uS/1000000.0f, 1050f)
             };
 
             _plotter.Setup(initAction:Init, shutdownAction:Shutdown);

@@ -19,7 +19,7 @@ namespace PsycSerial
         static UInt32 A2D_READING_SPEED_Hz  =    900;  // A2D reading speed when in triggered mode
 
         static UInt32 MAX_BLOCKSIZE         =    164;  // max number of DataType entries in a BlockType
-		static UInt32 MAX_EVENTS_PER_BLOCK  =    256;  // max number of EventType entries in a BlockType
+		static UInt32 MAX_EVENTS_PER_BLOCK  =    512;  // max number of EventType entries in a BlockType
 
         static String^ ProgramVersion = "v0.2.3";
         static String^ DeviceVersion  = String::Empty;

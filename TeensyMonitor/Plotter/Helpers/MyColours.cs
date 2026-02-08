@@ -41,6 +41,15 @@ namespace TeensyMonitor.Plotter.Helpers
             Color.FromArgb(0x17, 0xBE, 0xCF)  // Cyan
         ];
 
+        public static readonly MyColour White   = Color.White;
+        public static readonly MyColour Red     = Color.Red;
+        public static readonly MyColour Green   = Color.Green;
+        public static readonly MyColour Blue    = Color.Blue;
+        public static readonly MyColour Yellow  = Color.Yellow;
+        public static readonly MyColour Magenta = Color.Magenta;
+        public static readonly MyColour Cyan    = Color.Cyan;
+        public static readonly MyColour Black   = Color.Black;
+
         public static MyColour GetFieldColour(FieldEnum field)
         {
             return field switch
@@ -57,7 +66,49 @@ namespace TeensyMonitor.Plotter.Helpers
             };
         }
 
+        public static MyColour GetEventColour(EventKind kind)
+        {
+            return kind switch
+            {
+                EventKind.NONE               => Black,
+
+                EventKind.A2D_DATA_READY     => Cyan.Darken(1.0),
+                EventKind.A2D_READ_START     => Cyan.Darken(0.8),
+                EventKind.A2D_READ_COMPLETE  => Cyan.Darken(0.6),
+
+                EventKind.HW_UPDATE_START    => Blue.Darken(0.8),
+                EventKind.HW_UPDATE_COMPLETE => Blue.Darken(0.6),
+
+                EventKind.SPI_DMA_START      => Red.Darken(0.8),
+                EventKind.SPI_DMA_COMPLETE   => Red.Darken(0.6),
+
+                _ => Color.Magenta
+            };
+        }
+
         private static int _colourIndex = 0;
+
+        public readonly MyColour Darken(double factor)
+        {
+            float f = (float)factor;
+
+            return new MyColour(
+                MathF.Max(0, r * f),
+                MathF.Max(0, g * f),
+                MathF.Max(0, b * f),
+                a
+            );
+        }
+
+        public readonly Color ToColor()
+        {
+            return Color.FromArgb(
+                (int)(a * 255),
+                (int)(r * 255),
+                (int)(g * 255),
+                (int)(b * 255)
+            );
+        }
 
         public static MyColour GetNextColour()
         {

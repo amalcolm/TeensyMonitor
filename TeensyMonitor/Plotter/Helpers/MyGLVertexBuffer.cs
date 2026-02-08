@@ -101,6 +101,17 @@ namespace TeensyMonitor.Plotter.Helpers
             }
         }
 
+        void CheckSize()
+        {
+            if (_vertexCount < vertexCapacity || WindowSize < 0) return;
+            int windowMax = WindowSize - 1;
+
+            // Shift data left to make room for new vertex
+            Array.Copy(_vertexData, (vertexCapacity - windowMax), _vertexData, 0, windowMax);
+            _vertexCount = windowMax;
+        }
+
+
         private void AddUnderLock(float x, float y, float z, MyColour colour)
         {
             _vertexData[_vertexCount] = new Vertex(x,y,z, colour);
@@ -127,7 +138,8 @@ namespace TeensyMonitor.Plotter.Helpers
             }
         }
 
-        
+
+
         public void AddBlock(ref BlockPacket packet, FieldEnum? selector, bool onlyLast)
         {
             MyColour color = MyColour.GetFieldColour(selector ?? FieldEnum.C0);
@@ -149,29 +161,28 @@ namespace TeensyMonitor.Plotter.Helpers
         }
 
         private float[] _latestX = new float[16];
-        private int _latestXCount = 0;
+        private int _latestXCount;
 
-        public int LatestXCount => _latestXCount;
-        public ReadOnlySpan<float> LatestX => _latestX.AsSpan(0, _latestXCount);
+        private float[] _xSnapshot = new float[16];
 
-        public void getLatestX(out Span<float> dest, out int count)
+        public ReadOnlySpan<float> GetLatestX()
         {
-            dest = _latestX.AsSpan(0, _latestXCount);
-            count = _latestXCount;
+            lock (_lock)
+            {
+                int n = _latestXCount;
+                
+                if (_xSnapshot.Length < n)
+                    _xSnapshot = new float[n * 2];
+
+                Array.Copy(_latestX, 0, _xSnapshot, 0, n);
+                return new ReadOnlySpan<float>(_xSnapshot, 0, n);
+            }
         }
 
         public int Count => _vertexCount;
 
 
-        void CheckSize()
-        {
-            if (_vertexCount < vertexCapacity || WindowSize < 0) return;
-            int windowMax = WindowSize - 1;
 
-            // Shift data left to make room for new vertex
-            Array.Copy(_vertexData, (vertexCapacity - windowMax), _vertexData, 0, windowMax);
-            _vertexCount = windowMax;
-        }
 
         Vertex[] subPlotData = new Vertex[1024];
         public void SetBlock(BlockPacket block, FieldEnum field, double scale)
@@ -191,7 +202,7 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 double value = block.BlockData[i].get(field) * scale;
 
-                float x = (float)block.BlockData[i].StateTime * 1000.0f;  // milliseconds for subplot visibility
+                float x = (float)block.BlockData[i].StateTime;
                 float y = (float)value;
                 float z = 0.0f;
                 subPlotData[i] = new Vertex(x, y, z, colour);
@@ -204,19 +215,52 @@ namespace TeensyMonitor.Plotter.Helpers
         private void SetEvents(BlockPacket block, double scale)
         {
             Clear();
+
+            MyColour colour = MyColour.GetEventColour(EventKind.A2D_DATA_READY);
             for (int i = 0; i < block.NumEvents; i++)
-            {
-                var ev = block.EventData[i];
-                if (ev.Kind == EventKind.NONE) continue;
+            {   if (_vertexCount + 2 > vertexCapacity) return;
+                var ev = block.EventData[i]; if (ev.Kind != EventKind.A2D_DATA_READY) continue;
+            
+                float x = (float)ev.StateTime;
 
-                ref Vertex v = ref _vertexData[_vertexCount];
-
-                double value = 1024.0 * scale;
-                v.Position.X = (float)ev.StateTime * 1000.0f;  // milliseconds for subplot visibility
-                v.Position.Y = (float)ev.Kind;
-                _vertexCount++;
-                CheckSize();
+                _vertexData[_vertexCount++] = new Vertex(x,  0, 0, colour);
+                _vertexData[_vertexCount++] = new Vertex(x, 40, 0, colour);
             }
+
+
+            void DrawEvents(EventKind startEvent, EventKind endEvent, float y)
+            {
+                MyColour colour1 = MyColour.GetEventColour(startEvent);
+                MyColour colour2 = MyColour.GetEventColour(  endEvent);
+                float x1 = 0.0f, x2;
+
+                for (int i = 0; i < block.NumEvents; i++)
+                {
+                    if (_vertexCount + 6 > vertexCapacity) return;
+
+                    var ev = block.EventData[i];
+
+                    if (ev.Kind == startEvent) x1 = (float)ev.StateTime;
+                    if (ev.Kind !=   endEvent) continue;
+                                               x2 = (float)ev.StateTime;
+
+                    float y1 = y - 4.0f, y2 = y + 4.0f;
+                    _vertexData[_vertexCount++] = new Vertex(x1, y1, 0.0f, colour1);
+                    _vertexData[_vertexCount++] = new Vertex(x1, y2, 0.0f, colour1);
+
+                    _vertexData[_vertexCount++] = new Vertex(x1, y , 0.0f, colour2);
+                    _vertexData[_vertexCount++] = new Vertex(x2, y , 0.0f, colour2);
+
+                    _vertexData[_vertexCount++] = new Vertex(x2, y1, 0.0f, colour2);
+                    _vertexData[_vertexCount++] = new Vertex(x2, y2, 0.0f, colour2);
+
+                }
+            }
+
+
+            DrawEvents(EventKind.A2D_READ_START , EventKind.A2D_READ_COMPLETE , 20.0f);
+            DrawEvents(EventKind.SPI_DMA_START  , EventKind.SPI_DMA_COMPLETE  , 30.0f);
+            DrawEvents(EventKind.HW_UPDATE_START, EventKind.HW_UPDATE_COMPLETE, 48.0f);
         }
 
         /// <summary>
@@ -274,7 +318,7 @@ namespace TeensyMonitor.Plotter.Helpers
         /// </summary>
         public void DrawLineStrip()
         {
-            if (_vertexCount < 2) return;
+            if (_vertexCount < 1) return;
 
             Upload();
 

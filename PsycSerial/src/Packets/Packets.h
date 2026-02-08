@@ -111,6 +111,8 @@ namespace PsycSerial
         NONE = 0,
 
         A2D_DATA_READY     = 0x11,
+		A2D_READ_START     = 0x12,
+		A2D_READ_COMPLETE  = 0x13,
    
         HW_UPDATE_START    = 0x21,
         HW_UPDATE_COMPLETE = 0x22,

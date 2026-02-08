@@ -1,5 +1,4 @@
-﻿using OpenTK.Graphics.OpenGL4;
-using PsycSerial;
+﻿using PsycSerial;
 using TeensyMonitor.Plotter.UserControls;
 
 namespace TeensyMonitor.Plotter.Helpers
@@ -17,14 +16,14 @@ namespace TeensyMonitor.Plotter.Helpers
         private bool _gridDirty = true;
         
         
-        public int GridDivisions { get; set; } = (int)Math.Round(Config.STATE_DURATION_uS/1000.0f);
+        public int GridDivisions { get; set; } = (int)Math.Round(Config.STATE_DURATION_uS/1000000.0f);
         public bool UniformGrid { get; set; } = false;
 
         public MySubplot(MyPlotterBase myPlotter) : base(myPlotter)
         {
             base.Margin = 20;
             base.InRect = new RectangleF(0f, 0f, 0.5f, 0.35f);
-            this.OutRect = new RectangleF(0f, -50f, Config.STATE_DURATION_uS/1000.0f, 1050f);
+            this.OutRect = new RectangleF(0f, -10f, Config.STATE_DURATION_uS/1000000.0f, 1050f);
         }
 
         public override void Init()
@@ -97,46 +96,48 @@ namespace TeensyMonitor.Plotter.Helpers
 
         #region Build Grid Methods
         Color _gridColor = Color.FromArgb(50, 64, 64, 64);
-
+        float[] xs = new float[16];
         private void BuildGrid(MyGLVertexBuffer? waveBuffer = null)
         {
             var r = OutRect;
-            float xMin = r.Left, xMax = r.Right, yMin = r.Bottom, yMax = r.Top;
+            float xMin = r.Left, xMax = r.Right, yMin = r.Top, yMax = r.Bottom; // note: Y inverted in GL coords
 
             // 1) Get the X positions for vertical lines
-            float[] xs;
-
             if (waveBuffer is null)
             {
                 int div = Math.Max(1, GridDivisions);
-                xs = new float[div + 1];
+                if (xs.Length < div + 1)
+                    xs = new float[div + 1];
 
                 float step = (xMax - xMin) / div;
                 for (int i = 0; i <= div; i++)
                     xs[i] = xMin + i * step;
+
+                _gridDirty = false;  // only when uniform grid
             }
             else
             {
-                waveBuffer.getLatestX(out var spanX, out var numX);
-                xs = new float[numX + 2];
+                var span = waveBuffer.GetLatestX();
+                if (xs.Length < span.Length + 2)
+                    xs = new float[span.Length + 2];
 
                 xs[0] = xMin;
-                for (int i = 0; i < numX; i++)
-                    xs[i + 1] = spanX[i];
+                for (int i = 0; i < span.Length; i++)
+                    xs[i + 1] = span[i];
                 xs[^1] = xMax;
 
                 GridDivisions = xs.Length - 1;
             }
 
-            // 2) Allocate and emit geometry once
+            // 2) Allocate and emit geometry
             int vertexCount = xs.Length * 2 + 4; // verticals + top/bottom
             Vertex[] grid = new Vertex[vertexCount];
             int idx = 0;
 
             foreach (float x in xs)
             {
-                grid[idx++] = new Vertex(x, yMin, 0f, _gridColor);
-                grid[idx++] = new Vertex(x, yMax, 0f, _gridColor);
+                grid[idx++] = new Vertex(x, yMin + 80.0f, 0f, _gridColor);
+                grid[idx++] = new Vertex(x, yMax        , 0f, _gridColor);
             }
 
             // top
@@ -147,7 +148,6 @@ namespace TeensyMonitor.Plotter.Helpers
             grid[idx++] = new Vertex(xMax, yMin, 0f, _gridColor);
 
             _gridBuffer.Set(ref grid, idx);
-            _gridDirty = false;
         }
         #endregion
     }

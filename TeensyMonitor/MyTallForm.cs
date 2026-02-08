@@ -1,5 +1,6 @@
 ﻿using PsycSerial;
 using TeensyMonitor.DataTools;
+using TeensyMonitor.Plotter.Helpers;
 
 namespace TeensyMonitor.Plotter.UserControls
 {
@@ -11,7 +12,9 @@ namespace TeensyMonitor.Plotter.UserControls
         {
             InitializeComponent();
 
-            chart.BackColor = chart.BackColor.Darken();
+            MyColour colour = chart.BackColor;
+
+            chart.BackColor = colour.Darken(0.4).ToColor();
 
 
             switch (Environment.MachineName)
