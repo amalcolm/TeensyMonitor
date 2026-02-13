@@ -3,8 +3,9 @@
 #include "CQuadRegress.h"
 
 CDiscontinuityFixer::CDiscontinuityFixer() {
-	m_data.reserve(ZFIXER_BUFFER_SIZE);
+	m_data.reserve(ZFIXER_BUFFER_SIZE+ZFIXER_WINDOW_SIZE);
 
+	_lastAnalysis = new CDiscontinuityAnalyzer::Result(std::span<const XY>{});  // dummy initial value
 	
 	if (ENABLE_DEBUG_LOG) {
 		debugFile.open("C:\\Temp\\CDiscontinuityFixer_Debug.csv");
@@ -17,6 +18,7 @@ CDiscontinuityFixer::~CDiscontinuityFixer() {
 		debugFile.flush();
 		debugFile.close();
 	}
+	delete _lastAnalysis;
 }
 
 
@@ -35,9 +37,9 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Fix(double x, double y) noexcep
 
 	size_t outputIndex = m_data.size() - ZFIXER_WINDOW_SIZE + ZFIXER_WINDOW_EDGE;
 
-	_lastAnalysis = analysis;
-	_lastAnalysis.deltaX = m_data[m_data.size() - 1].x() - m_data[outputIndex].x();
-	_lastAnalysis.centreX = m_data[start].x() - workingData[0].x();
+	*_lastAnalysis = analysis;
+	_lastAnalysis->deltaX = m_data[m_data.size() - 1].x() - m_data[outputIndex].x();
+	_lastAnalysis->centreX = m_data[start].x() - workingData[0].x();
 
 	return Process(workingData, analysis);
 }
@@ -53,7 +55,7 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Process(std::span<XY> workingDa
 	result.output = m_data[outputIndex];
 	lastY = result.output.y();
 
-	if (result.changed == false) {
+	if (result.changed == false || true) {
 		if (ENABLE_DEBUG_LOG) result.WriteDebug(debugFile);
 		return result;
 	}
@@ -106,8 +108,8 @@ CDiscontinuityFixer::Result CDiscontinuityFixer::Process(std::span<XY> workingDa
 
 void CDiscontinuityFixer::Predict(double& x, double& y) noexcept
 {
-	if (_lastAnalysis.valid == false) return;
+	if (_lastAnalysis->valid == false) return;
 
-	x -= _lastAnalysis.deltaX;
-	y = _lastAnalysis.left.EvaluateAt(x - _lastAnalysis.centreX);
+	x -= _lastAnalysis->deltaX;
+	y = _lastAnalysis->left.EvaluateAt(x - _lastAnalysis->centreX);
 }

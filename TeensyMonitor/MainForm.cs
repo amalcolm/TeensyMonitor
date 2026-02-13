@@ -29,7 +29,6 @@ namespace TeensyMonitor
                 case "PSYC-ANDREW":
                     this.StartPosition = FormStartPosition.Manual;
                     this.Location = new Point(180, 100);
-                    this.WindowState = FormWindowState.Maximized;
                     break;
             }
 

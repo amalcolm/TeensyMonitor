@@ -64,12 +64,12 @@ namespace TeensyMonitor.DataTools
             double y = C0 + packet.Offset2 * delta_Offset2;
             bool changed = false;
 
-            if (isDiscontinuity)
-                fixer.Predict(ref x, ref y);
-            else
+//            if (isDiscontinuity)
+//                fixer.Predict(ref x, ref y);
+//            else
                 changed = fixer.Fix(ref x, ref y);
             
-            telemetry["-Time"] = new XY(x, x);  // - means label only, do not plot.  Also, output time as value (y)
+            telemetry["-Time"] = new XY(x, x);  // - means label only, do not graph.  Also, output time (x) as value, hence x,x.
 
             telemetry[_stateLabel_Raw] = new XY(x, y); 
 

@@ -11,7 +11,7 @@
 
 class CDiscontinuityFixer {
 	public:
-		static inline constexpr bool   ENABLE_DEBUG_LOG   = false;
+		static inline constexpr bool   ENABLE_DEBUG_LOG   = true;
 
 	private:
 		static inline constexpr size_t ZFIXER_BUFFER_SIZE =  4096;
@@ -29,7 +29,7 @@ class CDiscontinuityFixer {
 			bool changed{ false };
 			XY output{ 0.0, 0.0, 0.0 };
 
-//			std::span<const XY> dataSpan;
+			std::span<const XY> dataSpan;
 			RegressResult left;
 			RegressResult right;
 
@@ -45,7 +45,7 @@ class CDiscontinuityFixer {
 
 			Result( const CDiscontinuityAnalyzer::Result& r ) :
 				valid          ( r.valid          ),
-//				dataSpan	   ( r.dataSpan       ),
+				dataSpan	   ( r.dataSpan       ),
 				left           ( r.left           ),
 				right          ( r.right          ),
 				deltaY         ( r.deltaY         ),
@@ -79,7 +79,7 @@ class CDiscontinuityFixer {
 
 			void WriteDebug(std::ofstream& os) const {
 				if ((os.is_open() && ENABLE_DEBUG_LOG) == false) return;
-/*				// left edge data
+				// left edge data
 				for (size_t i = 0; i < ZFIXER_WINDOW_EDGE; i++) os << dataSpan[i].x() << ",";
 				for (size_t i = 0; i < ZFIXER_WINDOW_EDGE; i++) os << dataSpan[i].y() << ",";
 
@@ -89,7 +89,7 @@ class CDiscontinuityFixer {
 				for (size_t i = dataSpan.size() - ZFIXER_WINDOW_EDGE; i < dataSpan.size(); i++) os << dataSpan[i].y() << ",";
 
 				os << ",";
-	*/			// curves
+				// curves
 				os <<  left.a << "," <<  left.b << "," <<  left.c << ",";
 				os << right.a << "," << right.b << "," << right.c << ",";
 
@@ -127,7 +127,7 @@ class CDiscontinuityFixer {
 		Result Process(std::span<XY> workingData, CDiscontinuityAnalyzer::Result analysis) noexcept;
 
 	private:
-		CDiscontinuityAnalyzer::Result _lastAnalysis;
+		CDiscontinuityAnalyzer::Result* _lastAnalysis;
 		double lastY{ 0.0 };
 
 		std::vector<XY> m_data{};

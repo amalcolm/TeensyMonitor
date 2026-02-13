@@ -45,17 +45,17 @@ namespace TeensyMonitor.Plotter.UserControls
 
         private readonly object _lock = new();
 
-        static readonly string[] dataFieldsToPlot = {
+        static readonly string[] dataFieldsToPlot = [
 //            "Offset1", "Offset2", "Gain",
             "preGainSensor",
             "postGainSensor",
-            };
+            ];
 
-        static readonly string[] dataFieldsForLabels = {
+        static readonly string[] dataFieldsForLabels = [
             "Offset1", "Offset2", "Gain",
             "preGainSensor",
             "postGainSensor",
-            };
+            ];
 
         private readonly float _labelLineSpacing = 35f;
         private readonly float _labelTopMargin   = 20f;

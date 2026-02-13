@@ -16,7 +16,7 @@ public:
         RegressResult left;
         RegressResult right;
 
-//        std::span<const XY> dataSpan;   // original data span analyzed
+        std::span<const XY> dataSpan;   // original data span analyzed
 
         // Discontinuity metrics
         double deltaY        { 0.0 };   // offset difference at junction
@@ -30,7 +30,7 @@ public:
         // Optional helper for debugging
         std::string ToString() const;
 
-//        Result(std::span<const XY> span) : dataSpan(span) {}
+        Result(std::span<const XY> span) : dataSpan(span) {}
     };
 
     // Perform analysis on a given data window
