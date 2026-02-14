@@ -4,7 +4,6 @@ namespace TeensyMonitor.Plotter.Helpers
     public static class Scheduler
     {
         private static readonly List<MyGLThread> _threads = new();
-        private static readonly System.Windows.Forms.Timer _timer = new() { Interval = 16 };
         private static readonly object _lock = new();
 
         public static void Register(MyGLThread thread)
@@ -31,13 +30,10 @@ namespace TeensyMonitor.Plotter.Helpers
 
         private static void StartScheduler()
         {
-            _timer.Tick += (s, e) => Run();
-            _timer.Start();
         }
 
         private static void StopScheduler()
         {
-            _timer.Stop();
         }
 
         private static void Run()

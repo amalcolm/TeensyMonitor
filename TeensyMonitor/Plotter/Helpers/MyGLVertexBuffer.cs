@@ -270,19 +270,22 @@ namespace TeensyMonitor.Plotter.Helpers
         /// <param name="vertexCount">Number of vertices (not floats!)</param>
         public void Set(ref Vertex[] data, int vertexCount)
         {
-            if (vertexCount > vertexCapacity)       throw new ArgumentOutOfRangeException(nameof(vertexCount));
-            if (data.Length < vertexCount) throw new ArgumentException("Data array too small for vertex count");
+            lock (_lock)
+            {
+                if (vertexCount > vertexCapacity) throw new ArgumentOutOfRangeException(nameof(vertexCount));
+                if (data.Length < vertexCount)    throw new ArgumentException("Data array too small for vertex count");
 
-            _vertexCount = vertexCount;
-            // Copy only the used portion
-            Array.Copy(data, _vertexData, vertexCount);
+                _vertexCount = vertexCount;
+                // Copy only the used portion
+                Array.Copy(data, _vertexData, vertexCount);
 
-            _latestXCount = vertexCount;
-            if (_latestX.Length < _latestXCount)
-                _latestX = new float[_latestXCount * 2];
+                _latestXCount = vertexCount;
+                if (_latestX.Length < _latestXCount)
+                    _latestX = new float[_latestXCount * 2];
 
-            for (int i = 0; i < _latestXCount; i++)
-                _latestX[i] = _vertexData[i].Position.X;
+                for (int i = 0; i < _latestXCount; i++)
+                    _latestX[i] = _vertexData[i].Position.X;
+            }
         }
 
         /// <summary>
@@ -306,11 +309,14 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             if (_vertexCount < 2) return;
 
-            Upload();
+            lock (_lock)
+            {
+                Upload();
 
-            GL.BindVertexArray(_vao);
-            GL.DrawArrays(PrimitiveType.Lines, 0, _vertexCount);
-            GL.BindVertexArray(0);
+                GL.BindVertexArray(_vao);
+                GL.DrawArrays(PrimitiveType.Lines, 0, _vertexCount);
+                GL.BindVertexArray(0);
+            }
         }
 
         /// <summary>
@@ -320,11 +326,14 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             if (_vertexCount < 1) return;
 
-            Upload();
+            lock (_lock)
+            {
+                Upload();
 
-            GL.BindVertexArray(_vao);
-            GL.DrawArrays(PrimitiveType.LineStrip, 0, _vertexCount);
-            GL.BindVertexArray(0);
+                GL.BindVertexArray(_vao);
+                GL.DrawArrays(PrimitiveType.LineStrip, 0, _vertexCount);
+                GL.BindVertexArray(0);
+            }
         }
 
         public void Dispose()

@@ -25,9 +25,6 @@ namespace TeensyMonitor.Plotter.Helpers
         private RunningAverage? _ra = null;
 
 
-
-        private readonly object _lock = new();
-
         public string DBG { get; set; } = string.Empty;
         
         private MyGLVertexBuffer _bufMainPlot = default!;
@@ -92,29 +89,26 @@ namespace TeensyMonitor.Plotter.Helpers
 
             double scale = Yscale == 0.0 ? 1.0 : Yscale;
 
-            lock (_lock)
+            float fX = (float)x;
+            float fY = (float)(y * scale);
+
+            _ra?.Add(fY);
+
+            _bufMainPlot.AddVertex(fX, fY, 0.0f, Colour);
+
+
+            if (count < 10)
+                diffSum += fX - LastX;
+            else if (_ra == null)
             {
-                float fX = (float)x;
-                float fY = (float)(y * scale);
-
-                _ra?.Add(fY);
-
-                _bufMainPlot.AddVertex(fX, fY, 0.0f, Colour);
-
-
-                if (count < 10)
-                    diffSum += fX - LastX;
-                else if (_ra == null)
-                {
-                    RectangleF viewport = _plotter.ViewPort;
-                    _parentMinX = viewport.Left;
-                    _parentMaxX = viewport.Right;
-                    double avgDiff = Config.STATE_DURATION_uS / 1_000_000.0;
-                    float window = _parentMaxX - _parentMinX;
-                    _ra = new RunningAverage( (uint)(window / avgDiff) );
-                }
-                LastX = fX;
+                RectangleF viewport = _plotter.ViewPort;
+                _parentMinX = viewport.Left;
+                _parentMaxX = viewport.Right;
+                double avgDiff = Config.STATE_DURATION_uS / 1_000_000.0;
+                float window = _parentMaxX - _parentMinX;
+                _ra = new RunningAverage( (uint)(window / avgDiff) );
             }
+            LastX = fX;
 
         }
 
@@ -147,11 +141,10 @@ namespace TeensyMonitor.Plotter.Helpers
                     maxY = (float)Shared_MaxY;
                 }
                 else  // AutoScaling
-                    lock (_lock)
-                    {
-                        minY = (float)_ra!.Min;
-                        maxY = (float)_ra!.Max;
-                    }
+                {
+                    minY = (float)_ra!.Min;
+                    maxY = (float)_ra!.Max;
+                }
 
                 // Guard bad values / zero range
                 SetScaling(minY, maxY);

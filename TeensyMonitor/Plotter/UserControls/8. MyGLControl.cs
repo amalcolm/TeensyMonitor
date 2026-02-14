@@ -175,7 +175,7 @@ namespace TeensyMonitor.Plotter.UserControls
             // Break on errors so you see the stack trace immediately
             if (type == DebugType.DebugTypeError)
             {
-//              throw new Exception(log);
+                throw new Exception(log);
             }
         }
 
@@ -199,8 +199,6 @@ namespace TeensyMonitor.Plotter.UserControls
         }
 
 
-        /// The main render loop..
-        /// </summary>
         private void RenderLoop()
         {
             if (!IsLoaded || IsDisposed) return;

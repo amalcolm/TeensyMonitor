@@ -30,7 +30,7 @@ namespace TeensyMonitor.Plotter.Helpers
         private readonly CancellationTokenSource _cts = new();
 
         // A queue for one-off actions to be executed on the GL thread (e.g., creating a VBO).
-        private readonly ConcurrentQueue<Action> _taskQueue = new();
+        private readonly BlockingCollection<Action> _tasksToDo = [];
 
         // A stack for shutdown actions, ensuring LIFO cleanup (e.g., disposing VBOs before the context).
         private readonly ConcurrentStack<Action> _shutdownStack = new();
@@ -49,24 +49,21 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             if (_glControl.IsDisposed || _isRunning) return;
 
-            lock (this)
+            _glControl.MakeCurrent();
+
+            // process enqueued work
+            while (_tasksToDo.TryTake(out var task, 0))
             {
-                _glControl.MakeCurrent();
-
-                // process enqueued work
-                while (_taskQueue.TryDequeue(out var task))
+                try { task.Invoke(); }
+                catch (Exception ex)
                 {
-                    try { task.Invoke(); }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Render task failed: {ex.Message}");
-                    }
+                    Debug.WriteLine($"Render task failed: {ex.Message}");
                 }
-
-                RenderAction?.Invoke();
-
-                _glControl.SwapBuffers();
             }
+
+            RenderAction?.Invoke();
+
+            _glControl.SwapBuffers();
         }
 
 
@@ -119,7 +116,7 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             if (_shutdownRequested) return false;
 
-            if (    initAction != null) _taskQueue .Enqueue(    initAction);
+            if (    initAction != null) _tasksToDo    .Add (    initAction);
             if (shutdownAction != null) _shutdownStack.Push(shutdownAction);
             
             return true;
@@ -133,7 +130,7 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             if (!_isRunning || _cts.IsCancellationRequested) return;
 
-            _taskQueue.Enqueue(action);
+            _tasksToDo.Add(action);
         }
 
         private void Run()
@@ -143,14 +140,13 @@ namespace TeensyMonitor.Plotter.Helpers
             int second = 0;
             
             var stopwatch = new Stopwatch();
-            double targetFrameTime = 1000.0 / RefreshRate; 
+            long framePeriod_Ticks = Stopwatch.Frequency / RefreshRate;
             long nTotalFrames = 0, nFramesThisSecond = 0;
             try
             {
                 _glControl.MakeCurrent();                                     if (_glControl.Context == null) throw new InvalidOperationException("GLControl context is not initialized.");
                 _glControl.Context.SwapInterval = 0;
 
-                double frameTime = 0;
                 while (!_cts.IsCancellationRequested)
                 {
                     _frameDone.Reset();
@@ -167,20 +163,27 @@ namespace TeensyMonitor.Plotter.Helpers
                         {
                             Debug.WriteLine($"[MyGLThread] RenderAction Exception: {ex.Message}");
                         }
+                        finally
+                        {
+                            _glControl.SwapBuffers();
+                        }
+                        
                         nTotalFrames++;
                         nFramesThisSecond++;
 
-
-                        do
+                        while (stopwatch.ElapsedTicks < framePeriod_Ticks && !_cts.IsCancellationRequested)
                         {
-                            while (_taskQueue.TryDequeue(out var action))
-                                action.Invoke();
+                            TimeSpan remaining = TimeSpan.FromTicks(framePeriod_Ticks - stopwatch.ElapsedTicks);
+                            if (remaining <= TimeSpan.Zero) break;
 
-                            Thread.Yield();
+                            if (_tasksToDo.TryTake(out var action, remaining))
+                                do
+                                {
+                                    try { action.Invoke(); }
+                                    catch (Exception ex) { Debug.WriteLine($"[MyGLThread] Task Exception: {ex.Message}"); }
+
+                                } while (_tasksToDo.TryTake(out action, 0));  // drain burst non-blocking
                         }
-                        while ((frameTime = stopwatch.Elapsed.TotalMilliseconds) < targetFrameTime && !_cts.IsCancellationRequested);
-
-                        _glControl.SwapBuffers();
 
                         int currentSeconds = (int)mainTimer.Elapsed.TotalSeconds;
                         if (currentSeconds != second)
@@ -217,7 +220,9 @@ namespace TeensyMonitor.Plotter.Helpers
             _cts.Cancel();
             _isRunning = false;
             _shutdownRequested = true;
+
             _frameDone.Wait();
+
             try { _thread.Join(); } catch { /* ignored */ }
 
             _cts.Dispose();
