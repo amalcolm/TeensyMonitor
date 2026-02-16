@@ -67,7 +67,7 @@ namespace TeensyMonitor.DataTools
 //            if (isDiscontinuity)
 //                fixer.Predict(ref x, ref y);
 //            else
-                changed = fixer.Fix(ref x, ref y);
+//                changed = fixer.Fix(ref x, ref y);
             
             telemetry["-Time"] = new XY(x, x);  // - means label only, do not graph.  Also, output time (x) as value, hence x,x.
 

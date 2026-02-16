@@ -1,5 +1,4 @@
 using PsycSerial;
-using System.Runtime;
 using TeensyMonitor.Plotter.Helpers;
 
 namespace TeensyMonitor

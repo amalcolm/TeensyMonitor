@@ -72,7 +72,7 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 EventKind.NONE               => Black,
 
-                EventKind.A2D_DATA_READY     => Cyan.Darken(1.0),
+                EventKind.A2D_DATA_READY     => Cyan.Darken(0.2),
                 EventKind.A2D_READ_START     => Cyan.Darken(0.8),
                 EventKind.A2D_READ_COMPLETE  => Cyan.Darken(0.6),
 

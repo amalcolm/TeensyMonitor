@@ -48,7 +48,7 @@ struct CEventPacket
 struct CBlockPacket
 {
     static constexpr size_t MAX_BLOCK_SIZE = 164;
-	static constexpr size_t MAX_EVENTS_PER_BLOCK = 256;
+	static constexpr size_t MAX_EVENTS_PER_BLOCK = 512;
 
 	static constexpr Frame frameStart = 0xEDB1FAB4;  // B1/B2 = Block Packet
     static constexpr Frame frameEnd   = 0xEDB2FAB4;
