@@ -122,7 +122,7 @@ namespace TeensyMonitor.Plotter.UserControls
         {
             if (IsLoaded == false) return;  // ignore packets until control is fully loaded (i.e. GL.Init called, otherwise Task.Enqueue gets Inits out of order)
 
-            if (packet is BlockPacket blockPacket == false) return;
+            if (packet is not BlockPacket blockPacket) return;
             if (blockPacket.Count == 0) return;
 
             uint state = (uint)blockPacket.State;
