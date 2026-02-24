@@ -8,6 +8,7 @@ namespace TeensyMonitor.Plotter.Helpers
         private readonly MyGLVertexBuffer _waveBuffer_C0 = new(1024);
         private readonly MyGLVertexBuffer _waveBuffer_PG = new(1024);
         private readonly MyGLVertexBuffer _waveBuffer_EV = new(1024);
+        private readonly MyGLVertexBuffer _waveBuffer_TMP= new(1024);
 
         private readonly double _C0_Scale = Config.C0to1024;
         private readonly double _PG_Scale = 1.0;
@@ -33,6 +34,9 @@ namespace TeensyMonitor.Plotter.Helpers
             _waveBuffer_C0.Init();
             _waveBuffer_PG.Init();
             _waveBuffer_EV.Init();
+            
+            _waveBuffer_TMP.Init();
+
             _gridBuffer.Init();
         }
 
@@ -43,6 +47,8 @@ namespace TeensyMonitor.Plotter.Helpers
             _waveBuffer_C0.Dispose();
             _waveBuffer_PG.Dispose();
             _waveBuffer_EV.Dispose();
+
+            _waveBuffer_TMP.Dispose();
         }
 
         /// <summary>
@@ -68,6 +74,8 @@ namespace TeensyMonitor.Plotter.Helpers
             _waveBuffer_C0.SetBlock(block, FieldEnum.C0            , _C0_Scale);
             _waveBuffer_PG.SetBlock(block, FieldEnum.postGainSensor, _PG_Scale);
             _waveBuffer_EV.SetBlock(block, FieldEnum.Events        , 1.0);
+
+            _waveBuffer_TMP.SetBlock(block, FieldEnum.Offset1      , 1.0);
         }
 
         public void Render()
@@ -84,9 +92,13 @@ namespace TeensyMonitor.Plotter.Helpers
             
             _gridBuffer.DrawLines();
 
-            _waveBuffer_C0.DrawLineStrip();
-            _waveBuffer_PG.DrawLineStrip();
+            _waveBuffer_C0 .DrawLineStrip();
+            _waveBuffer_PG .DrawLineStrip();
+            _waveBuffer_TMP.DrawLineStrip();
+
+            // Draw events as vertical lines
             _waveBuffer_EV.DrawLines();
+
             ResetViewport(_myPlotter.getPlotTransform());  // clean restore to parent viewport
         }
 

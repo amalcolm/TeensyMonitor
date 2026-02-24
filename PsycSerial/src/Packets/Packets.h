@@ -53,6 +53,8 @@ namespace PsycSerial
         C0,
         Events,
         Offset1,
+        Offset1_Hi,
+		Offset1_Lo,
         Offset2,
         Gain,
         preGainSensor,
@@ -61,7 +63,11 @@ namespace PsycSerial
 
 	public ref class DataPacket : IPacket, IDisposable
     {
-	public:
+    private:
+        static constexpr System::UInt64 WordMask = 0xFFFFull;
+		static constexpr System::UInt64 ByteMask = 0x00FFull;
+
+    public:
 		static DataPacket^ Rent();
 		virtual void Cleanup();
 
@@ -74,24 +80,32 @@ namespace PsycSerial
         virtual property double    TimeStamp;
 
 		property double         StateTime;
-        property int            HardwareState;
+        property System::UInt64 HardwareState;
         property int            SensorState;
 
         property array<unsigned int>^ Channel;
 
-        property int SequenceNumber { int get() { return (HardwareState >> 24);        }}
-		property int Offset1        { int get() { return (HardwareState >> 16) & 0xFF; }}
-		property int Offset2        { int get() { return (HardwareState >>  8) & 0xFF; }}
-		property int Gain           { int get() { return (HardwareState      ) & 0xFF; }}
 
-        property int  preGainSensor { int get() { return (SensorState   >> 16) & 0xFFFF; }}
-		property int postGainSensor { int get() { return (SensorState        ) & 0xFFFF; }}
+        property int Offset1        { int get() { return (int)((HardwareState >> 56) & ByteMask);  } }
+        property int Offset1_Hi     { int get() { return (int)((HardwareState >> 48) & ByteMask);  } }
+        property int Offset1_Lo     { int get() { return (int)((HardwareState >> 40) & ByteMask);  } }
+        property int SequenceNumber { int get() { return (int)((HardwareState >> 32) & ByteMask);  } }
+        property int Offset2        { int get() { return (int)((HardwareState >> 24) & ByteMask);  } }
+        property int Gain           { int get() { return (int)((HardwareState >> 16) & ByteMask);  } }
+        
+        property int _Reserved      { int get() { return (int)((HardwareState      ) & WordMask);  } }
+       
+
+        property int  preGainSensor { int get() { return (int)((SensorState   >> 16) & WordMask);  } }
+		property int postGainSensor { int get() { return (int)((SensorState        ) & WordMask);  } }
 
         double get(FieldEnum field) {
             switch (field) {
                 case FieldEnum::Timestamp:      return StateTime;
                 case FieldEnum::C0:             return Channel[0];
                 case FieldEnum::Offset1:        return Offset1;
+				case FieldEnum::Offset1_Hi:     return Offset1_Hi;
+				case FieldEnum::Offset1_Lo:     return Offset1_Lo;
                 case FieldEnum::Offset2:        return Offset2;
                 case FieldEnum::Gain:           return Gain;
                 case FieldEnum::preGainSensor:  return preGainSensor;

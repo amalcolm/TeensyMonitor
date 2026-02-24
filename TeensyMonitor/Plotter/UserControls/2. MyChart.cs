@@ -46,13 +46,13 @@ namespace TeensyMonitor.Plotter.UserControls
         private readonly object _lock = new();
 
         static readonly string[] dataFieldsToPlot = [
-//            "Offset1", "Offset2", "Gain",
+//            "Offset_Hi", "Offset_Lo", "Offset1", "Offset2", "Gain",
             "preGainSensor",
             "postGainSensor",
             ];
 
         static readonly string[] dataFieldsForLabels = [
-            "Offset1", "Offset2", "Gain",
+            "Offset1_Hi", "Offset1_Lo", "Offset1", "Offset2", "Gain",
             "preGainSensor",
             "postGainSensor",
             ];

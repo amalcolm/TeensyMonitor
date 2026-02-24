@@ -29,7 +29,7 @@ namespace
     // It does not include the state field, (as it's the same for the whole block).
     constexpr size_t kBlockItemSize        = sizeof(double)                                    // timeStamp
                                            + sizeof(double)                                    // stateTime
-                                           + sizeof(uint32_t)                                  // hardwareState
+                                           + sizeof(uint64_t)                                  // hardwareState
                                            + sizeof(uint32_t)                                  // sensorState
                                            + CDataPacket::A2D_NUM_CHANNELS * sizeof(uint32_t); // channel data
 
@@ -57,7 +57,7 @@ namespace
 
     // Template forward declaration
     template <typename T>
-           FrameParseResult readValue (const uint8_t* payload, T& out) noexcept;
+           FrameParseResult read      (const uint8_t* payload, T       & out) noexcept;
 
     inline FrameParseResult readU8    (const uint8_t* payload, uint8_t & out) noexcept;
     inline FrameParseResult readU16   (const uint8_t* payload, uint16_t& out) noexcept;
@@ -237,6 +237,19 @@ namespace
         }
     }
 
+    template <typename T>
+    inline FrameParseResult read(const uint8_t* payload, T& out) noexcept {
+        std::memcpy(&out, payload, sizeof(T));
+        return FrameParseResult::ValidPacket;
+    }
+
+    inline FrameParseResult readU8    (const uint8_t* payload, uint8_t & out) noexcept { return read(payload, out); }
+    inline FrameParseResult readU16   (const uint8_t* payload, uint16_t& out) noexcept { return read(payload, out); }
+    inline FrameParseResult readU32   (const uint8_t* payload, uint32_t& out) noexcept { return read(payload, out); }
+    inline FrameParseResult readU64   (const uint8_t* payload, uint64_t& out) noexcept { return read(payload, out); }
+    inline FrameParseResult readFloat (const uint8_t* payload, float   & out) noexcept { return read(payload, out); }
+    inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexcept { return read(payload, out); }
+
 
     FrameParseResult tryParseDataFrame(const uint8_t* buf, size_t n, CDecodedPacket& out, size_t& usedBytes) noexcept
     {
@@ -297,19 +310,7 @@ namespace
         return result;
     }
 
-template <typename T>
-inline FrameParseResult readValue(const uint8_t* payload, T& out) noexcept {
-    std::memcpy(&out, payload, sizeof(T));
-    return FrameParseResult::ValidPacket;
-}
-
-inline FrameParseResult readU8    (const uint8_t* payload, uint8_t & out) noexcept { return readValue(payload, out); }
-inline FrameParseResult readU16   (const uint8_t* payload, uint16_t& out) noexcept { return readValue(payload, out); }
-inline FrameParseResult readU32   (const uint8_t* payload, uint32_t& out) noexcept { return readValue(payload, out); }
-inline FrameParseResult readU64   (const uint8_t* payload, uint64_t& out) noexcept { return readValue(payload, out); }
-inline FrameParseResult readFloat (const uint8_t* payload, float   & out) noexcept { return readValue(payload, out); }
-inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexcept { return readValue(payload, out); }
-
+    
     FrameParseResult readDataPayload(const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept
     {
                                                                                                 		if (payloadBytes < sizeof(CDataPacket)) return FrameParseResult::IncompletePacket;
@@ -329,7 +330,7 @@ inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexce
                                                                                                         if (payloadBytes < kBlockHeaderSize) return FrameParseResult::IncompleteHeader;
         uint32_t state = 0; readU32   (payload + kBlockStateOffset,     state);
         double   ts    = 0; readDouble(payload + kBlockTimeStampOffset, ts   );
-		uint32_t count = 0; readU32   (payload + kBlockCountOffset,     count);                         if (count > CBlockPacket::MAX_BLOCK_SIZE && _DEBUG) ::OutputDebugString(L"CDecoder: Block count exceeds maximum allowed size.");
+		uint32_t count = 0; readU32   (payload + kBlockCountOffset,     count);                         if (count > CBlockPacket::MAX_BLOCK_SIZE       && _DEBUG) ::OutputDebugString(L"CDecoder: Block count exceeds maximum allowed size.");
    		uint32_t numEv = 0; readU32   (payload + kBlockNumEvOffset,     numEv);                         if (numEv > CBlockPacket::MAX_EVENTS_PER_BLOCK && _DEBUG) ::OutputDebugString(L"CDecoder: Event count exceeds maximum allowed size.");
 
         const size_t itemsBytes = static_cast<size_t>(count) * kBlockItemSize;
@@ -356,7 +357,7 @@ inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexce
 
 			readDouble(rP, dp.timeStamp    ); rP += sizeof(double  );
             readDouble(rP, dp.stateTime    ); rP += sizeof(double  );
-            readU32   (rP, dp.hardwareState); rP += sizeof(uint32_t);
+            readU64   (rP, dp.hardwareState); rP += sizeof(uint64_t);
             readU32   (rP, dp.sensorState  ); rP += sizeof(uint32_t);
 
             for (size_t ch = 0; ch < CDataPacket::A2D_NUM_CHANNELS; ++ch, rP += sizeof(uint32_t))

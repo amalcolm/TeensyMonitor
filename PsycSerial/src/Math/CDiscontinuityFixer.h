@@ -11,7 +11,7 @@
 
 class CDiscontinuityFixer {
 	public:
-		static inline constexpr bool   ENABLE_DEBUG_LOG   = true;
+		static inline constexpr bool   ENABLE_DEBUG_LOG   = false;
 
 	private:
 		static inline constexpr size_t ZFIXER_BUFFER_SIZE =  4096;

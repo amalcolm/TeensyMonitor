@@ -26,13 +26,13 @@ struct CDataPacket
 {
     static constexpr uint8_t A2D_NUM_CHANNELS = 8;
 
-	static constexpr Frame frameStart = 0xEDD1FAB4;  // D1/D2 = Data Packet
-    static constexpr Frame frameEnd   = 0xEDD2FAB4;
+	static constexpr Frame frameStart = 0xED'D1'FA'B4;  // D1/D2 = Data Packet
+    static constexpr Frame frameEnd   = 0xED'D2'FA'B4;
 
     uint32_t state{};
     double   timeStamp{};
     double   stateTime{};
-    uint32_t hardwareState{};
+    uint64_t hardwareState{};
 	uint32_t sensorState{};
     uint32_t channel[A2D_NUM_CHANNELS]{};
 
@@ -50,8 +50,8 @@ struct CBlockPacket
     static constexpr size_t MAX_BLOCK_SIZE = 164;
 	static constexpr size_t MAX_EVENTS_PER_BLOCK = 512;
 
-	static constexpr Frame frameStart = 0xEDB1FAB4;  // B1/B2 = Block Packet
-    static constexpr Frame frameEnd   = 0xEDB2FAB4;
+	static constexpr Frame frameStart = 0xED'B1'FA'B4;  // B1/B2 = Block Packet
+    static constexpr Frame frameEnd   = 0xED'B2'FA'B4;
 
     uint32_t state{};
     double   timeStamp{};
@@ -73,8 +73,8 @@ struct CTextPacket
 
 struct CTelemetryPacket
 {
-	static constexpr Frame frameStart = 0xED71FAB4;  // 71/72 = Telemetry Packet
-    static constexpr Frame frameEnd   = 0xED72FAB4;
+	static constexpr Frame frameStart = 0xED'71'FA'B4;  // 71/72 = Telemetry Packet
+    static constexpr Frame frameEnd   = 0xED'72'FA'B4;
   
     double   timeStamp{};
 	uint8_t  group{};
@@ -92,7 +92,7 @@ static_assert(std::is_trivially_copyable_v<CDataPacket> , "CDataPacket must be P
 static_assert(std::is_trivially_copyable_v<CBlockPacket>, "CBlockPacket must be POD");
 
 static_assert(sizeof(CDataPacket) ==
-    sizeof(uint32_t) + sizeof(double) + sizeof(double) + sizeof(uint32_t) + sizeof(uint32_t) + CDataPacket::A2D_NUM_CHANNELS * sizeof(uint32_t),
+    sizeof(uint32_t) + sizeof(double) + sizeof(double) + sizeof(uint64_t) + sizeof(uint32_t) + CDataPacket::A2D_NUM_CHANNELS * sizeof(uint32_t),
     "Unexpected CDataPacket layout/packing");
 
 static_assert(offsetof(CBlockPacket, blockData) ==

@@ -326,7 +326,7 @@ void CSerial::ReadLoop()
 
         COMSTAT comStat{};
         DWORD   errors = 0;
-        if (!ClearCommError(h, &errors, &comStat)) {
+            if (!ClearCommError(h, &errors, &comStat)) {
             const DWORD le = GetLastError();
             std::ostringstream os; os << "ClearCommError failed in ReadLoop. Error: " << le;
             InvokeErrorOccurred(std::runtime_error(os.str()));
