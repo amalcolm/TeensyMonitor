@@ -77,9 +77,6 @@
     <ClInclude Include="src\Math\CQuadRegress.h">
       <Filter>Source Files\Math</Filter>
     </ClInclude>
-    <ClInclude Include="src\Math\CDiscontinuityAnalyzer.h">
-      <Filter>Source Files\Math</Filter>
-    </ClInclude>
     <ClInclude Include="src\Math\CDiscontinuityFixer.h">
       <Filter>Source Files\Math</Filter>
     </ClInclude>
@@ -88,6 +85,9 @@
     </ClInclude>
     <ClInclude Include="src\ADictionary.h">
       <Filter>Source Files\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Math\CDiscontinuityAnalyzer.h">
+      <Filter>Source Files\Math</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

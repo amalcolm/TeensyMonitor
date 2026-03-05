@@ -14,6 +14,7 @@ namespace TeensyMonitor
     {
         public static void Invoker(this Control control, MethodInvoker action)
         {
+            if (control.IsHandleCreated == false) return;
             control.Invoke( action );
         }
 

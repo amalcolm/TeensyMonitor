@@ -219,9 +219,9 @@ namespace TeensyMonitor
             {
                 if (firstLoad)
                 {
-                    tallForm = new MyTallForm();
-                    tallForm.FormClosed += (_, _) => this.Close();
-                    tallForm.Show();
+//                    tallForm = new MyTallForm();
+//                    tallForm.FormClosed += (_, _) => this.Close();
+//                    tallForm.Show();
                 }
 
                 firstLoad = false;

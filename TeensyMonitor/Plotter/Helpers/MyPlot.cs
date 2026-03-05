@@ -27,11 +27,11 @@ namespace TeensyMonitor.Plotter.Helpers
 
         public string DBG { get; set; } = string.Empty;
         
-        private MyGLVertexBuffer _bufMainPlot = default!;
-        private MyGLVertexBuffer _bufSubPlot = new(4096);
-        private MyGLVertexBuffer _bufSubPlotGrid = new(4096);
+        private readonly MyGLVertexBuffer _bufMainPlot = default!;
+        private readonly MyGLVertexBuffer _bufSubPlot = new(4096);
+        private readonly MyGLVertexBuffer _bufSubPlotGrid = new(4096);
 
-        private MySubplot _subPlot = default!;
+        private readonly MySubplot _subPlot = default!;
 
         public int NumPoints => _bufMainPlot.Count;
 
@@ -121,7 +121,7 @@ namespace TeensyMonitor.Plotter.Helpers
             if (Selector == null)
                 SetSubplot(block);
 
-            _bufMainPlot.AddBlock(ref block, Selector, onlyLast:true); // only plot last point in block
+            _bufMainPlot.AddBlock(ref block, Selector, onlyLast:false); // only plot last point in block
 
             LastX = (float)block.BlockData[block.Count - 1].TimeStamp;
         }
@@ -218,6 +218,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
             _subPlot.SetBlock(block);
 
+            return;
             for (int i = 1; i < block.Count; i++)
             {
                 ref var item = ref block.BlockData[i];

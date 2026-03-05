@@ -75,7 +75,7 @@ namespace TeensyMonitor.Plotter.Helpers
             _waveBuffer_PG.SetBlock(block, FieldEnum.postGainSensor, _PG_Scale);
             _waveBuffer_EV.SetBlock(block, FieldEnum.Events        , 1.0);
 
-            _waveBuffer_TMP.SetBlock(block, FieldEnum.Offset1      , 1.0);
+            _waveBuffer_TMP.SetBlock(block, FieldEnum.Offset1, 4.0);
         }
 
         public void Render()
@@ -107,7 +107,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
 
         #region Build Grid Methods
-        Color _gridColor = Color.FromArgb(50, 64, 64, 64);
+        readonly Color _gridColor = Color.FromArgb(50, 64, 64, 64);
         float[] xs = new float[16];
         private void BuildGrid(MyGLVertexBuffer? waveBuffer = null)
         {

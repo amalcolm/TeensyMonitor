@@ -16,7 +16,7 @@ namespace TeensyMonitor.Plotter.UserControls
     [ToolboxItem(true)]
     public partial class MyChart : MyPlotter
     {
-        private const int WindowSize = 3072;
+        private const int WindowSize = 16384;
 
         public bool EnablePlots  { get; set; } = true;
         public bool EnableLabels { get; set; } = true;
@@ -46,9 +46,9 @@ namespace TeensyMonitor.Plotter.UserControls
         private readonly object _lock = new();
 
         static readonly string[] dataFieldsToPlot = [
-//            "Offset_Hi", "Offset_Lo", "Offset1", "Offset2", "Gain",
-            "preGainSensor",
-            "postGainSensor",
+//            "Offset1_Hi", "Offset1_Lo", "Offset1", "Offset2", "Gain",
+//            "preGainSensor",
+              "postGainSensor",
             ];
 
         static readonly string[] dataFieldsForLabels = [
@@ -81,8 +81,11 @@ namespace TeensyMonitor.Plotter.UserControls
 
             for (uint count = 1; count <= allDataFields.Length; count++)
             {
-                var property = properties.First(p => p.Name == allDataFields[count - 1]);  // must declare a local to capture correctly in lambda
+                
+                var match = properties.Where(p => p.Name == allDataFields[count - 1]);
+                if (!match.Any()) throw new Exception($"Invalid field name '{allDataFields[count - 1]}'.");
 
+                var property = match.First();
                 if (Enum.TryParse<FieldEnum>(property.Name, ignoreCase: true, out var field) == false) continue;
 
                 var dsInfo = new DataSelectorInfo

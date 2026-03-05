@@ -56,7 +56,7 @@ namespace TeensyMonitor.Plotter.Helpers
     {
         public int VertexCount { get => _vertexCount; }
   
-        private Vertex[] _vertexData = new Vertex[vertexCapacity];
+        private readonly Vertex[] _vertexData = new Vertex[vertexCapacity];
         private int _vao;
         private int _vbo;
         private bool _disposed;
@@ -65,7 +65,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
         public int WindowSize { get; set; } = -1;
 
-        private object _lock = new();
+        private readonly object _lock = new();
 
         public void Init()
         { 
@@ -146,7 +146,9 @@ namespace TeensyMonitor.Plotter.Helpers
 
             lock (_lock)
             {
-                int start = onlyLast ? packet.Count - 1 : 0;
+                int start = (selector == null) ? 2 : 0;
+                if (onlyLast)   start = packet.Count - 1;
+
                 for (int i = start; i < packet.Count; i++)
                 {
                     CheckSize();
@@ -192,7 +194,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
             if (field == FieldEnum.Events)
             {
-                SetEvents(block, scale);
+                SetEvents(block);
                 return;
             }
 
@@ -212,7 +214,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
         }
 
-        private void SetEvents(BlockPacket block, double scale)
+        private void SetEvents(BlockPacket block)
         {
             Clear();
 
@@ -272,7 +274,7 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             lock (_lock)
             {
-                if (vertexCount > vertexCapacity) throw new ArgumentOutOfRangeException(nameof(vertexCount));
+                ArgumentOutOfRangeException.ThrowIfGreaterThan(vertexCount, vertexCapacity);
                 if (data.Length < vertexCount)    throw new ArgumentException("Data array too small for vertex count");
 
                 _vertexCount = vertexCount;
