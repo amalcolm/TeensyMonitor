@@ -80,7 +80,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
         public MyGLControl()
         {
-            if (!Program.IsRunning) { ShowDesignView(); return; }
+            if (Program.IsRunning == false) { ShowDesignView(); return; }
             InstanceCount++;
 
             
@@ -237,6 +237,12 @@ namespace TeensyMonitor.Plotter.UserControls
             GL.Uniform4(colorLocation, Color.Black);
 
             DrawText();
+        }
+
+        public void ClearGL()
+        {
+            if (!IsLoaded || IsDisposed) return;
+            GLThread?.EnqueueSwap(() => ClearViewport());
         }
 
         public void Close()

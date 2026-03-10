@@ -122,6 +122,14 @@ namespace TeensyMonitor.Plotter.Helpers
             return true;
         }
 
+        public bool EnqueueSwap(Action action)
+        {
+            if (_shutdownRequested) return false;
+            _tasksToDo.Add(action); 
+            _tasksToDo.Add(() => _glControl.SwapBuffers());
+            return true;
+        }
+
 
         /// <summary>
         /// Enqueues a task to be executed on the GL thread.

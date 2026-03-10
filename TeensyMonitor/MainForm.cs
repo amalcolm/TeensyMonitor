@@ -131,6 +131,7 @@ namespace TeensyMonitor
                             cbPorts.SelectedIndex = cbPorts.Items.Count - 1;
                         });
                 }
+
             }
         }
         private void SP_ConnectionChanged(ConnectionState state)
@@ -154,10 +155,12 @@ namespace TeensyMonitor
             switch (state)
             {
                 case ConnectionState.Connected:
-                    dbg.Clear();
+                    if (firstLoad == false)
+                        dbg.Clear();
                     dbg.Log(str);
                     State = FormState.Initialising;
                     break;
+
                 case ConnectionState.Disconnected:
                     State = FormState.None;
 
@@ -168,7 +171,7 @@ namespace TeensyMonitor
                     }
                     dbg.Log(str);
 
-                    this.Invoker(() => Form1_Load(this, EventArgs.Empty));
+                    this.Invoker(() => Form1_Shown(this, EventArgs.Empty));
                     break;
             }
 
@@ -186,7 +189,7 @@ namespace TeensyMonitor
 
         bool firstLoad = true;
         MyTallForm? tallForm;
-        private void Form1_Load(object sender, EventArgs e)
+        private async void Form1_Shown(object sender, EventArgs e)
         {
             var ports = SerialHelper.GetUSBSerialPorts();
 
@@ -209,6 +212,8 @@ namespace TeensyMonitor
                         }
                     }
                 }
+
+
                 cbPorts.Items.Clear();
                 cbPorts.Items.Add("No ports found");
                 cbPorts.SelectedIndex = 0;
@@ -225,6 +230,11 @@ namespace TeensyMonitor
                 }
 
                 firstLoad = false;
+
+                dbg.ClearGL();
+                TelemetryPane.ClearGL();
+                await Task.Delay(100);
+
                 cbPorts.Items.Clear();
                 cbPorts.Items.AddRange(ports);
                 cbPorts.SelectedIndex = cbPorts.Items.Count - 1;

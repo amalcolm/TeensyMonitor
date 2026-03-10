@@ -40,7 +40,7 @@ namespace TeensyMonitor.Plotter.UserControls
     {
         public const int Margin = 8;
         public const double LineSpacing = 1.2;
-        readonly ArrayPool<FontVertex> pool = ArrayPool<FontVertex>.Shared;
+        readonly ArrayPool<FontVertex> VertexPool = ArrayPool<FontVertex>.Shared;
         int lineHeight;
         public void Init()
         {
@@ -61,7 +61,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
             for (int i = 0; i < LineBuffers.Length; i++)
                 if (LineBuffers[i].Vertices != null)
-                    pool.Return(LineBuffers[i].Vertices);
+                    VertexPool.Return(LineBuffers[i].Vertices);
             
             LineBuffers = new LineVertices[MaxNumberOfLines];
             
@@ -110,7 +110,7 @@ namespace TeensyMonitor.Plotter.UserControls
                 {
                     try
                     {
-                        var buf = pool.Rent(str.Length * 6);
+                        var buf = VertexPool.Rent(str.Length * 6);
                         var numVerts = FontVertex.BuildString(buf, 0, str.Buffer.AsSpan(), FontFile.Default, 0, buildY, control.fontRenderer.Scaling, TextAlign.Left);
 
                         qLinesToAdd.Enqueue(new LineVertices { Vertices = buf, Length = numVerts });
@@ -128,7 +128,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
             // --- Phase 2: Slot into circular buffer ---
             int overwritesThisFrame = 0;
-            bool needUpdate = qLinesToAdd.Count > 0;  // simple flag
+            bool needUpdate = false;
 
             while (qLinesToAdd.TryDequeue(out LineVertices newLine))
             {
@@ -136,7 +136,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
                 if (UsedLines >= MaxNumberOfLines)
                 {
-                    pool.Return(LineBuffers[thisLine].Vertices);
+                    VertexPool.Return(LineBuffers[thisLine].Vertices);
                     overwritesThisFrame++;
                 }
 

@@ -171,7 +171,7 @@
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "fNIRS Prototype Data Monitor";
-            Load += Form1_Load;
+            Shown += Form1_Shown;
             tlpCharts.ResumeLayout(false);
             pHeader.ResumeLayout(false);
             pHeader.PerformLayout();
