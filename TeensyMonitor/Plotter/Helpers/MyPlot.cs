@@ -217,8 +217,7 @@ namespace TeensyMonitor.Plotter.Helpers
             if (block == null) return;
 
             _subPlot.SetBlock(block);
-
-            return;
+/*
             for (int i = 1; i < block.Count; i++)
             {
                 ref var item = ref block.BlockData[i];
@@ -240,7 +239,7 @@ namespace TeensyMonitor.Plotter.Helpers
                 if (diff > 0x00400000)
                     Debug.WriteLine($"c0: 0x{c0:X8}, c1: 0x{c1:X8}");
             }
-
+*/
         }
     }
 }

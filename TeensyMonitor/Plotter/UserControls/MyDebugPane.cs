@@ -54,7 +54,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
         public void Clear()
         {
-            while (qLinesToAdd.TryDequeue(out var v)) 
+            while (qLinesToAdd.TryDequeue(out var _)) 
 
             while (qStringsToAdd.TryDequeue(out AString? s))
                 s?.Dispose();

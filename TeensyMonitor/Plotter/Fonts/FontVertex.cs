@@ -92,8 +92,8 @@ namespace TeensyMonitor.Plotter.Fonts
             vertices[index + 1] = new FontVertex { Position = new Vector2(x_pos + width, y_pos         ), TexCoord = new Vector2(u2, v2) };
             vertices[index + 2] = new FontVertex { Position = new Vector2(x_pos        , y_pos         ), TexCoord = new Vector2(u1, v2) };
             vertices[index + 3] = new FontVertex { Position = new Vector2(x_pos        , y_pos + height), TexCoord = new Vector2(u1, v1) };
-            vertices[index + 4] = new FontVertex { Position = new Vector2(x_pos + width, y_pos + height), TexCoord = new Vector2(u2, v1) };
             vertices[index + 5] = new FontVertex { Position = new Vector2(x_pos + width, y_pos         ), TexCoord = new Vector2(u2, v2) };
+            vertices[index + 4] = new FontVertex { Position = new Vector2(x_pos + width, y_pos + height), TexCoord = new Vector2(u2, v1) };
         }
 
 

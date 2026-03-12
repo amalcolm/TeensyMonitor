@@ -52,12 +52,12 @@ namespace PsycSerial
         Timestamp,
         C0,
         Events,
-        Offset1,
-        Offset1_Hi,
-		Offset1_Lo,
+        TIA_Mid,
+        TIA_Top,
+		TIA_Bot,
         Offset2,
         Gain,
-        preGainSensor,
+        TIA_Sensor,
         postGainSensor,
     };
 
@@ -86,9 +86,9 @@ namespace PsycSerial
         property array<unsigned int>^ Channel;
 
 
-        property int Offset1        { int get() { return (int)((HardwareState >> 56) & ByteMask);  } }
-        property int Offset1_Hi     { int get() { return (int)((HardwareState >> 48) & ByteMask);  } }
-        property int Offset1_Lo     { int get() { return (int)((HardwareState >> 40) & ByteMask);  } }
+        property int TIA_Mid        { int get() { return (int)((HardwareState >> 56) & ByteMask);  } }
+        property int TIA_Top        { int get() { return (int)((HardwareState >> 48) & ByteMask);  } }
+        property int TIA_Bot        { int get() { return (int)((HardwareState >> 40) & ByteMask);  } }
         property int SequenceNumber { int get() { return (int)((HardwareState >> 32) & ByteMask);  } }
         property int Offset2        { int get() { return (int)((HardwareState >> 24) & ByteMask);  } }
         property int Gain           { int get() { return (int)((HardwareState >> 16) & ByteMask);  } }
@@ -96,19 +96,19 @@ namespace PsycSerial
         property int _Reserved      { int get() { return (int)((HardwareState      ) & WordMask);  } }
        
 
-        property int  preGainSensor { int get() { return (int)((SensorState   >> 16) & WordMask);  } }
+        property int     TIA_Sensor { int get() { return (int)((SensorState   >> 16) & WordMask);  } }
 		property int postGainSensor { int get() { return (int)((SensorState        ) & WordMask);  } }
 
         double get(FieldEnum field) {
             switch (field) {
                 case FieldEnum::Timestamp:      return StateTime;
                 case FieldEnum::C0:             return Channel[0];
-                case FieldEnum::Offset1:        return Offset1;
-				case FieldEnum::Offset1_Hi:     return Offset1_Hi;
-				case FieldEnum::Offset1_Lo:     return Offset1_Lo;
+                case FieldEnum::TIA_Mid:        return TIA_Mid;
+				case FieldEnum::TIA_Top:        return TIA_Top;
+				case FieldEnum::TIA_Bot:        return TIA_Bot;
                 case FieldEnum::Offset2:        return Offset2;
                 case FieldEnum::Gain:           return Gain;
-                case FieldEnum::preGainSensor:  return preGainSensor;
+                case FieldEnum::TIA_Sensor:     return TIA_Sensor;
                 case FieldEnum::postGainSensor: return postGainSensor;
                 default:                        return Double::NaN;
 			}

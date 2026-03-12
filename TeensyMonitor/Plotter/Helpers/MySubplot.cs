@@ -71,11 +71,11 @@ namespace TeensyMonitor.Plotter.Helpers
 
         public void SetBlock(BlockPacket block)
         {
-            _waveBuffer_C0.SetBlock(block, FieldEnum.C0            , _C0_Scale);
-            _waveBuffer_PG.SetBlock(block, FieldEnum.postGainSensor, _PG_Scale);
-            _waveBuffer_EV.SetBlock(block, FieldEnum.Events        , 1.0);
+            _waveBuffer_C0 .SetBlock(block, FieldEnum.C0            , _C0_Scale);
+            _waveBuffer_PG .SetBlock(block, FieldEnum.postGainSensor, _PG_Scale);
+            _waveBuffer_EV .SetBlock(block, FieldEnum.Events        , 1.0);
 
-            _waveBuffer_TMP.SetBlock(block, FieldEnum.Offset1, 4.0);
+            _waveBuffer_TMP.SetBlock(block, FieldEnum.TIA_Mid       , 4.0);
         }
 
         public void Render()
@@ -108,7 +108,9 @@ namespace TeensyMonitor.Plotter.Helpers
 
         #region Build Grid Methods
         readonly Color _gridColor = Color.FromArgb(50, 64, 64, 64);
-        float[] xs = new float[16];
+        float[] xs = new float[160];
+        Vertex[] grid = new Vertex[1024];
+
         private void BuildGrid(MyGLVertexBuffer? waveBuffer = null)
         {
             var r = OutRect;
@@ -142,24 +144,22 @@ namespace TeensyMonitor.Plotter.Helpers
             }
 
             // 2) Allocate and emit geometry
-            int vertexCount = xs.Length * 2 + 4; // verticals + top/bottom
-            Vertex[] grid = new Vertex[vertexCount];
-            int idx = 0;
+            int count = 0;
 
             foreach (float x in xs)
             {
-                grid[idx++] = new Vertex(x, yMin + 80.0f, 0f, _gridColor);
-                grid[idx++] = new Vertex(x, yMax        , 0f, _gridColor);
+                grid[count++] = new Vertex(x, yMin + 80.0f, 0f, _gridColor);
+                grid[count++] = new Vertex(x, yMax        , 0f, _gridColor);
             }
 
             // top
-            grid[idx++] = new Vertex(xMin, yMax, 0f, _gridColor);
-            grid[idx++] = new Vertex(xMax, yMax, 0f, _gridColor);
+            grid[count++] = new Vertex(xMin, yMax, 0f, _gridColor);
+            grid[count++] = new Vertex(xMax, yMax, 0f, _gridColor);
             // bottom
-            grid[idx++] = new Vertex(xMin, yMin, 0f, _gridColor);
-            grid[idx++] = new Vertex(xMax, yMin, 0f, _gridColor);
+            grid[count++] = new Vertex(xMin, yMin, 0f, _gridColor);
+            grid[count++] = new Vertex(xMax, yMin, 0f, _gridColor);
 
-            _gridBuffer.Set(ref grid, idx);
+            _gridBuffer.Set(ref grid, count);
         }
         #endregion
     }

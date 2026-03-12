@@ -56,12 +56,13 @@ namespace TeensyMonitor.Plotter.Helpers
             {
                 FieldEnum.C0             => BaseColours[0],
                 FieldEnum.Gain           => BaseColours[1],
-                FieldEnum.Offset1        => BaseColours[2],
-                FieldEnum.Offset2        => BaseColours[3],
-                FieldEnum.postGainSensor => BaseColours[4],
-                FieldEnum.preGainSensor  => BaseColours[5],
-                FieldEnum.Timestamp      => BaseColours[6],
-
+                FieldEnum.TIA_Mid        => BaseColours[2],
+                FieldEnum.TIA_Top        => BaseColours[3], 
+                FieldEnum.TIA_Bot        => BaseColours[4],
+                FieldEnum.Offset2        => BaseColours[5],
+                FieldEnum.TIA_Sensor     => BaseColours[7],
+                FieldEnum.postGainSensor => BaseColours[6],
+                FieldEnum.Timestamp      => BaseColours[8],
                 _                        => Color.Magenta
             };
         }

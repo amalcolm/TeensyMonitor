@@ -36,6 +36,7 @@ namespace TeensyMonitor.Plotter.Helpers
         private readonly ConcurrentStack<Action> _shutdownStack = new();
 
         private readonly ManualResetEventSlim _frameDone = new(initialState: true);
+        private readonly ManualResetEventSlim _tasksAvailable = new(initialState: false);
         public volatile bool _shutdownRequested;
 
         private readonly GLControl _glControl;
@@ -60,6 +61,9 @@ namespace TeensyMonitor.Plotter.Helpers
                     Debug.WriteLine($"Render task failed: {ex.Message}");
                 }
             }
+
+            if (_tasksToDo.Count == 0)
+                _tasksAvailable.Reset();
 
             RenderAction?.Invoke();
 
@@ -118,6 +122,9 @@ namespace TeensyMonitor.Plotter.Helpers
 
             if (    initAction != null) _tasksToDo    .Add (    initAction);
             if (shutdownAction != null) _shutdownStack.Push(shutdownAction);
+
+            if (initAction != null)
+                _tasksAvailable.Set();
             
             return true;
         }
@@ -127,6 +134,7 @@ namespace TeensyMonitor.Plotter.Helpers
             if (_shutdownRequested) return false;
             _tasksToDo.Add(action); 
             _tasksToDo.Add(() => _glControl.SwapBuffers());
+            _tasksAvailable.Set();
             return true;
         }
 
@@ -139,6 +147,7 @@ namespace TeensyMonitor.Plotter.Helpers
             if (!_isRunning || _cts.IsCancellationRequested) return;
 
             _tasksToDo.Add(action);
+            _tasksAvailable.Set();
         }
 
         private void Run()
@@ -184,13 +193,22 @@ namespace TeensyMonitor.Plotter.Helpers
                             TimeSpan remaining = TimeSpan.FromTicks(framePeriod_Ticks - stopwatch.ElapsedTicks);
                             if (remaining <= TimeSpan.Zero) break;
 
-                            if (_tasksToDo.TryTake(out var action, remaining))
+                            if (_tasksToDo.TryTake(out var action, 0))
+                            {
                                 do
                                 {
                                     try { action.Invoke(); }
                                     catch (Exception ex) { Debug.WriteLine($"[MyGLThread] Task Exception: {ex.Message}"); }
 
                                 } while (_tasksToDo.TryTake(out action, 0));  // drain burst non-blocking
+                            }
+                            else
+                            {
+                                _tasksAvailable.Wait(remaining);
+                            }
+
+                            if (_tasksToDo.Count == 0)
+                                _tasksAvailable.Reset();
                         }
 
                         int currentSeconds = (int)mainTimer.Elapsed.TotalSeconds;
