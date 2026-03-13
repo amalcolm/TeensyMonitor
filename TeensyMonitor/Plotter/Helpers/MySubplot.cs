@@ -92,7 +92,7 @@ namespace TeensyMonitor.Plotter.Helpers
             
             _gridBuffer.DrawLines();
 
-            _waveBuffer_C0 .DrawLineStrip();
+//            _waveBuffer_C0 .DrawLineStrip();
             _waveBuffer_PG .DrawLineStrip();
             _waveBuffer_TMP.DrawLineStrip();
 
