@@ -33,14 +33,22 @@ namespace PsycSerial
                 else if (field->FieldType == UInt32::typeid)
                 {
                     UInt32 parsed;
+                    double n;
                     if (UInt32::TryParse(value, parsed))
                         field->SetValue(nullptr, parsed);
+                    else
+                        if (double::TryParse(value, n))
+                            field->SetValue(nullptr, static_cast<UInt32>(n));
                 }
                 else if (field->FieldType == Int32::typeid)
                 {
                     Int32 parsed;
+                    double n;
                     if (Int32::TryParse(value, parsed))
                         field->SetValue(nullptr, parsed);
+                    else
+                        if (double::TryParse(value, n))
+							field->SetValue(nullptr, static_cast<Int32>(n));
                 }
                 // Extend for Double, Boolean, etc. if needed
             }

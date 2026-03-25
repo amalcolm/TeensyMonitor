@@ -16,7 +16,7 @@ namespace TeensyMonitor.Plotter.UserControls
     [ToolboxItem(true)]
     public partial class MyChart : MyPlotter
     {
-        private const int WindowSize = 16384;
+        private const int WindowSize = 0x10000;
 
         public bool EnablePlots  { get; set; } = true;
         public bool EnableLabels { get; set; } = true;

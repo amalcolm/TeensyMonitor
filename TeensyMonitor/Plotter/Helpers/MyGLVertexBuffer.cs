@@ -146,7 +146,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
             lock (_lock)
             {
-                int start = (selector == null) ? 2 : 0;
+                int start = (selector == null) ? 2 : 1;
                 if (onlyLast)   start = packet.Count - 1;
 
                 for (int i = start; i < packet.Count; i++)
@@ -154,7 +154,7 @@ namespace TeensyMonitor.Plotter.Helpers
                     CheckSize();
 
                     float x = (float)packet.BlockData[i].TimeStamp;
-                    float y = (selector == null) ? (float)(packet.BlockData[i].Channel[0] * Config.C0to1024*0) 
+                    float y = (selector == null) ? (float)(packet.BlockData[i].Channel[0] * Config.C0to1024) 
                                                  : (float)(packet.BlockData[i].get(selector.Value)         );
 
                     AddUnderLock(x, y, 0.0f, color);

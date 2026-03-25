@@ -46,6 +46,7 @@
             // 
             // cbPorts
             // 
+            cbPorts.Enabled = false;
             cbPorts.FormattingEnabled = true;
             cbPorts.Location = new Point(1060, 10);
             cbPorts.Name = "cbPorts";
@@ -95,6 +96,7 @@
             // 
             // butDBG
             // 
+            butDBG.Enabled = false;
             butDBG.Location = new Point(15, 9);
             butDBG.Name = "butDBG";
             butDBG.Size = new Size(75, 23);

@@ -3,7 +3,7 @@ using TeensyMonitor.Plotter.UserControls;
 
 namespace TeensyMonitor.Plotter.Helpers
 {
-     class MySubplot : MyGLViewport
+    class MySubplot : MyGLViewport
     {
         private readonly MyGLVertexBuffer _waveBuffer_C0 = new(1024);
         private readonly MyGLVertexBuffer _waveBuffer_PG = new(1024);
@@ -75,7 +75,7 @@ namespace TeensyMonitor.Plotter.Helpers
             _waveBuffer_PG .SetBlock(block, FieldEnum.postGainSensor, _PG_Scale);
             _waveBuffer_EV .SetBlock(block, FieldEnum.Events        , 1.0);
 
-            _waveBuffer_TMP.SetBlock(block, FieldEnum.TIA_Mid       , 4.0);
+            _waveBuffer_TMP.SetBlock(block, FieldEnum.TIA_Sensor    , 1.0);
         }
 
         public void Render()
@@ -92,8 +92,8 @@ namespace TeensyMonitor.Plotter.Helpers
             
             _gridBuffer.DrawLines();
 
-//            _waveBuffer_C0 .DrawLineStrip();
-            _waveBuffer_PG .DrawLineStrip();
+//            _waveBuffer_C0 .DrawLineStrip();  TURNED OFF
+//            _waveBuffer_PG .DrawLineStrip();
             _waveBuffer_TMP.DrawLineStrip();
 
             // Draw events as vertical lines
