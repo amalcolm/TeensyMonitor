@@ -18,7 +18,7 @@ public:
     
 
     // Native C-Style Callback Function Pointer Types
-    typedef void (*DataHandler)(void* userData, CSerial* sender, const CDecodedPacket& packet);
+    typedef void (*DataHandler)(void* userData, CSerial* sender, const CDecodedPacket& packet);  // packet is reused by decoder, do not store
     typedef void (*ErrorHandler)(void* userData, CSerial* sender, const std::exception& ex);
     typedef void (*ConnectionHandler)(void* userData, CSerial* sender, bool state);
 
@@ -80,6 +80,8 @@ private:
     void InvokeConnectionChanged(bool state);
     void InvokeErrorOccurred(const std::exception& ex);
     void InvokeDataReceived(CPacket& packet);
+
+    CDecodedPacket* m_decodedPacket;
 };
 
 #pragma managed(pop)

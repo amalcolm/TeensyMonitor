@@ -339,7 +339,7 @@ namespace
         
         if (payloadBytes < need) return FrameParseResult::IncompletePacket;
 
-		CBlockPacket bp{};
+		CBlockPacket& bp = out.block;
 
         bp.state     = state;
         bp.timeStamp = ts;

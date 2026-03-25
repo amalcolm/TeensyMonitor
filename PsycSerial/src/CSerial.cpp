@@ -37,10 +37,12 @@ CSerial::CSerial()
     , m_userData(nullptr)
 	, m_mutex()
 	, m_readLoopRunning(false)
+	, m_decodedPacket(new CDecodedPacket()) // Allocate decodedPacket
 { }
 
 
 CSerial::~CSerial() {
+    delete m_decodedPacket;
     Close();  // Ensure proper cleanup
 }
 
@@ -106,8 +108,9 @@ void CSerial::InvokeDataReceived(CPacket& packet) {
         context = m_userData; // Get user data under lock
     }
 
+	CDecodedPacket& dataPacket = *m_decodedPacket;  // single reusable decoded packet
+
     for (;;) {
-		CDecodedPacket dataPacket;
         auto kind = decoder.process(packet, dataPacket);
         if (kind == PacketKind::Unknown)
             break;
@@ -136,7 +139,7 @@ void CSerial::InvokeDataReceived(CPacket& packet) {
         // Invoke outside the lock
         if (handler) {
             try {
-               handler(context, this, dataPacket); // Pass user data
+				handler(context, this, dataPacket); // call hander with reusable packet reference
             }
             catch (const std::exception& e) {
                 OutputDebugStringA("CSerial: Exception caught during DataReceived callback: ");

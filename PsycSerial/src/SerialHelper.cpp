@@ -347,7 +347,7 @@ namespace PsycSerial
     //---------------------------------------------------------------------
     // Private Static Callback Bridges
     //---------------------------------------------------------------------
-    void SerialHelper::StaticDataHandler(void* userData, CSerial* pSender, const CDecodedPacket& packet) {
+	void SerialHelper::StaticDataHandler(void* userData, CSerial* pSender, const CDecodedPacket& packet) {  //packet is reused by decoder, do not store
         GCHandle handle = GCHandle::FromIntPtr(IntPtr(userData));
         SerialHelper^ wrapper = nullptr;
         try {
@@ -426,11 +426,11 @@ namespace PsycSerial
     // Private Instance Callback Handlers (Use Helper Structs)
     //---------------------------------------------------------------------
 
-    void SerialHelper::OnDataReceived(const CDecodedPacket& packet) {
+	void SerialHelper::OnDataReceived(const CDecodedPacket& packet) {  // packet is reused by decoder, do not store
         IPacket^ managedPacket = nullptr;
         try {
 
-            managedPacket = Decoder::Convert(packet);
+            managedPacket = Decoder::Convert(packet);  // this is the only use of packet.  managedPacket is rented and returned
 
         }
         catch (Exception^ ex) {
