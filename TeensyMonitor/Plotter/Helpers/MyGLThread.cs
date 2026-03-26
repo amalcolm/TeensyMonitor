@@ -35,42 +35,18 @@ namespace TeensyMonitor.Plotter.Helpers
         // A stack for shutdown actions, ensuring LIFO cleanup (e.g., disposing VBOs before the context).
         private readonly ConcurrentStack<Action> _shutdownStack = new();
 
+        public readonly ManualResetEventSlim RenderNow = new(initialState: false);
         private readonly ManualResetEventSlim _frameDone = new(initialState: true);
         private readonly ManualResetEventSlim _tasksAvailable = new(initialState: false);
-        public volatile bool _shutdownRequested;
+        private volatile bool _shutdownRequested;
 
         private readonly GLControl _glControl;
 
         private volatile bool _isRunning = false;
-        private int RefreshRate;
 
         public bool IsDisposed => _shutdownRequested;
 
-        public void RenderOnce()
-        {
-            if (_glControl.IsDisposed || _isRunning) return;
-
-            _glControl.MakeCurrent();
-
-            // process enqueued work
-            while (_tasksToDo.TryTake(out var task, 0))
-            {
-                try { task.Invoke(); }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Render task failed: {ex.Message}");
-                }
-            }
-
-            if (_tasksToDo.Count == 0)
-                _tasksAvailable.Reset();
-
-            RenderAction?.Invoke();
-
-            _glControl.SwapBuffers();
-        }
-
-
+        public ManualResetEventSlim FrameDone { get => _frameDone; }
         static readonly List<MyGLThread> ActiveGLThreads = [];
 
         public MyGLThread(GLControl glControl)
@@ -98,7 +74,6 @@ namespace TeensyMonitor.Plotter.Helpers
                     throw new InvalidOperationException("GLControl context is not initialized.");
 
 
-                RefreshRate = ScreenHelper.GetCurrentRefreshRate(_glControl);
 
                 _glControl.Context.MakeNoneCurrent();
 
@@ -150,81 +125,64 @@ namespace TeensyMonitor.Plotter.Helpers
             _tasksAvailable.Set();
         }
 
+
         private void Run()
         {
-            var mainTimer = Stopwatch.StartNew();
-
-            int second = 0;
-            
-            var stopwatch = new Stopwatch();
-            long framePeriod_Ticks = Stopwatch.Frequency / RefreshRate;
-            long nTotalFrames = 0, nFramesThisSecond = 0;
             try
             {
-                _glControl.MakeCurrent();                                     if (_glControl.Context == null) throw new InvalidOperationException("GLControl context is not initialized.");
+                _glControl.MakeCurrent();                                   if (_glControl.Context == null) throw new InvalidOperationException("GLControl context is not initialized.");
                 _glControl.Context.SwapInterval = 0;
 
-                while (!_cts.IsCancellationRequested)
-                {
-                    _frameDone.Reset();
-                    stopwatch.Restart();
+                WaitHandle[] waits =
+                [
+                    _cts.Token.WaitHandle,
+                    RenderNow.WaitHandle,
+                    _tasksAvailable.WaitHandle
+                ];
 
+                while (true)
+                {
+                    int signaled = WaitHandle.WaitAny(waits);
+                    if (signaled == 0) // Cancellation requested
+                        break;
+
+                    while (true)
+                    {
+                        while (_tasksToDo.TryTake(out var action, 0))
+                        {
+                            try { action(); }
+                            catch (Exception ex) { Debug.WriteLine($"[MyGLThread] Task Exception: {ex.Message}"); }
+                        }
+
+                        _tasksAvailable.Reset();
+
+                        if (_tasksToDo.TryTake(out var lateEntry, 0))
+                        {
+                            try { lateEntry(); }
+                            catch (Exception ex) { Debug.WriteLine($"[MyGLThread] Late Task Exception: {ex.Message}"); }
+                        }
+                        else
+                            break; // no more tasks
+                    }
+
+                    if (signaled == 2) continue; // wait was tasksAvailable, so keep looping
+
+                    // wait was RenderNow
+
+                    _glControl.MakeCurrent(); if (_glControl.Context == null) throw new InvalidOperationException("GLControl context is not initialized.");
+                    _frameDone.Reset();
                     try
                     {
-                        try
-                        {
-                            _glControl.MakeCurrent();                        if (_glControl.Context == null) throw new InvalidOperationException("GLControl context is not initialized.");
-                            RenderAction?.Invoke();
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"[MyGLThread] RenderAction Exception: {ex.Message}");
-                        }
-                        finally
-                        {
-                            _glControl.SwapBuffers();
-                        }
-                        
-                        nTotalFrames++;
-                        nFramesThisSecond++;
-
-                        while (stopwatch.ElapsedTicks < framePeriod_Ticks && !_cts.IsCancellationRequested)
-                        {
-                            TimeSpan remaining = TimeSpan.FromTicks(framePeriod_Ticks - stopwatch.ElapsedTicks);
-                            if (remaining <= TimeSpan.Zero) break;
-
-                            if (_tasksToDo.TryTake(out var action, 0))
-                            {
-                                do
-                                {
-                                    try { action.Invoke(); }
-                                    catch (Exception ex) { Debug.WriteLine($"[MyGLThread] Task Exception: {ex.Message}"); }
-
-                                } while (_tasksToDo.TryTake(out action, 0));  // drain burst non-blocking
-                            }
-                            else
-                            {
-                                _tasksAvailable.Wait(remaining);
-                            }
-
-                            if (_tasksToDo.Count == 0)
-                                _tasksAvailable.Reset();
-                        }
-
-                        int currentSeconds = (int)mainTimer.Elapsed.TotalSeconds;
-                        if (currentSeconds != second)
-                        {
-                            second = currentSeconds;   // Debug.WriteLine($"[MyGLThread] FPS: {nFramesThisSecond}");
-                        //    Debug.WriteLine($"[MyGLThread] Total Frames: {nTotalFrames}, FPS: {nFramesThisSecond}, Frame Time: {frameTime:F5} ms");
-                            nFramesThisSecond = 0;
-                        }
+                        RenderAction?.Invoke();
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"[MyGLThread] Main Loop Exception: {ex.Message}");
+                        Debug.WriteLine($"[MyGLThread] RenderAction Exception: {ex.Message}");
                     }
                     finally
                     {
+                        _glControl.SwapBuffers();
+                        RenderNow.Reset();
                         _frameDone.Set();
                     }
                 }
@@ -233,7 +191,8 @@ namespace TeensyMonitor.Plotter.Helpers
             finally
             {
                 while (_shutdownStack.TryPop(out var action))
-                    action.Invoke();
+                    try { action.Invoke(); }
+                    catch (Exception ex) { Debug.WriteLine($"[MyGLThread] Shutdown Action Exception: {ex.Message}"); }
             }
 
 
@@ -247,13 +206,10 @@ namespace TeensyMonitor.Plotter.Helpers
             _isRunning = false;
             _shutdownRequested = true;
 
-            _frameDone.Wait();
-
-            try { _thread.Join(); } catch { /* ignored */ }
+            try { _thread.Join(); } catch { }
 
             _cts.Dispose();
             GC.SuppressFinalize(this);
-
             Scheduler.Unregister(this);
         }
     }

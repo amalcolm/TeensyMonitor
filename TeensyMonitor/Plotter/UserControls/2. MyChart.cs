@@ -48,7 +48,7 @@ namespace TeensyMonitor.Plotter.UserControls
         static readonly string[] dataFieldsToPlot = [
 //            "Offset1_Hi", "Offset1_Lo", "Offset1", "Offset2", "Gain",
               "TIA_Sensor",
-//              "postGainSensor",
+              "postGainSensor",
             ];
 
         static readonly string[] dataFieldsForLabels = [

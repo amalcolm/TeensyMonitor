@@ -42,9 +42,7 @@ namespace TeensyMonitor.Plotter.UserControls
         private float _currentViewRight = 0.0f;
         private float _maxTime = 0.0f;
 
-        private readonly Stopwatch SW = new();
-        private double _watchOffset = 0.0;
-        private readonly double RightEdgeBufferSeconds = 0.04;
+        private readonly double RightEdgeBufferSeconds = 0.004;
 
         private DateTime lastTime = DateTime.Now;
         private readonly TimeSpan timeBetweenDebug = TimeSpan.MaxValue;
@@ -82,24 +80,8 @@ namespace TeensyMonitor.Plotter.UserControls
 
             if (_maxTime == float.MinValue) return;
 
-            if (SW.IsRunning == false)
-            {
-                _watchOffset = _maxTime + RightEdgeBufferSeconds;
-                SW.Start();
-            }
-            
+            _currentViewRight = (float)(Scheduler.Time + RightEdgeBufferSeconds);
 
-            // 2. Define the target for the right edge of our _viewport.
-            //    This includes a small buffer for the gap.
-            _currentViewRight = (float)(SW.ElapsedMilliseconds / 1000.0 + _watchOffset);
-
-            if (_maxTime > _currentViewRight + 0.5)
-            {
-                // If new data has arrived that is beyond our current view, jump the view forward.
-                _watchOffset = _maxTime - RightEdgeBufferSeconds;
-                _currentViewRight = (float)(_maxTime + RightEdgeBufferSeconds);
-                SW.Restart();
-            }
 
             // 4. Define the _viewport based on the smoothed position.
             float viewLeft = _currentViewRight - Window;
@@ -130,7 +112,7 @@ namespace TeensyMonitor.Plotter.UserControls
                     }
                     break;
             }
-            SW.Reset();
+            Scheduler.Reset();
         }
 
         protected override void DrawText()
@@ -138,7 +120,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
         private void MyGL_MouseWheel(object? sender, MouseEventArgs e)
         {
-            if (GLThread == null || GLThread._shutdownRequested) return;
+            if (GLThread == null || GLThread.IsDisposed) return;
 
             const float zoomFactor = 1.1f;
             float newTimeWindow;

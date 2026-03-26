@@ -33,7 +33,6 @@
             // 
             // chart
             // 
-            chart.AllowPause = true;
             chart.AutoClear = true;
             chart.BackColor = Color.DarkSlateGray;
             chart.BorderStyle = BorderStyle.FixedSingle;

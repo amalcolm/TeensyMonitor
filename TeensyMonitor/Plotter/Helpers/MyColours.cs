@@ -49,6 +49,7 @@ namespace TeensyMonitor.Plotter.Helpers
         public static readonly MyColour Magenta = Color.Magenta;
         public static readonly MyColour Cyan    = Color.Cyan;
         public static readonly MyColour Black   = Color.Black;
+        public static readonly MyColour Transparent = new(0, 0, 0, 0);
 
         public static MyColour GetFieldColour(FieldEnum field)
         {

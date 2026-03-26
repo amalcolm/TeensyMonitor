@@ -18,9 +18,7 @@ namespace TeensyMonitor.Plotter.UserControls
         static int InstanceCount = 0;
 
         public bool AutoClear { get; set; } = true;
-        public static bool IsPaused { get; set; } = false;
-        public bool AllowPause { get; set; } = true;
-
+        
         public MyGLThread? GLThread { get; private set; } = default!;
         public void Setup(Action? initAction, Action? shutdownAction = null) 
             => GLThread!.Enqueue(initAction, shutdownAction);
@@ -90,8 +88,8 @@ namespace TeensyMonitor.Plotter.UserControls
             GLThread = new(MyGL);
 
             this.Resize += (s,e) => GLThread?.Enqueue(GL_Resize);
-            MyGL.MouseDown += (s,e) => IsPaused = true;
-            MyGL.MouseUp += (s,e) => IsPaused = false;
+            MyGL.MouseDown += (s,e) => Scheduler.IsPaused = true;
+            MyGL.MouseUp += (s,e) => Scheduler.IsPaused = false;
 
             GLThread.RenderAction = RenderLoop;
 
@@ -202,8 +200,7 @@ namespace TeensyMonitor.Plotter.UserControls
         private void RenderLoop()
         {
             if (!IsLoaded || IsDisposed) return;
-            if (IsPaused && AllowPause) return;
-
+            
             if (AutoClear)
                 GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 

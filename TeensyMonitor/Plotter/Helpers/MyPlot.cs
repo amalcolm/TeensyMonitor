@@ -11,7 +11,7 @@ namespace TeensyMonitor.Plotter.Helpers
         public float      LastX    { get; private set; } = 0;
         public double     Yscale   { get; set;         } = 0.0; // overridden by MyPlotter if 0.0.  If not overridden, use 1.0.
         public MyColour   Colour   { get; set;         } = MyColour.GetNextColour();
-        public double     XCounter { get; set;         } = -Math.Pow(2, 20) + 2; // X value counter, for signals without timestamps
+        public double     XCounter { get; set;         } = 0.0; // -Math.Pow(2, 20) + 2; // X value counter, for signals without timestamps
                                                                                  // Starts at a large negative value to avoid issues with float precision with ++;
         public bool       Visible  { get; set;         } = true;
         public FieldEnum? Selector { get; set;         } = null;

@@ -65,7 +65,6 @@
             // 
             // chart0
             // 
-            chart0.AllowPause = true;
             chart0.AutoClear = true;
             chart0.BackColor = Color.Cornsilk;
             chart0.BorderStyle = BorderStyle.FixedSingle;
@@ -128,7 +127,6 @@
             // 
             // dbg
             // 
-            dbg.AllowPause = true;
             dbg.AutoClear = true;
             dbg.BackColor = Color.AliceBlue;
             dbg.BorderStyle = BorderStyle.FixedSingle;
@@ -150,7 +148,6 @@
             // 
             // TelemetryPane
             // 
-            TelemetryPane.AllowPause = true;
             TelemetryPane.AutoClear = true;
             TelemetryPane.BackColor = Color.PapayaWhip;
             TelemetryPane.BorderStyle = BorderStyle.FixedSingle;

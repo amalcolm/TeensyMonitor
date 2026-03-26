@@ -5,15 +5,15 @@ namespace TeensyMonitor.Plotter.Helpers
 {
     class MySubplot : MyGLViewport
     {
-        private readonly MyGLVertexBuffer _waveBuffer_C0 = new(1024);
-        private readonly MyGLVertexBuffer _waveBuffer_PG = new(1024);
-        private readonly MyGLVertexBuffer _waveBuffer_EV = new(1024);
-        private readonly MyGLVertexBuffer _waveBuffer_TMP= new(1024);
+        private readonly MyGLVertexBuffer _waveBuffer_C0 = new(4096);
+        private readonly MyGLVertexBuffer _waveBuffer_PG = new(4096);
+        private readonly MyGLVertexBuffer _waveBuffer_EV = new(4096);
+        private readonly MyGLVertexBuffer _waveBuffer_TMP= new(4096);
 
         private readonly double _C0_Scale = Config.C0to1024;
         private readonly double _PG_Scale = 1.0;
 
-        private readonly MyGLVertexBuffer _gridBuffer = new(4096);
+        private readonly MyGLVertexBuffer _gridBuffer = new(8192);
         private bool _gridDirty = true;
         
         
@@ -92,8 +92,8 @@ namespace TeensyMonitor.Plotter.Helpers
             
             _gridBuffer.DrawLines();
 
-//            _waveBuffer_C0 .DrawLineStrip();  TURNED OFF
-//            _waveBuffer_PG .DrawLineStrip();
+            _waveBuffer_C0 .DrawLineStrip();
+            _waveBuffer_PG .DrawLineStrip();
             _waveBuffer_TMP.DrawLineStrip();
 
             // Draw events as vertical lines

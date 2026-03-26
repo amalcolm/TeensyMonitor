@@ -139,6 +139,7 @@ namespace TeensyMonitor.Plotter.Helpers
         }
 
 
+        static readonly FieldEnum[] DoNotJoin = [FieldEnum.C0, FieldEnum.postGainSensor];
 
         public void AddBlock(ref BlockPacket packet, FieldEnum? selector, bool onlyLast)
         {
@@ -146,7 +147,8 @@ namespace TeensyMonitor.Plotter.Helpers
 
             lock (_lock)
             {
-                int start = (selector == null) ? 2 : 1;
+                bool transparent = DoNotJoin.Contains(selector ?? FieldEnum.C0);
+                int start = (selector == null) ? 0 : 0;
                 if (onlyLast)   start = packet.Count - 1;
 
                 for (int i = start; i < packet.Count; i++)
@@ -157,7 +159,12 @@ namespace TeensyMonitor.Plotter.Helpers
                     float y = (selector == null) ? (float)(packet.BlockData[i].Channel[0] * Config.C0to1024) 
                                                  : (float)(packet.BlockData[i].get(selector.Value)         );
 
+                    if (i == start && transparent)
+                        AddUnderLock(x, y, 0.0f, MyColour.Transparent);
                     AddUnderLock(x, y, 0.0f, color);
+
+                    if (i == packet.Count - 1 && transparent)
+                        AddUnderLock(x, y, 0.0f, MyColour.Transparent);
                 }
             }
         }
