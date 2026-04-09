@@ -115,41 +115,44 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             var r = OutRect;
             float xMin = r.Left, xMax = r.Right, yMin = r.Top, yMax = r.Bottom; // note: Y inverted in GL coords
-
+            int numVerticalLines = 0;
             // 1) Get the X positions for vertical lines
             if (waveBuffer is null)
             {
                 int div = Math.Max(1, GridDivisions);
-                if (xs.Length < div + 1)
-                    xs = new float[div + 1];
+                numVerticalLines = div + 1;
+                if (xs.Length < numVerticalLines)
+                    xs = new float[numVerticalLines];
 
                 float step = (xMax - xMin) / div;
                 for (int i = 0; i <= div; i++)
                     xs[i] = xMin + i * step;
+
 
                 _gridDirty = false;  // only when uniform grid
             }
             else
             {
                 var span = waveBuffer.GetLatestX();
-                if (xs.Length < span.Length + 2)
-                    xs = new float[span.Length + 2];
+                numVerticalLines= span.Length + 2; 
+                if (xs.Length < numVerticalLines)
+                    xs = new float[numVerticalLines];
 
                 xs[0] = xMin;
                 for (int i = 0; i < span.Length; i++)
                     xs[i + 1] = span[i];
-                xs[^1] = xMax;
+                xs[span.Length + 1] = xMax;
 
-                GridDivisions = xs.Length - 1;
             }
 
             // 2) Allocate and emit geometry
             int count = 0;
 
-            foreach (float x in xs)
+            for (int i = 0; i < numVerticalLines; i++)
             {
-                grid[count++] = new Vertex(x, yMin + 80.0f, 0f, _gridColor);
-                grid[count++] = new Vertex(x, yMax        , 0f, _gridColor);
+                float yOff = (i == 0 || i == numVerticalLines - 1) ? 0f : 80f;
+                grid[count++] = new Vertex(xs[i], yMin + yOff, 0f, _gridColor);
+                grid[count++] = new Vertex(xs[i], yMax       , 0f, _gridColor);
             }
 
             // top

@@ -74,20 +74,19 @@ namespace TeensyMonitor.Plotter.Helpers
 
             GL.BindVertexArray(_vao);
             GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
-
-
-            
+                        
             // Allocate GPU memory (bytes)
-            GL.BufferData(BufferTarget.ArrayBuffer,
-                vertexCapacity * Vertex.Size,
-                IntPtr.Zero,
-                BufferUsageHint.DynamicDraw);
+            GL.BufferData(
+                target: BufferTarget.ArrayBuffer,
+                  size: vertexCapacity * Vertex.Size,
+                  data: IntPtr.Zero,
+                 usage: BufferUsageHint.DynamicDraw);
 
-            /* Attribute 0: vec4 position */  GL.EnableVertexAttribArray(0); GL.VertexAttribPointer( index: 0, size: 4, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, (IntPtr)Marshal.OffsetOf<Vertex>(nameof(Vertex.Position)));
-            /* Attribute 1: vec4 normal   */  GL.EnableVertexAttribArray(1); GL.VertexAttribPointer( index: 1, size: 4, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, (IntPtr)Marshal.OffsetOf<Vertex>(nameof(Vertex.Normal  )));
-            /* Attribute 2: vec4 colour   */  GL.EnableVertexAttribArray(2); GL.VertexAttribPointer( index: 2, size: 4, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, (IntPtr)Marshal.OffsetOf<Vertex>(nameof(Vertex.Colour  )));
-            /* Attribute 3: vec2 uv0      */  GL.EnableVertexAttribArray(3); GL.VertexAttribPointer( index: 3, size: 2, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, (IntPtr)Marshal.OffsetOf<Vertex>(nameof(Vertex.uv0     )));
-            /* Attribute 4: vec2 uv1      */  GL.EnableVertexAttribArray(4); GL.VertexAttribPointer( index: 4, size: 2, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, (IntPtr)Marshal.OffsetOf<Vertex>(nameof(Vertex.uv1     )));
+            /* Attribute 0: vec4 position */  GL.EnableVertexAttribArray(0); GL.VertexAttribPointer( index: 0, size: 4, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, pointer: Marshal.OffsetOf<Vertex>(nameof(Vertex.Position)));
+            /* Attribute 1: vec4 normal   */  GL.EnableVertexAttribArray(1); GL.VertexAttribPointer( index: 1, size: 4, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, pointer: Marshal.OffsetOf<Vertex>(nameof(Vertex.Normal  )));
+            /* Attribute 2: vec4 colour   */  GL.EnableVertexAttribArray(2); GL.VertexAttribPointer( index: 2, size: 4, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, pointer: Marshal.OffsetOf<Vertex>(nameof(Vertex.Colour  )));
+            /* Attribute 3: vec2 uv0      */  GL.EnableVertexAttribArray(3); GL.VertexAttribPointer( index: 3, size: 2, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, pointer: Marshal.OffsetOf<Vertex>(nameof(Vertex.uv0     )));
+            /* Attribute 4: vec2 uv1      */  GL.EnableVertexAttribArray(4); GL.VertexAttribPointer( index: 4, size: 2, type: VertexAttribPointerType.Float, normalized: false, stride: Vertex.Size, pointer: Marshal.OffsetOf<Vertex>(nameof(Vertex.uv1     )));
             
             GL.BindVertexArray(0);
             GL.BindBuffer(BufferTarget.ArrayBuffer, 0);
@@ -101,13 +100,16 @@ namespace TeensyMonitor.Plotter.Helpers
             }
         }
 
+        readonly int SafeSize = vertexCapacity - 4;
+
         void CheckSize()
         {
-            if (_vertexCount < vertexCapacity || WindowSize < 0) return;
+
+            if (_vertexCount < SafeSize || WindowSize < 0) return;
             int windowMax = WindowSize - 1;
 
             // Shift data left to make room for new vertex
-            Array.Copy(_vertexData, (vertexCapacity - windowMax), _vertexData, 0, windowMax);
+            Array.Copy(_vertexData, (_vertexCount - windowMax), _vertexData, 0, windowMax);
             _vertexCount = windowMax;
         }
 
@@ -147,7 +149,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
             lock (_lock)
             {
-                bool transparent = DoNotJoin.Contains(selector ?? FieldEnum.C0);
+                bool transparent = DoNotJoin.Contains(selector ?? FieldEnum.C0) && !onlyLast;
                 int start = (selector == null) ? 0 : 0;
                 if (onlyLast)   start = packet.Count - 1;
 

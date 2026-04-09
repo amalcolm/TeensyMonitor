@@ -121,7 +121,7 @@ namespace TeensyMonitor.Plotter.Helpers
             if (Selector == null)
                 SetSubplot(block);
 
-            _bufMainPlot.AddBlock(ref block, Selector, onlyLast:false); // only plot last point in block
+            _bufMainPlot.AddBlock(ref block, Selector, onlyLast:true); // only plot last point in block
 
             LastX = (float)block.BlockData[block.Count - 1].TimeStamp;
         }
