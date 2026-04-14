@@ -27,7 +27,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
                 case "PSYC-ANDREW":
                     this.StartPosition = FormStartPosition.Manual;
-                    this.Location = new Point(180, 100);
+                    this.Location = new Point(4090, 100);
                     this.WindowState = FormWindowState.Maximized;
                     break;
             }
@@ -47,7 +47,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
             DataPacket packet = blockPacket.BlockData[blockPacket.Count - 1];
             
-            if (!_extractors.TryGetValue(packet.State, out var extractor))
+            if (_extractors.TryGetValue(packet.State, out var extractor) == false)
                 _extractors[packet.State] = extractor = new SignalExtractor(packet.State) { Chart = chart };
 
             extractor.Process(packet);

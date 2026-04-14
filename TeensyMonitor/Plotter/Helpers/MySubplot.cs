@@ -71,11 +71,11 @@ namespace TeensyMonitor.Plotter.Helpers
 
         public void SetBlock(BlockPacket block)
         {
-            _waveBuffer_C0 .SetBlock(block, FieldEnum.C0            , _C0_Scale);
-            _waveBuffer_PG .SetBlock(block, FieldEnum.postGainSensor, _PG_Scale);
-            _waveBuffer_EV .SetBlock(block, FieldEnum.Events        , 1.0);
+            _waveBuffer_C0 .SetSubPlotData(block, FieldEnum.C0            , _C0_Scale);
+            _waveBuffer_PG .SetSubPlotData(block, FieldEnum.postGainSensor, _PG_Scale);
+            _waveBuffer_EV .SetSubPlotData(block, FieldEnum.Events        , 1.0);
 
-            _waveBuffer_TMP.SetBlock(block, FieldEnum.TIA_Sensor    , 1.0);
+            _waveBuffer_TMP.SetSubPlotData(block, FieldEnum.TIA_Sensor    , 1.0);
         }
 
         public void Render()

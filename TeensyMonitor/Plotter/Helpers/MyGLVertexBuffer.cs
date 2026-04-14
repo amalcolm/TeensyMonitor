@@ -1,7 +1,9 @@
 ﻿using OpenTK.Graphics.OpenGL4;
-using PsycSerial;
-using System.Runtime.InteropServices;
 using OpenTK.Mathematics;
+using PsycSerial;
+using System.Collections.Generic;
+using System.Net.Sockets;
+using System.Runtime.InteropServices;
 
 namespace TeensyMonitor.Plotter.Helpers
 {
@@ -149,9 +151,12 @@ namespace TeensyMonitor.Plotter.Helpers
 
             lock (_lock)
             {
-                bool transparent = DoNotJoin.Contains(selector ?? FieldEnum.C0) && !onlyLast;
                 int start = (selector == null) ? 0 : 0;
-                if (onlyLast)   start = packet.Count - 1;
+                if (onlyLast) start = packet.Count - 1;
+
+                int first = start, last = packet.Count - 1;
+
+                bool transparent = DoNotJoin.Contains(selector ?? FieldEnum.C0) && !onlyLast;
 
                 for (int i = start; i < packet.Count; i++)
                 {
@@ -161,12 +166,11 @@ namespace TeensyMonitor.Plotter.Helpers
                     float y = (selector == null) ? (float)(packet.BlockData[i].Channel[0] * Config.C0to1024) 
                                                  : (float)(packet.BlockData[i].get(selector.Value)         );
 
-                    if (i == start && transparent)
-                        AddUnderLock(x, y, 0.0f, MyColour.Transparent);
+                    if (i == start && transparent) AddUnderLock(x, y, 0.0f, MyColour.Transparent);
+
                     AddUnderLock(x, y, 0.0f, color);
 
-                    if (i == packet.Count - 1 && transparent)
-                        AddUnderLock(x, y, 0.0f, MyColour.Transparent);
+                    if (i == last  && transparent) AddUnderLock(x, y, 0.0f, MyColour.Transparent);
                 }
             }
         }
@@ -196,30 +200,47 @@ namespace TeensyMonitor.Plotter.Helpers
 
 
         Vertex[] subPlotData = new Vertex[1024];
-        public void SetBlock(BlockPacket block, FieldEnum field, double scale)
+        public void SetSubPlotData(BlockPacket packet, FieldEnum field, double scale)
         {
-            if (subPlotData.Length < block.Count)
-                subPlotData = new Vertex[block.Count * 2];
+            if (subPlotData.Length < packet.Count)
+                subPlotData = new Vertex[packet.Count * 2];
 
             if (field == FieldEnum.Events)
             {
-                SetEvents(block);
+                SetEvents(packet);
                 return;
             }
 
-            MyColour colour = MyColour.GetFieldColour(field);
-
-            for (int i = 0; i < block.Count; i++)
+            bool separate = false;
+            int first = 0, last = packet.Count - 1;
+            if (last >= first + 2)
             {
-                double value = block.BlockData[i].get(field) * scale;
+                double dT0 = packet.BlockData[first + 1].TimeStamp - packet.BlockData[first   ].TimeStamp;
+                double dT1 = packet.BlockData[last     ].TimeStamp - packet.BlockData[last - 1].TimeStamp;
 
-                float x = (float)block.BlockData[i].StateTime;
-                float y = (float)value;
-                float z = 0.0f;
-                subPlotData[i] = new Vertex(x, y, z, colour);
+                separate = dT0 > 0 && dT1 / dT0 > 3;
             }
 
-            Set(ref subPlotData, block.Count);
+
+            MyColour colour = MyColour.GetFieldColour(field);
+
+            int i = 0;
+            while (i < packet.Count)
+            {
+                double value = packet.BlockData[i].get(field) * scale;
+
+                float x = (float)packet.BlockData[i].StateTime;
+                float y = (float)value;
+                float z = 0.0f;
+
+                if (separate && i == last)
+                    subPlotData[i++] = new Vertex((float)packet.BlockData[last-1].StateTime, y, z, colour);
+
+                subPlotData[i++] = new Vertex(x, y, z, colour);
+            }
+
+
+            Set(ref subPlotData, i);
 
         }
 
