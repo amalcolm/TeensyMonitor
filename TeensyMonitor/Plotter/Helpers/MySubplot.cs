@@ -75,7 +75,7 @@ namespace TeensyMonitor.Plotter.Helpers
             _waveBuffer_PG .SetSubPlotData(block, FieldEnum.postGainSensor, _PG_Scale);
             _waveBuffer_EV .SetSubPlotData(block, FieldEnum.Events        , 1.0);
 
-            _waveBuffer_TMP.SetSubPlotData(block, FieldEnum.TIA_Sensor    , 1.0);
+            _waveBuffer_TMP.SetSubPlotData(block, FieldEnum.Stage1_Sensor , 1.0);
         }
 
         public void Render()

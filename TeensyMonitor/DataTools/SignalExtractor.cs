@@ -19,7 +19,7 @@ namespace TeensyMonitor.DataTools
         private const double scale_C0 = 1.0 / 4660.100;
         private const double delta_Offset2 = 368.0;
 
-        private const uint ra_Size = 99;
+        private const uint ra_Size = 512;
 
         public sealed class StateData
         {

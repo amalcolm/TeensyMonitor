@@ -78,7 +78,7 @@ namespace TeensyMonitor.Plotter.Helpers
                         }
                     }
 
-                Thread.Sleep(1);
+                PsycSerial.Sleep.ms(5.0);
             }
 
             lock (_lock)

@@ -151,7 +151,7 @@ namespace TeensyMonitor.Plotter.Helpers
 
             lock (_lock)
             {
-                int start = (selector == null) ? 0 : 0;
+                int start = (selector == null) ? 1 : 0;
                 if (onlyLast) start = packet.Count - 1;
 
                 int first = start, last = packet.Count - 1;
