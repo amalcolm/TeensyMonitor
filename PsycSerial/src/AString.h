@@ -89,6 +89,55 @@ namespace PsycSerial
         // Destructor returns buffer and object to pools (called via 'delete')
         ~AString();
 
+
+        static constexpr wchar_t SPACE = L' ';
+
+        static bool IsDigit(wchar_t ch) { return ch >= L'0' && ch <= L'9'; }
+
+        static bool IsNumericStart(wchar_t ch) { return IsDigit(ch) || ch == L'+' || ch == L'-' || ch == L'.'; }
+
+    public:
+        void Expand(const wchar_t* in, int offset, const int count) {
+            
+            int oi = 0;
+            int pendingSpaces = 0;
+
+			int end = offset + count;
+
+			int nSpaces = 0; 
+            for (int i = offset; i < end; i++) 
+                if (in[i] == L' ') nSpaces++;
+			
+            if (_buffer == nullptr || _buffer->Length < count + nSpaces)
+				_buffer = gcnew array<wchar_t>(count + nSpaces);
+
+            pin_ptr<wchar_t> out = &_buffer[0];
+
+            for (size_t ii = offset; ii < end; ii++) {
+                wchar_t ch = in[ii];
+
+                if (ch == L' ') {
+                    pendingSpaces++;
+                    continue;
+                }
+
+                if (pendingSpaces) {
+                    bool doubleSpace = IsNumericStart(ch);
+
+                    do {
+                        out[oi++] = SPACE;
+                        if (doubleSpace) out[oi++] = SPACE;
+                    } while (--pendingSpaces);
+                }
+
+                out[oi++] = ch;
+            }
+
+			for (int endOutput = oi + pendingSpaces; oi < endOutput; oi++)
+                out[oi] = SPACE;
+                
+			_length = oi;
+        }
     protected:
         // Finalizer: just return the buffer if GC collects without 'delete'
         !AString();

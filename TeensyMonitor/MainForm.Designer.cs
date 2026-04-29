@@ -74,7 +74,7 @@
             chart0.Location = new Point(3, 3);
             chart0.Name = "chart0";
             chart0.Padding = new Padding(4);
-            chart0.Size = new Size(1054, 948);
+            chart0.Size = new Size(1054, 1264);
             chart0.TabIndex = 6;
             chart0.Yscale = 1F;
             // 
@@ -90,7 +90,7 @@
             tlpCharts.RowCount = 1;
             tlpCharts.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             tlpCharts.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            tlpCharts.Size = new Size(1060, 954);
+            tlpCharts.Size = new Size(1060, 1270);
             tlpCharts.TabIndex = 8;
             // 
             // butDBG
@@ -119,7 +119,7 @@
             // 
             pDebugPane.Controls.Add(dbg);
             pDebugPane.Dock = DockStyle.Bottom;
-            pDebugPane.Location = new Point(0, 996);
+            pDebugPane.Location = new Point(0, 1312);
             pDebugPane.Name = "pDebugPane";
             pDebugPane.Padding = new Padding(4);
             pDebugPane.Size = new Size(1395, 308);
@@ -143,7 +143,7 @@
             pTelemetryPane.Location = new Point(1060, 42);
             pTelemetryPane.Name = "pTelemetryPane";
             pTelemetryPane.Padding = new Padding(3);
-            pTelemetryPane.Size = new Size(335, 954);
+            pTelemetryPane.Size = new Size(335, 1270);
             pTelemetryPane.TabIndex = 12;
             // 
             // TelemetryPane
@@ -155,14 +155,14 @@
             TelemetryPane.Location = new Point(3, 3);
             TelemetryPane.Name = "TelemetryPane";
             TelemetryPane.Padding = new Padding(4);
-            TelemetryPane.Size = new Size(329, 948);
+            TelemetryPane.Size = new Size(329, 1264);
             TelemetryPane.TabIndex = 8;
             // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1395, 1304);
+            ClientSize = new Size(1395, 1620);
             Controls.Add(tlpCharts);
             Controls.Add(pTelemetryPane);
             Controls.Add(pDebugPane);

@@ -143,7 +143,7 @@ namespace TeensyMonitor.Plotter.Helpers
         }
 
 
-        static readonly FieldEnum[] DoNotJoin = [FieldEnum.C0, FieldEnum.postGainSensor];
+        static readonly FieldEnum[] DoNotJoin = [FieldEnum.C0, FieldEnum.Stage2_Sensor];
 
         public void AddBlock(ref BlockPacket packet, FieldEnum? selector, bool onlyLast)
         {
@@ -255,8 +255,8 @@ namespace TeensyMonitor.Plotter.Helpers
             
                 float x = (float)ev.StateTime;
 
-                _vertexData[_vertexCount++] = new Vertex(x,  0, 0, colour);
-                _vertexData[_vertexCount++] = new Vertex(x, 40, 0, colour);
+                _vertexData[_vertexCount++] = new Vertex(x, 80, 0, colour);
+                _vertexData[_vertexCount++] = new Vertex(x, 70, 0, colour);
             }
 
 
@@ -265,6 +265,7 @@ namespace TeensyMonitor.Plotter.Helpers
                 MyColour colour1 = MyColour.GetEventColour(startEvent);
                 MyColour colour2 = MyColour.GetEventColour(  endEvent);
                 float x1 = 0.0f, x2;
+                float y1 = y - 4.0f, y2 = y + 4.0f;
 
                 for (int i = 0; i < block.NumEvents; i++)
                 {
@@ -276,7 +277,6 @@ namespace TeensyMonitor.Plotter.Helpers
                     if (ev.Kind !=   endEvent) continue;
                                                x2 = (float)ev.StateTime;
 
-                    float y1 = y - 4.0f, y2 = y + 4.0f;
                     _vertexData[_vertexCount++] = new Vertex(x1, y1, 0.0f, colour1);
                     _vertexData[_vertexCount++] = new Vertex(x1, y2, 0.0f, colour1);
 

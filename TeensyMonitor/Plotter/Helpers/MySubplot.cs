@@ -71,11 +71,11 @@ namespace TeensyMonitor.Plotter.Helpers
 
         public void SetBlock(BlockPacket block)
         {
-            _waveBuffer_C0 .SetSubPlotData(block, FieldEnum.C0            , _C0_Scale);
-            _waveBuffer_PG .SetSubPlotData(block, FieldEnum.postGainSensor, _PG_Scale);
-            _waveBuffer_EV .SetSubPlotData(block, FieldEnum.Events        , 1.0);
+            _waveBuffer_C0 .SetSubPlotData(block, FieldEnum.C0           , _C0_Scale);
+            _waveBuffer_PG .SetSubPlotData(block, FieldEnum.Stage2_Sensor, _PG_Scale);
+            _waveBuffer_EV .SetSubPlotData(block, FieldEnum.Events       , 1.0);
 
-            _waveBuffer_TMP.SetSubPlotData(block, FieldEnum.Stage1_Sensor , 1.0);
+            _waveBuffer_TMP.SetSubPlotData(block, FieldEnum.Stage1_Sensor, 1.0);
         }
 
         public void Render()
@@ -92,7 +92,7 @@ namespace TeensyMonitor.Plotter.Helpers
             
             _gridBuffer.DrawLines();
 
-            _waveBuffer_C0 .DrawLineStrip();
+//            _waveBuffer_C0 .DrawLineStrip();
             _waveBuffer_PG .DrawLineStrip();
             _waveBuffer_TMP.DrawLineStrip();
 
@@ -115,7 +115,7 @@ namespace TeensyMonitor.Plotter.Helpers
         {
             var r = OutRect;
             float xMin = r.Left, xMax = r.Right, yMin = r.Top, yMax = r.Bottom; // note: Y inverted in GL coords
-            int numVerticalLines = 0;
+            int numVerticalLines;
             // 1) Get the X positions for vertical lines
             if (waveBuffer is null)
             {

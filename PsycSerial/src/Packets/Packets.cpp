@@ -158,7 +158,7 @@ namespace PsycSerial
         State = HeadState::None;
 		Length = 0;
         TimeStamp = 0.0;
-        // release Text
+        // release Text in cleanup
     }
 
     

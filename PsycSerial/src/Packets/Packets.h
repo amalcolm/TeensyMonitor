@@ -55,10 +55,10 @@ namespace PsycSerial
         Stage1_Mid,
         Stage1_Top,
 		Stage1_Bot,
-        Offset2,
-        Gain,
+        Stage2_Offset,
+        Stage2_Gain,
         Stage1_Sensor,
-        postGainSensor,
+        Stage2_Sensor,
     };
 
 	public ref class DataPacket : IPacket, IDisposable
@@ -90,26 +90,26 @@ namespace PsycSerial
         property int Stage1_Top     { int get() { return (int)((HardwareState >> 48) & ByteMask);  } }
         property int Stage1_Bot     { int get() { return (int)((HardwareState >> 40) & ByteMask);  } }
         property int SequenceNumber { int get() { return (int)((HardwareState >> 32) & ByteMask);  } }
-        property int Offset2        { int get() { return (int)((HardwareState >> 24) & ByteMask);  } }
-        property int Gain           { int get() { return (int)((HardwareState >> 16) & ByteMask);  } }
+        property int Stage2_Offset  { int get() { return (int)((HardwareState >> 24) & ByteMask);  } }
+        property int Stage2_Gain    { int get() { return (int)((HardwareState >> 16) & ByteMask);  } }
         
         property int _Reserved      { int get() { return (int)((HardwareState      ) & WordMask);  } }
        
 
-        property int     Stage1_Sensor { int get() { return (int)((SensorState   >> 16) & WordMask);  } }
-		property int postGainSensor { int get() { return (int)((SensorState        ) & WordMask);  } }
+        property int Stage1_Sensor  { int get() { return (int)((SensorState   >> 16) & WordMask);  } }
+		property int Stage2_Sensor  { int get() { return (int)((SensorState        ) & WordMask);  } }
 
         double get(FieldEnum field) {
             switch (field) {
                 case FieldEnum::Timestamp:      return StateTime;
                 case FieldEnum::C0:             return Channel[0];
-                case FieldEnum::Stage1_Mid:     return Stage1_Mid;
 				case FieldEnum::Stage1_Top:     return Stage1_Top;
 				case FieldEnum::Stage1_Bot:     return Stage1_Bot;
-                case FieldEnum::Offset2:        return Offset2;
-                case FieldEnum::Gain:           return Gain;
+                case FieldEnum::Stage1_Mid:     return Stage1_Mid;
                 case FieldEnum::Stage1_Sensor:  return Stage1_Sensor;
-                case FieldEnum::postGainSensor: return postGainSensor;
+                case FieldEnum::Stage2_Offset:  return Stage2_Offset;
+                case FieldEnum::Stage2_Gain:    return Stage2_Gain;
+                case FieldEnum::Stage2_Sensor:  return Stage2_Sensor;
                 default:                        return Double::NaN;
 			}
         }

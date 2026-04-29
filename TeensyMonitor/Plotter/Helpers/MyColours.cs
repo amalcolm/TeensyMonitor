@@ -18,7 +18,7 @@ namespace TeensyMonitor.Plotter.Helpers
         public static implicit operator MyColour(Color c) => new(c.R / 255f, c.G / 255f, c.B / 255f, c.A / 255f);
 
 
-        public static List<MyColour> BaseColours = [
+        public static readonly List<MyColour> BaseColours = [
             Color.FromArgb(0x4E, 0x79, 0xA7), // Muted Blue
             Color.FromArgb(0xF2, 0x8E, 0x2B), // Orange
             Color.FromArgb(0xE1, 0x57, 0x59), // Red
@@ -56,13 +56,13 @@ namespace TeensyMonitor.Plotter.Helpers
             return field switch
             {
                 FieldEnum.C0             => BaseColours[0],
-                FieldEnum.Gain           => BaseColours[1],
-                FieldEnum.Stage1_Mid     => BaseColours[2],
-                FieldEnum.Stage1_Top     => BaseColours[3], 
-                FieldEnum.Stage1_Bot     => BaseColours[4],
-                FieldEnum.Offset2        => BaseColours[5],
-                FieldEnum.Stage1_Sensor  => BaseColours[7],
-                FieldEnum.postGainSensor => BaseColours[6],
+                FieldEnum.Stage1_Mid     => BaseColours[1],
+                FieldEnum.Stage1_Top     => BaseColours[2], 
+                FieldEnum.Stage1_Bot     => BaseColours[3],
+                FieldEnum.Stage2_Offset  => BaseColours[4],
+                FieldEnum.Stage2_Gain    => BaseColours[5],
+                FieldEnum.Stage1_Sensor  => BaseColours[6],
+                FieldEnum.Stage2_Sensor  => BaseColours[7],
                 FieldEnum.Timestamp      => BaseColours[8],
                 _                        => Color.Magenta
             };

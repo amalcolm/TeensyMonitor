@@ -46,15 +46,17 @@ namespace TeensyMonitor.Plotter.UserControls
         private readonly object _lock = new();
 
         static readonly string[] dataFieldsToPlot = [
-//            "Offset1_Hi", "Offset1_Lo", "Offset1", "Offset2", "Gain",
+//            "Stage1_Top"   , "Stage1_Bot" , "Stage1_Mid",
+//            "Stage2_Offset", "Stage2_Gain",
               "Stage1_Sensor",
-              "postGainSensor",
+              "Stage2_Sensor",
             ];
 
         static readonly string[] dataFieldsForLabels = [
-            "Stage1_Top", "Stage1_Bot", "Stage1_Mid", "Offset2", "Gain",
-            "Stage1_Sensor",
-            "postGainSensor",
+              "Stage1_Top"   , "Stage1_Bot" , "Stage1_Mid",
+              "Stage2_Offset", "Stage2_Gain",
+              "Stage1_Sensor",
+              "Stage2_Sensor",
             ];
 
         private readonly float _labelLineSpacing = 35f;
@@ -69,8 +71,6 @@ namespace TeensyMonitor.Plotter.UserControls
             SP.ConnectionChanged += SP_ConnectionChanged;
 
             var properties = typeof(DataPacket).GetProperties(BindingFlags.Public | BindingFlags.Instance);
-
-
 
             if (dataSelectorsToOutput.Count > 0) return;
 

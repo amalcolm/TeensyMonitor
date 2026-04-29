@@ -95,6 +95,7 @@ namespace PsycSerial
 
     AString^ AString::FromUtf8(const uint8_t* bytes, int offset, const int count)
     {
+
         if (bytes == nullptr)
             return nullptr;
 
@@ -108,18 +109,18 @@ namespace PsycSerial
 
         int charCount = Encoding::UTF8->GetCharCount((unsigned char*)src, (int)count);
         if (charCount <= 0)
-            return nullptr;
+            return inst;
 
-        if (charCount > inst->_buffer->Length)
-            inst->_buffer = gcnew array<wchar_t>(charCount);
-        
-        pin_ptr<wchar_t> pChars = &inst->_buffer[0];
+     
+        const int MAX_UTF8_LENGTH = 256; // ample, line based text packets from serial
+		wchar_t pChars[MAX_UTF8_LENGTH]; // Temporary stack buffer for decoding
+		memset(pChars, 0, sizeof(pChars)); // Clear the buffer
 
         int written = Encoding::UTF8->GetChars(
             (unsigned char*)src,   // byte* (from native buffer)
             count,                 // number of bytes
             pChars,                // wchar_t* into pinned managed buffer
-            inst->_buffer->Length  // max chars we can write
+            MAX_UTF8_LENGTH        // max chars we can write
         );
 
         if (written <= 0)
@@ -132,7 +133,7 @@ namespace PsycSerial
             return nullptr;
         }
 
-        inst->_length = written;
+		inst->Expand(pChars, 0, written);
         return inst;
     }
 
