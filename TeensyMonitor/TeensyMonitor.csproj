@@ -10,11 +10,20 @@
 	<NoWarn>NU1701</NoWarn>
   </PropertyGroup>
 
+	<Target Name="WriteBuildPaths" BeforeTargets="BeforeCompile">
+		<WriteLinesToFile File="$(IntermediateOutputPath)BuildPaths.g.cs" Lines="namespace TeensyMonitor;%3B&#xD;&#xA;public static class BuildPaths&#xD;&#xA;{&#xD;&#xA;    public const string SolutionDir = @&quot;$(SolutionDir)&quot;;%3B&#xD;&#xA;    public const string ProjectDir = @&quot;$(ProjectDir)&quot;;%3B&#xD;&#xA;}" Overwrite="true" />
+		<ItemGroup>
+			<Compile Include="$(IntermediateOutputPath)BuildPaths.g.cs" />
+		</ItemGroup>
+	</Target>
+
   <ItemGroup>
+    <Compile Remove="obj\x64\Debug\net8.0-windows10.0.22000.0\BuildPaths.g.cs" />
     <Compile Remove="Resources\_References\ZFixer.cs" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3912.50" />
     <PackageReference Include="OpenTK.GLControl" Version="4.0.2" />
     <PackageReference Include="StbImageSharp" Version="2.30.15" />
   </ItemGroup>
@@ -89,4 +98,12 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Resources\Controls\HWforState\PSD Master\" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3277</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+	
 </Project>

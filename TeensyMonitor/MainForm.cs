@@ -189,6 +189,7 @@ namespace TeensyMonitor
 
         bool firstLoad = true;
         MyTallForm? tallForm;
+        WebForm? webForm; 
         private async void Form1_Shown(object sender, EventArgs e)
         {
             var ports = SerialHelper.GetUSBSerialPorts();
@@ -224,9 +225,13 @@ namespace TeensyMonitor
             {
                 if (firstLoad)
                 {
-                    tallForm = new MyTallForm();
-                    tallForm.FormClosed += (_, _) => this.Close();
-                    tallForm.Show();
+//                    tallForm = new MyTallForm();
+//                    tallForm.FormClosed += (_, _) => this.Close();
+//                    tallForm.Show();
+
+                    webForm = new WebForm();
+                    webForm.FormClosed += (_, _) => this.Close();
+                    webForm.Show();
                 }
 
                 firstLoad = false;
