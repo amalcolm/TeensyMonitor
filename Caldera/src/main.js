@@ -1,9 +1,11 @@
 import { CircuitScene } from "./scene/CircuitScene.js";
+import { Model } from "./model/Model.js";
 import { SUPPLY_VOLTAGE } from "./scene/voltage.js";
 import { WebView } from "./WebView.js";
 
 const SETTINGS_STORAGE_KEY = "caldera:circuit-settings:v1";
-const webView = new WebView();
+const model = new Model();
+const webView = new WebView(model);
 const storedSettings = readStoredSettings();
 
 document.querySelector("#app").innerHTML = `
@@ -25,7 +27,7 @@ document.querySelector("#app").innerHTML = `
 
 const sceneRoot = document.querySelector("[data-scene]");
 const photodiodeInput = document.querySelector("[data-photodiode-voltage]");
-const circuitScene = new CircuitScene(sceneRoot, {
+const circuitScene = new CircuitScene(sceneRoot, model, {
   onSettingsChange: saveStoredSettings,
 });
 

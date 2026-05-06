@@ -13,7 +13,7 @@ const RAIL_RESISTOR_X = -0.38;
 const SUPPLY_Y = 1.28;
 const GROUND_Y = -1.55;
 const GROUND_NODE_Y = -1.10;
-const DEFAULT_RAIL_RESISTANCE = "68K";
+const DEFAULT_RAIL_RESISTANCE = "0";
 const DEFAULT_DIGIPOT_RESISTANCE = "5K";
 
 export class PoweredDigipot extends Shape {

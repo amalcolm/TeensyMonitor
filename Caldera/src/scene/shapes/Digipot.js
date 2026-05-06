@@ -1,5 +1,5 @@
 import { COMPONENT_BLUE, COMPONENT_STROKE_WIDTH, makeFilledPolygon, makeLineLoop } from "../drawing.js";
-import { DigiPot as DigiPotModel } from "../../model/DigiPot.js";
+import { DigiPot as DigiPotModel } from "../../model/components/DigiPot.js";
 import { Shape } from "./Shape.js";
 import { TextLabel } from "./TextLabel.js";
 

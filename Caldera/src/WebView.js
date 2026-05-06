@@ -1,9 +1,12 @@
+import { Model } from "./model/Model";
+
 const DEFAULT_HOST_CONFIG = {
   postSettingsChanges: false,
 };
 
 export class WebView {
-  constructor() {
+  constructor(model) {
+    this.model = model;
     this.hostConfig = {
       ...DEFAULT_HOST_CONFIG,
       ...window.calderaHost,

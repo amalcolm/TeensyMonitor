@@ -11,8 +11,9 @@ import { Wire } from "./shapes/Wire.js";
 import { clampVoltage } from "./voltage.js";
 
 export class CircuitScene {
-  constructor(mount, { onSettingsChange = null } = {}) {
+  constructor(mount, model, { onSettingsChange = null } = {}) {
     this.mount = mount;
+    this.model = model;
     this.onSettingsChange = onSettingsChange;
     this.scene = new THREE.Scene();
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
@@ -25,7 +26,6 @@ export class CircuitScene {
     this.shapes = [];
     this.dragControls = [];
     this.controlById = new Map();
-    this.model = {};
     this.photoDiode = null;
     this.wires = [];
     this.dragTarget = null;

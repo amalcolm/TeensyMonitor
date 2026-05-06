@@ -1,5 +1,6 @@
-import { Digipot as DigiPotShape } from "../scene/shapes/Digipot.js";
-import { isKnownVoltage } from "../scene/voltage.js";
+import { Digipot as DigiPotShape } from "../../scene/shapes/Digipot.js";
+import { clampInt } from "../utils.js";
+import { isKnownVoltage } from "../../scene/voltage.js";
 
 export const DIGIPOT_MIN = 0;
 export const DIGIPOT_MAX = 255;
@@ -111,6 +112,3 @@ export class DigiPot {
   }
 }
 
-export function clampInt(value, min, max) {
-  return Math.min(Math.max(Math.round(value), min), max);
-}
