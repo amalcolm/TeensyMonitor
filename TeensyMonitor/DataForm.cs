@@ -4,13 +4,17 @@ using TeensyMonitor.Plotter.Helpers;
 
 namespace TeensyMonitor.Plotter.UserControls
 {
-    public partial class MyTallForm : Form
+    public partial class DataForm : Form
     {
         private readonly Dictionary<HeadState, SignalExtractor> _extractors = [];
 
-        public MyTallForm()
+        public Caldera.Caldera Caldera => calderaControl.Caldera;
+
+        private Caldera.Caldera caldera;
+        public DataForm()
         {
             InitializeComponent();
+            caldera = calderaControl.Caldera;
 
             MyColour colour = chart.BackColor;
 
@@ -23,6 +27,7 @@ namespace TeensyMonitor.Plotter.UserControls
                     this.StartPosition = FormStartPosition.Manual;
                     this.Location = new Point(3840, -200);
                     this.WindowState = FormWindowState.Maximized;
+                    calderaControl.Height = 1280;
                     break;
 
                 case "PSYC-ANDREW":
@@ -56,18 +61,18 @@ namespace TeensyMonitor.Plotter.UserControls
         bool isMouseDown = false;
         int original_Y = 0;
 
-        private void MyTallForm_MouseDown(object sender, MouseEventArgs e)
+        private void DataForm_MouseDown(object sender, MouseEventArgs e)
         {
             isMouseDown = true;
             original_Y = e.Y;
         }
 
-        private void MyTallForm_MouseMove(object sender, MouseEventArgs e)
+        private void DataForm_MouseMove(object sender, MouseEventArgs e)
         {   if (!isMouseDown) return;
 
         }
 
-        private void MyTallForm_MouseUp(object sender, MouseEventArgs e)
+        private void DataForm_MouseUp(object sender, MouseEventArgs e)
         {
             if (e.Y == original_Y) return;  
             isMouseDown = false;
@@ -75,7 +80,7 @@ namespace TeensyMonitor.Plotter.UserControls
 
 
         readonly MouseEventArgs dummy = new(MouseButtons.Left, 1, 0, 0, 0);
-        private void MyTallForm_MouseLeave(object sender, EventArgs e)
-            => MyTallForm_MouseUp(sender, dummy);
+        private void DataForm_MouseLeave(object sender, EventArgs e)
+            => DataForm_MouseUp(sender, dummy);
     }
 }

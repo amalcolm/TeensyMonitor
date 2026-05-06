@@ -43,8 +43,6 @@
             web.Size = new Size(150, 150);
             web.TabIndex = 1;
             web.ZoomFactor = 1D;
-            web.NavigationCompleted += web_NavigationCompleted;
-            web.WebMessageReceived += web_WebMessageReceived;
             // 
             // CalderaControl
             // 

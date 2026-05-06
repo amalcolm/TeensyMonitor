@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { C3Pot } from "../model/C3Pot.js";
 import { Gain } from "./shapes/Gain.js";
 import { DifferentialAmp } from "./shapes/DifferentialAmp.js";
 import { TIA } from "./shapes/TIA.js";
@@ -26,6 +25,7 @@ export class CircuitScene {
     this.shapes = [];
     this.dragControls = [];
     this.controlById = new Map();
+    this.model = {};
     this.photoDiode = null;
     this.wires = [];
     this.dragTarget = null;
@@ -36,6 +36,7 @@ export class CircuitScene {
     this.handleMouseLeave = this.handleMouseLeave.bind(this);
     this.handleDragMove = this.handleDragMove.bind(this);
     this.handleMouseUp = this.handleMouseUp.bind(this);
+    this.handleModelWiperChange = this.handleModelWiperChange.bind(this);
 
     this.setupRenderer();
     this.setupCamera();
@@ -148,7 +149,11 @@ export class CircuitScene {
     }
 
     event.preventDefault();
-    this.dragTarget.dragWiperTo(this.getWorldPoint(event), this.dragOffsetY);
+    this.dragTarget.dragWiperTo(
+      this.getWorldPoint(event),
+      this.dragOffsetY,
+      { emit: false },
+    );
     this.render();
   }
 
@@ -163,7 +168,7 @@ export class CircuitScene {
       return;
     }
 
-    this.dragTarget.snapWiper();
+    this.dragTarget.snapWiper({ emit: false });
     this.dragTarget = null;
     this.dragOffsetY = 0;
     this.renderer.domElement.style.cursor = "default";
@@ -207,7 +212,7 @@ export class CircuitScene {
       const value = Number(wipers[id]);
 
       if (Number.isFinite(value)) {
-        control.setWiperValue(value);
+        control.setWiperValue(value, { emit: false });
       }
     });
 
@@ -227,8 +232,6 @@ export class CircuitScene {
       return false;
     }
 
-    this.c3Pot?.setInputSignalVoltage(clampedVoltage);
-
     if (render) {
       this.render();
     }
@@ -242,6 +245,11 @@ export class CircuitScene {
 
   notifySettingsChange() {
     this.onSettingsChange?.(this.getSettings());
+  }
+
+  handleModelWiperChange() {
+    this.render();
+    this.notifySettingsChange();
   }
 
   resize() {
@@ -290,13 +298,6 @@ export class CircuitScene {
     this.photoDiode = photoDiode;
 
     const threePot = this.add(new ThreePot({ position: [-4.8, -1.0, 0] }));
-    this.c3Pot = new C3Pot({
-      botDigipot: threePot.botDigipot,
-      inputSignalVoltage: photoDiode.outputVoltage,
-      midDigipot: threePot.midDigipot,
-      topDigipot: threePot.topDigipot,
-    });
-    this.c3Pot.begin();
     
     const tia = this.add(new TIA({ multiplier: 200, position: [-1.6, 0.605, 0] }));
 
@@ -313,22 +314,22 @@ export class CircuitScene {
       sourceResistance: "1.0K",
     }));
     const outputReadout = this.add(new VoltageReadout({ position: [5.2, 0.0, 0] }));
-/*  const ampMultiplierSlider = this.add(new Slider({
-      label: "gain",
-      leftValue: 0,
-      outputOffset: 1,
-      position: [2.4, 1.9, 0],
-      rightValue: 255,
-      value: 128,
-    }));
-*/
+    const sensor1Readout = this.add(new VoltageReadout({ position: [0.2, 0.75, 0] }));
+    this.model = {
+      bot: threePot.botDigipot.model,
+      mid: threePot.midDigipot.model,
+      offset: offsetPot.digipot.model,
+      top: threePot.topDigipot.model,
+    };
+    Object.values(this.model).forEach((model) => {
+      model.onChange = this.handleModelWiperChange;
+    });
     this.controlById = new Map([
       ["top", threePot.topDigipot],
       ["bot", threePot.botDigipot],
       ["mid", threePot.midDigipot],
       ["offset", offsetPot.digipot],
       ["feedback", differentialAmp.feedbackSlider],
-//      ["gain", ampMultiplierSlider],
     ]);
     this.dragControls = Array.from(this.controlById.values());
 
@@ -337,9 +338,15 @@ export class CircuitScene {
     this.add(new Wire({
       from: tia.port("output"),
       singleVoltageLabel: "end",
+      hideVoltageLabel: true,
       to: differentialAmp.port("inverting"),
     }));
-//  this.add(new Wire({ from: ampMultiplierSlider.port("output"), to: differentialAmp.port("multiplier"), formatValue: formatMultiplier    }));
+    this.add(new Wire({
+      from: tia.port("output"),
+      singleVoltageLabel: "sensor",
+      hideVoltageLabel: true,
+      to: sensor1Readout.port("input"),
+    }));
     this.add(new Wire({ from: offsetPot.port("output"), to: differentialAmp.port("nonInverting") }));
     this.add(new Wire({
       from: differentialAmp.port("output"),

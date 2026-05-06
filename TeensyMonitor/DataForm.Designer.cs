@@ -1,6 +1,6 @@
 ﻿namespace TeensyMonitor.Plotter.UserControls
 {
-    partial class MyTallForm
+    partial class DataForm
     {
         /// <summary>
         /// Required designer variable.
@@ -29,6 +29,7 @@
         private void InitializeComponent()
         {
             chart = new MyChart();
+            calderaControl = new TeensyMonitor.Caldera.CalderaControl();
             SuspendLayout();
             // 
             // chart
@@ -41,32 +42,42 @@
             chart.EnablePlots = true;
             chart.Location = new Point(0, 0);
             chart.Name = "chart";
-            chart.Size = new Size(800, 1235);
+            chart.Size = new Size(800, 813);
             chart.TabIndex = 0;
             chart.Yscale = 1F;
-            chart.MouseDown += MyTallForm_MouseDown;
-            chart.MouseMove += MyTallForm_MouseMove;
-            chart.MouseUp += MyTallForm_MouseUp;
+            chart.MouseDown += DataForm_MouseDown;
+            chart.MouseMove += DataForm_MouseMove;
+            chart.MouseUp += DataForm_MouseUp;
             // 
-            // MyTallForm
+            // calderaControl
+            // 
+            calderaControl.Dock = DockStyle.Bottom;
+            calderaControl.Location = new Point(0, 813);
+            calderaControl.Name = "calderaControl1";
+            calderaControl.Size = new Size(800, 422);
+            calderaControl.TabIndex = 1;
+            // 
+            // DataForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(800, 1235);
             Controls.Add(chart);
+            Controls.Add(calderaControl);
             Location = new Point(3840, -400);
-            Name = "MyTallForm";
+            Name = "DataForm";
             StartPosition = FormStartPosition.Manual;
             Text = "MyTallForm";
-            MouseDown += MyTallForm_MouseDown;
-            MouseLeave += MyTallForm_MouseLeave;
-            MouseMove += MyTallForm_MouseMove;
-            MouseUp += MyTallForm_MouseUp;
+            MouseDown += DataForm_MouseDown;
+            MouseLeave += DataForm_MouseLeave;
+            MouseMove += DataForm_MouseMove;
+            MouseUp += DataForm_MouseUp;
             ResumeLayout(false);
         }
 
         #endregion
 
         private MyChart chart;
+        private Caldera.CalderaControl calderaControl;
     }
 }

@@ -4,12 +4,19 @@ namespace TeensyMonitor.Caldera
 {
     public partial class CalderaControl : UserControl
     {
+        public CoreWebView2 CoreWebView2 => web.CoreWebView2;
+
+        public Caldera Caldera { get => _caldera; }
         private bool _webInitStarted = false;
-        private bool _webInitCompleted = false;
+        private bool _disposedOrClosing = false;
+
+        private readonly DevServer _devServer = new();
+        private readonly Caldera _caldera;
 
         public CalderaControl()
         {
             InitializeComponent();
+            _caldera = new Caldera(this);
         }
 
         protected override async void OnHandleCreated(EventArgs e)
@@ -17,17 +24,30 @@ namespace TeensyMonitor.Caldera
             base.OnHandleCreated(e);
             if (Program.IsRunning == false || _webInitStarted) return;
 
+            await _devServer.EnsureViteRunningAsync();
+
             _webInitStarted = true;
 
             try 
             {
                 await InitWebView();
-                _webInitCompleted = true;
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Failed to initialize WebView2: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+
+        protected override void OnHandleDestroyed(EventArgs e)
+        {
+            if (!RecreatingHandle && !_disposedOrClosing)
+            {
+                _disposedOrClosing = true;
+                _devServer.StopViteIfStartedByMe();
+            }
+
+            base.OnHandleDestroyed(e);
         }
 
         private async Task InitWebView()
@@ -45,7 +65,7 @@ namespace TeensyMonitor.Caldera
                 userDataFolder: userDataFolder);
 
 
-            await web.EnsureCoreWebView2Async();
+            await web.EnsureCoreWebView2Async(env);
 
             web.CoreWebView2.SetVirtualHostNameToFolderMapping(
                 "my.web",
@@ -54,15 +74,6 @@ namespace TeensyMonitor.Caldera
 
 
             web.CoreWebView2.Navigate("https://my.web/index.html");
-
-        }
-        private void web_NavigationCompleted(object sender, CoreWebView2NavigationCompletedEventArgs e)
-        {
-
-        }
-
-        private void web_WebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
-        {
 
         }
     }

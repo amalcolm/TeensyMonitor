@@ -1,7 +1,9 @@
 import { CircuitScene } from "./scene/CircuitScene.js";
 import { SUPPLY_VOLTAGE } from "./scene/voltage.js";
+import { WebView } from "./WebView.js";
 
 const SETTINGS_STORAGE_KEY = "caldera:circuit-settings:v1";
+const webView = new WebView();
 const storedSettings = readStoredSettings();
 
 document.querySelector("#app").innerHTML = `
@@ -39,6 +41,14 @@ photodiodeInput.addEventListener("change", () => {
   photodiodeInput.value = formatInputValue(circuitScene.getPhotoDiodeVoltage());
 });
 
+webView.on("setPhotodiodeVoltage", ({ value }) => {
+  const wasApplied = circuitScene.setPhotoDiodeVoltage(value, { notify: false });
+
+  if (wasApplied) {
+    photodiodeInput.value = formatInputValue(circuitScene.getPhotoDiodeVoltage());
+  }
+});
+
 function readStoredSettings() {
   try {
     return JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY));
@@ -50,13 +60,11 @@ function readStoredSettings() {
 function saveStoredSettings(settings) {
   try {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-    chrome.webview.postMessage({
-      type: "settingsChange",
-      value: settings,
-    });
   } catch {
     // Storage is a convenience here; the circuit still works without it.
   }
+
+  webView.postSettingsChange(settings);
 }
 
 function formatInputValue(value) {

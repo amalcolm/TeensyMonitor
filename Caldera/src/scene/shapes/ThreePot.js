@@ -13,14 +13,14 @@ export class ThreePot extends Shape {
       groundResistance: null,
       label: "top",
       position: [0, 2.1, 0],
-      supplyResistance: "10K",
+      supplyResistance: "22K",
     });
     this.botPot = new PoweredDigipot({
       color,
       groundResistance: null,
       label: "bot",
       position: [0, -2.1, 0],
-      supplyResistance: "10K",
+      supplyResistance: "22K",
     });
     this.midPot = new Digipot({ color, label: "mid", position: [1.4, 0, 0] });
 

@@ -3,7 +3,6 @@ using Timer = System.Windows.Forms.Timer;
 namespace TeensyMonitor
 {
     using PsycSerial;
-    using System.Diagnostics;
     using TeensyMonitor.Plotter.Helpers;
     using TeensyMonitor.Plotter.UserControls;
 
@@ -188,8 +187,7 @@ namespace TeensyMonitor
 
 
         bool firstLoad = true;
-        MyTallForm? tallForm;
-        WebForm? webForm; 
+        DataForm? tallForm;
         private async void Form1_Shown(object sender, EventArgs e)
         {
             var ports = SerialHelper.GetUSBSerialPorts();
@@ -225,13 +223,10 @@ namespace TeensyMonitor
             {
                 if (firstLoad)
                 {
-//                    tallForm = new MyTallForm();
-//                    tallForm.FormClosed += (_, _) => this.Close();
-//                    tallForm.Show();
+                    tallForm = new DataForm();
+                    tallForm.FormClosed += (_, _) => this.Close();
+                    tallForm.Show();
 
-                    webForm = new WebForm();
-                    webForm.FormClosed += (_, _) => this.Close();
-                    webForm.Show();
                 }
 
                 firstLoad = false;

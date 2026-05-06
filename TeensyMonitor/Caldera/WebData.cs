@@ -11,8 +11,15 @@ namespace TeensyMonitor.Caldera
 
     public sealed class SettingsChangeValue
     {
-        [JsonPropertyName("photodiodeVoltage")] public double PhotodiodeVoltage { get; set; }
+        [JsonPropertyName("voltages")]  public VoltageValues Voltages { get; set; } = new();
         [JsonPropertyName("wipers")]    public WiperValues Wipers { get; set; } = new();
+    }
+
+    public sealed class VoltageValues
+    {
+        [JsonPropertyName("pd")]        public double Photodiode { get; set; }
+        [JsonPropertyName("sensor1")]   public double Sensor1 { get; set; }
+        [JsonPropertyName("sensor2")]   public double Sensor2 { get; set; }
     }
 
     public sealed class WiperValues

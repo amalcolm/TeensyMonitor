@@ -1,10 +1,16 @@
 import { COMPONENT_BLUE, COMPONENT_STROKE_WIDTH, makeFilledPolygon, makeLineLoop } from "../drawing.js";
-import { isKnownVoltage } from "../voltage.js";
+import { DigiPot as DigiPotModel } from "../../model/DigiPot.js";
 import { Shape } from "./Shape.js";
 import { TextLabel } from "./TextLabel.js";
 
 export class Digipot extends Shape {
-  constructor({ color = COMPONENT_BLUE, label = "", position = [0, 0, 0], value = 128 } = {}) {
+  constructor({
+    color = COMPONENT_BLUE,
+    label = "",
+    model = null,
+    position = [0, 0, 0],
+    value = 128,
+  } = {}) {
     super({ name: "Digipot", position });
 
     const bodyLeft = -0.48;
@@ -25,7 +31,7 @@ export class Digipot extends Shape {
     this.wiperTipX = wiperTipX;
     this.wiperHalfHeight = wiperHalfHeight;
     this.wiperY = 0;
-    this.value = 0;
+    this.model = null;
 
     this.topInputPort = this.addPort("topInput", [bodyLeft, topInputY], { kind: "input" });
     this.bottomInputPort = this.addPort("bottomInput", [bodyLeft, bottomInputY], { kind: "input" });
@@ -64,7 +70,22 @@ export class Digipot extends Shape {
       width: 0.28,
     });
     this.wiper.add(this.wiperValueLabel);
-    this.setWiperValue(value);
+    this.setModel(model ?? new DigiPotModel({ shape: this, wiper: value }));
+  }
+
+  get value() {
+    return this.model?.value ?? 0;
+  }
+
+  setModel(model) {
+    this.model = model;
+
+    if (model.shape !== this) {
+      model.shape = this;
+    }
+
+    this.syncWiperFromModel();
+    return this;
   }
 
   containsWiperPoint(worldPoint) {
@@ -84,25 +105,31 @@ export class Digipot extends Shape {
     return this.wiperY - localPoint.y;
   }
 
-  dragWiperTo(worldPoint, offsetY = 0) {
+  dragWiperTo(worldPoint, offsetY = 0, options = {}) {
     const localPoint = this.worldToLocal(worldPoint.clone());
-    this.setWiperY(localPoint.y + offsetY);
+    this.setWiperY(localPoint.y + offsetY, options);
   }
 
-  setWiperY(y) {
+  setWiperY(y, options = {}) {
     this.wiperY = clamp(y, this.bodyBottom, this.bodyTop);
-    this.value = this.getValueForY(this.wiperY);
+    this.model?.setWiper(this.getValueForY(this.wiperY), {
+      ...options,
+      syncShape: false,
+    });
     this.updateWiper();
   }
 
-  setWiperValue(value) {
-    this.value = clamp(Math.round(value), 0, 255);
+  setWiperValue(value, options = {}) {
+    this.model?.setWiper(value, options);
+  }
+
+  snapWiper(options = {}) {
+    this.setWiperValue(this.getValueForY(this.wiperY), options);
+  }
+
+  syncWiperFromModel() {
     this.wiperY = this.getYForValue(this.value);
     this.updateWiper();
-  }
-
-  snapWiper() {
-    this.setWiperValue(this.getValueForY(this.wiperY));
   }
 
   updateWiper() {
@@ -125,16 +152,7 @@ export class Digipot extends Shape {
   }
 
   evaluateVoltage() {
-    const topVoltage = this.topInputPort.voltage;
-    const bottomVoltage = this.bottomInputPort.voltage;
-
-    if (!isKnownVoltage(topVoltage) || !isKnownVoltage(bottomVoltage)) {
-      this.wiperPort.voltage = null;
-      return;
-    }
-
-    const travel = this.value / 255;
-    this.wiperPort.voltage = bottomVoltage + (topVoltage - bottomVoltage) * travel;
+    this.model?.evaluateVoltage();
   }
 }
 
