@@ -51,6 +51,24 @@ webView.on("setPhotodiodeVoltage", ({ value }) => {
   }
 });
 
+webView.on("wipersChanged", ({ wipers }) => {
+  if (!wipers || typeof wipers !== "object") {
+    return;
+  }
+
+  Object.entries(wipers).forEach(([id, value]) => {
+    const component = model[id];
+    const wiper = Number(value);
+
+    if (component?.setWiper && Number.isFinite(wiper)) {
+      component.setWiper(wiper, { emit: false });
+    }
+  });
+
+  model.evaluate();
+  circuitScene.render();
+});
+
 function readStoredSettings() {
   try {
     return JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY));

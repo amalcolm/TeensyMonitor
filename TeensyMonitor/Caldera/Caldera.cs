@@ -12,12 +12,13 @@ namespace TeensyMonitor.Caldera
 
         public Caldera(CalderaControl control)
         {
-            Control = control;
+            Control = control;  
             WebView = control.CoreWebView2;
 
             WebView.WebMessageReceived += WebView_WebMessageReceived;
             WebView.NavigationCompleted += WebView_NavigationCompleted;
         }
+
 
         private void WebView_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
         {
@@ -25,7 +26,10 @@ namespace TeensyMonitor.Caldera
 
             WebView.Settings.IsWebMessageEnabled = true;
 
-            WebView.PostWebMessageAsJson("{\"type\":\"hostConfig\",\"postSettingsChanges\":true}");
+            WebView.PostWebMessageAsJson(
+                "{\"type\":\"wipersChanged\", \"wipers\": {\"top\": 130, \"bot\": 120, \"mid\": 128, \"offset\": 90}}" 
+            );
+
 
         }
 

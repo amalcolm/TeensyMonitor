@@ -11,12 +11,11 @@ namespace TeensyMonitor.Caldera
         private bool _disposedOrClosing = false;
 
         private readonly DevServer _devServer = new();
-        private readonly Caldera _caldera;
+        private Caldera _caldera = default!;
 
         public CalderaControl()
         {
             InitializeComponent();
-            _caldera = new Caldera(this);
         }
 
         protected override async void OnHandleCreated(EventArgs e)
@@ -31,6 +30,8 @@ namespace TeensyMonitor.Caldera
             try 
             {
                 await InitWebView();
+                _caldera = new Caldera(this);
+
             }
             catch (Exception ex)
             {

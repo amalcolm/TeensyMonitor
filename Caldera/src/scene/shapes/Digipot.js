@@ -85,6 +85,7 @@ export class Digipot extends Shape {
     }
 
     this.syncWiperFromModel();
+    model.syncShapeVoltages();
     return this;
   }
 

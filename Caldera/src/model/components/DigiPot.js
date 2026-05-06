@@ -1,6 +1,6 @@
 import { Digipot as DigiPotShape } from "../../scene/shapes/Digipot.js";
 import { clampInt } from "../utils.js";
-import { isKnownVoltage } from "../../scene/voltage.js";
+import { isKnownVoltage } from "../voltage.js";
 
 export const DIGIPOT_MIN = 0;
 export const DIGIPOT_MAX = 255;
@@ -8,6 +8,7 @@ export const DIGIPOT_MIDPOINT = 128;
 
 export class DigiPot {
   constructor({
+    createShape = false,
     max = DIGIPOT_MAX,
     min = DIGIPOT_MIN,
     onChange = null,
@@ -18,13 +19,15 @@ export class DigiPot {
     this.max = max;
     this.min = min;
     this.onChange = onChange;
+    this.bottomInputVoltage = null;
     this.outputVoltage = null;
     this.shape = null;
+    this.topInputVoltage = null;
     this.value = clampInt(wiper ?? shapeOptions.value ?? DIGIPOT_MIDPOINT, this.min, this.max);
 
     if (shape) {
       this.connectShape(shape);
-    } else {
+    } else if (createShape) {
       this.shape = new DigiPotShape({
         ...shapeOptions,
         model: this,
@@ -38,11 +41,11 @@ export class DigiPot {
   }
 
   get topVoltage() {
-    return this.shape?.topInputPort.voltage ?? null;
+    return this.topInputVoltage;
   }
 
   get bottomVoltage() {
-    return this.shape?.bottomInputPort.voltage ?? null;
+    return this.bottomInputVoltage;
   }
 
   get wiperVoltage() {
@@ -56,9 +59,25 @@ export class DigiPot {
       shape.setModel(this);
     } else {
       this.syncShape();
+      this.syncShapeVoltages();
     }
 
     return this;
+  }
+
+  setInputVoltages({ bottom = this.bottomInputVoltage, top = this.topInputVoltage } = {}) {
+    this.bottomInputVoltage = normaliseVoltage(bottom);
+    this.topInputVoltage = normaliseVoltage(top);
+    this.syncShapeVoltages();
+
+    return this;
+  }
+
+  setOutputVoltage(voltage) {
+    this.outputVoltage = normaliseVoltage(voltage);
+    this.syncShapeVoltages();
+
+    return this.outputVoltage;
   }
 
   setWiper(value, { emit = true, syncShape = true } = {}) {
@@ -86,14 +105,10 @@ export class DigiPot {
     const bottomVoltage = this.bottomVoltage;
 
     if (!isKnownVoltage(topVoltage) || !isKnownVoltage(bottomVoltage)) {
-      this.outputVoltage = null;
+      this.setOutputVoltage(null);
     } else {
       const travel = this.value / this.max;
-      this.outputVoltage = bottomVoltage + (topVoltage - bottomVoltage) * travel;
-    }
-
-    if (this.shape) {
-      this.shape.wiperPort.voltage = this.outputVoltage;
+      this.setOutputVoltage(bottomVoltage + (topVoltage - bottomVoltage) * travel);
     }
 
     return this.outputVoltage;
@@ -101,6 +116,16 @@ export class DigiPot {
 
   syncShape() {
     this.shape?.syncWiperFromModel();
+  }
+
+  syncShapeVoltages() {
+    if (!this.shape) {
+      return;
+    }
+
+    this.shape.topInputPort.voltage = this.topInputVoltage;
+    this.shape.bottomInputPort.voltage = this.bottomInputVoltage;
+    this.shape.wiperPort.voltage = this.outputVoltage;
   }
 
   emitChange(previousValue) {
@@ -112,3 +137,6 @@ export class DigiPot {
   }
 }
 
+function normaliseVoltage(value) {
+  return isKnownVoltage(value) ? value : null;
+}

@@ -37,6 +37,7 @@ export class CircuitScene {
     this.handleDragMove = this.handleDragMove.bind(this);
     this.handleMouseUp = this.handleMouseUp.bind(this);
     this.handleModelWiperChange = this.handleModelWiperChange.bind(this);
+    this.model.onChange = this.handleModelWiperChange;
 
     this.setupRenderer();
     this.setupCamera();
@@ -76,6 +77,8 @@ export class CircuitScene {
 
   evaluateVoltages() {
     for (let pass = 0; pass < 6; pass += 1) {
+      this.model.evaluate();
+
       this.shapes.forEach((shape) => {
         if (!(shape instanceof Wire)) {
           shape.evaluateVoltage?.();
@@ -297,13 +300,17 @@ export class CircuitScene {
     const photoDiode = this.add(new PhotoDiode({ position: [-4.8, 4.2, 0] }));
     this.photoDiode = photoDiode;
 
-    const threePot = this.add(new ThreePot({ position: [-4.8, -1.0, 0] }));
+    const threePot = this.add(new ThreePot({
+      model: this.model,
+      position: [-4.8, -1.0, 0],
+    }));
     
     const tia = this.add(new TIA({ multiplier: 200, position: [-1.6, 0.605, 0] }));
 
     const offsetPot = this.add(new PoweredDigipot({
       groundResistance: "79K6",
       label: "offset",
+      model: this.model.offset,
       position: [0.5, -2.1, 0],
       supplyResistance: "80K6",
     }));
@@ -315,15 +322,6 @@ export class CircuitScene {
     }));
     const outputReadout = this.add(new VoltageReadout({ position: [5.2, 0.0, 0] }));
     const sensor1Readout = this.add(new VoltageReadout({ position: [0.2, 0.75, 0] }));
-    this.model = {
-      bot: threePot.botDigipot.model,
-      mid: threePot.midDigipot.model,
-      offset: offsetPot.digipot.model,
-      top: threePot.topDigipot.model,
-    };
-    Object.values(this.model).forEach((model) => {
-      model.onChange = this.handleModelWiperChange;
-    });
     this.controlById = new Map([
       ["top", threePot.topDigipot],
       ["bot", threePot.botDigipot],

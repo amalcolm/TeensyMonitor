@@ -1,5 +1,3 @@
-import { Model } from "./model/Model";
-
 const DEFAULT_HOST_CONFIG = {
   postSettingsChanges: false,
 };

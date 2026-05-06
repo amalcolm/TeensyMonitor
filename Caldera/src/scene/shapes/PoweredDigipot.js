@@ -22,6 +22,7 @@ export class PoweredDigipot extends Shape {
     digipotResistance = DEFAULT_DIGIPOT_RESISTANCE,
     groundResistance = DEFAULT_RAIL_RESISTANCE,
     label = "",
+    model = null,
     position = [0, 0, 0],
     supplyResistance = DEFAULT_RAIL_RESISTANCE,
     voltage = SUPPLY_VOLTAGE,
@@ -44,7 +45,7 @@ export class PoweredDigipot extends Shape {
       color,
       position: [hasGroundResistor ? RAIL_WITH_RESISTOR_SOURCE_X : RAIL_CENTER_X, GROUND_Y, 0],
     });
-    this.digipot = new Digipot({ color, label });
+    this.digipot = new Digipot({ color, label, model });
     this.supplyResistor = this.makeRailResistor({
       color,
       resistance: supplyResistance,

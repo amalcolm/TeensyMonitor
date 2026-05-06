@@ -5,13 +5,14 @@ import { Shape } from "./Shape.js";
 import { Wire } from "./Wire.js";
 
 export class ThreePot extends Shape {
-  constructor({ color = COMPONENT_BLUE, position = [0, 0, 0] } = {}) {
+  constructor({ color = COMPONENT_BLUE, model = null, position = [0, 0, 0] } = {}) {
     super({ name: "ThreePot", position });
 
     this.topPot = new PoweredDigipot({
       color,
       groundResistance: null,
       label: "top",
+      model: model?.top ?? null,
       position: [0, 2.1, 0],
       supplyResistance: "22K",
     });
@@ -19,10 +20,16 @@ export class ThreePot extends Shape {
       color,
       groundResistance: null,
       label: "bot",
+      model: model?.bot ?? null,
       position: [0, -2.1, 0],
       supplyResistance: "22K",
     });
-    this.midPot = new Digipot({ color, label: "mid", position: [1.4, 0, 0] });
+    this.midPot = new Digipot({
+      color,
+      label: "mid",
+      model: model?.mid ?? null,
+      position: [1.4, 0, 0],
+    });
 
     this.topDigipot = this.topPot.digipot;
     this.botDigipot = this.botPot.digipot;
