@@ -6,25 +6,26 @@ namespace TeensyMonitor.Caldera
 {
     internal class DevServer
     {
+        public const int Port = 5174;
+        public const string Host = "127.0.0.1";
+
+        public static string URL { get; private set; } = $"http://{Host}:{Port}";
         private void ViteOutputDataReceived(object sender, DataReceivedEventArgs e)
         {
-            if (e.Data != null)
-                Debug.WriteLine("[vite] " + e.Data);
+            if (e.Data != null) Debug.WriteLine("[vite] " + e.Data);
         }
 
         private void ViteErrorDataReceived(object sender, DataReceivedEventArgs e)
         {
-            if (e.Data != null)
-                Debug.WriteLine("[vite] " + e.Data);
+            if (e.Data != null) Debug.WriteLine("[vite] " + e.Data);
         }
 
 
 
         public async Task EnsureViteRunningAsync()
         {
-            const int port = 5174;
 
-            if (await IsPortOpenAsync("127.0.0.1", port))
+            if (await IsPortOpenAsync(Host, Port))
                 return;
 
             _viteProcess = StartViteDirect(Path.Combine(BuildPaths.SolutionDir, "Caldera"));
@@ -32,11 +33,12 @@ namespace TeensyMonitor.Caldera
             // Wait briefly for the dev server to come up.
             for (int i = 0; i < 40; i++)
             {
-                if (await IsPortOpenAsync("127.0.0.1", port, 100))
+                if (await IsPortOpenAsync(Host, Port, 100))
                     return;
 
                 await Task.Delay(100);
             }
+
 
             throw new TimeoutException("Vite did not start listening on port 5174.");
         }

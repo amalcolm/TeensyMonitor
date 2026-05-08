@@ -2,7 +2,9 @@ import { COMPONENT_BLUE } from "../drawing.js";
 import { Digipot } from "./Digipot.js";
 import { PoweredDigipot } from "./PoweredDigipot.js";
 import { Shape } from "./Shape.js";
-import { Wire } from "./Wire.js";
+import { STANDARD_OUTPUT_LEAD_LENGTH, Wire } from "./Wire.js";
+
+export const DIGIPOT_OUTPUT_LEAD_LENGTH = STANDARD_OUTPUT_LEAD_LENGTH / 3;
 
 export class ThreePot extends Shape {
   constructor({ color = COMPONENT_BLUE, model = null, position = [0, 0, 0] } = {}) {
@@ -36,8 +38,18 @@ export class ThreePot extends Shape {
     this.midDigipot = this.midPot;
 
     this.internalWires = [
-      new Wire({ from: this.topPot.port("output"), to: this.midPot.port("topInput") }),
-      new Wire({ from: this.botPot.port("output"), to: this.midPot.port("bottomInput") }),
+      new Wire({
+        from: this.topPot.port("output"),
+        hideVoltageLabels: "start",
+        outputLeadLength: DIGIPOT_OUTPUT_LEAD_LENGTH,
+        to: this.midPot.port("topInput"),
+      }),
+      new Wire({
+        from: this.botPot.port("output"),
+        hideVoltageLabels: "start",
+        outputLeadLength: DIGIPOT_OUTPUT_LEAD_LENGTH,
+        to: this.midPot.port("bottomInput"),
+      }),
     ];
 
     this.ports.set("output", this.midPot.port("wiper"));

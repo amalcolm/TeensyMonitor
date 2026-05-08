@@ -55,14 +55,14 @@ namespace TeensyMonitor.Plotter.Helpers
             switch (command.ToUpper())
             {
                 case "DISCONNECT":
-                    // Your logic to close the serial port
+                    // Your logic to close the serial Port
                     Debug.WriteLine("Received DISCONNECT. Closing port.");
                     if (SP?.IsOpen == true)
                         await SP.CloseAsync();
                     ReceivedDisconnect = true;
                     break;
                 case "RECONNECT":
-                    // Your logic to try reopening the serial port
+                    // Your logic to try reopening the serial Port
                     Debug.WriteLine("Received RECONNECT. Attempting to open port.");
                     if (SP?.IsOpen == false)
                         await SP.OpenAsync();

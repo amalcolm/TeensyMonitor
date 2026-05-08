@@ -9,6 +9,7 @@ export class Slider extends Shape {
     formatValue = formatSliderValue,
     label = "",
     leftValue = 0,
+    model = null,
     outputOffset = 0,
     position = [0, 0, 0],
     rightValue = 1,
@@ -29,6 +30,7 @@ export class Slider extends Shape {
     this.bodyRight = bodyRight;
     this.formatValue = formatValue;
     this.leftValue = leftValue;
+    this.model = null;
     this.outputOffset = outputOffset;
     this.rightValue = rightValue;
     this.wiperHalfWidth = wiperHalfWidth;
@@ -89,7 +91,22 @@ export class Slider extends Shape {
       width: 0.3,
     });
     this.wiper.add(this.wiperValueLabel);
-    this.setWiperValue(value);
+    if (model) {
+      this.setModel(model);
+    } else {
+      this.setWiperValue(value);
+    }
+  }
+
+  setModel(model) {
+    this.model = model;
+
+    if (model.shape !== this) {
+      model.shape = this;
+    }
+
+    this.syncWiperFromModel();
+    return this;
   }
 
   containsWiperPoint(worldPoint) {
@@ -109,25 +126,49 @@ export class Slider extends Shape {
     return this.wiperX - localPoint.x;
   }
 
-  dragWiperTo(worldPoint, offsetX = 0) {
+  dragWiperTo(worldPoint, offsetX = 0, options = {}) {
     const localPoint = this.worldToLocal(worldPoint.clone());
-    this.setWiperX(localPoint.x + offsetX);
+    this.setWiperX(localPoint.x + offsetX, options);
   }
 
-  setWiperX(x) {
+  setWiperX(x, options = {}) {
     this.wiperX = clamp(x, this.bodyLeft, this.bodyRight);
     this.value = this.getValueForX(this.wiperX);
+    this.model?.setWiper(this.value, {
+      ...options,
+      syncShape: false,
+    });
     this.updateWiper();
   }
 
-  setWiperValue(value) {
-    this.value = clamp(Math.round(value), 0, 255);
+  setWiperValue(value, options = {}) {
+    const wiper = clamp(Math.round(value), 0, 255);
+
+    if (this.model) {
+      this.model.setWiper(wiper, options);
+
+      if (options.syncShape === false) {
+        this.value = wiper;
+        this.wiperX = this.getXForValue(this.value);
+        this.updateWiper();
+      }
+
+      return;
+    }
+
+    this.value = wiper;
     this.wiperX = this.getXForValue(this.value);
     this.updateWiper();
   }
 
-  snapWiper() {
-    this.setWiperValue(this.getValueForX(this.wiperX));
+  snapWiper(options = {}) {
+    this.setWiperValue(this.getValueForX(this.wiperX), options);
+  }
+
+  syncWiperFromModel() {
+    this.value = clamp(Math.round(this.model?.value ?? this.value), 0, 255);
+    this.wiperX = this.getXForValue(this.value);
+    this.updateWiper();
   }
 
   updateWiper() {

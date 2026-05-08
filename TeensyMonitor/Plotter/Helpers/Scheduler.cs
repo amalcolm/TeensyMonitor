@@ -2,6 +2,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using TeensyMonitor.Caldera;
+using TeensyMonitor.Plotter.UserControls;
 
 namespace TeensyMonitor.Plotter.Helpers
 {
@@ -11,8 +13,8 @@ namespace TeensyMonitor.Plotter.Helpers
         private static readonly object _lock = new();
         private static CancellationTokenSource? cts = null;
 
-        private static ConcurrentQueue<MyGLThread> _pendingThreads = new();
-        private static ConcurrentQueue<MyGLThread> _exitingThreads = new();
+        private static readonly ConcurrentQueue<MyGLThread> _pendingThreads = new();
+        private static readonly ConcurrentQueue<MyGLThread> _exitingThreads = new();
 
         public static bool IsPaused { get; set; } = false;
         public static void Register(MyGLThread thread)
@@ -61,6 +63,7 @@ namespace TeensyMonitor.Plotter.Helpers
                     break;
 
                 if (!IsPaused)
+                {
                     foreach (var t in _threads)
                     {
                         if (t?.IsDisposed ?? true)
@@ -78,6 +81,9 @@ namespace TeensyMonitor.Plotter.Helpers
                         }
                     }
 
+                    PostToCaldera();
+                }
+
                 PsycSerial.Sleep.ms(5.0);
             }
 
@@ -89,6 +95,34 @@ namespace TeensyMonitor.Plotter.Helpers
                 if (!_pendingThreads.IsEmpty)
                     StartScheduler();
             }
+        }
+
+        private static readonly WipersChangedMessage     lastWipersChangeSent = new();
+        private static readonly VoltagesChangedMessage lastVoltagesChangeSent = new();
+        private static void PostToCaldera()
+        {
+            var caldera     = Program.Caldera;
+            var activeChart = MyChart.ActiveChart;
+
+            if (caldera == null || activeChart == null) return;
+            
+            WipersChangedMessage     wipersChange = activeChart.  LastWipersChange;
+            VoltagesChangedMessage voltagesChange = activeChart.LastVoltagesChange;
+
+            if (wipersChange != null && wipersChange.IsValid)
+                if (wipersChange != lastWipersChangeSent)
+                {
+                    lastWipersChangeSent.CopyFrom(wipersChange);
+                    caldera.PostWipersChange(wipersChange);
+                }
+
+            if (voltagesChange != null && voltagesChange.IsValid)
+                if (voltagesChange != lastVoltagesChangeSent)
+                {
+                    lastVoltagesChangeSent.CopyFrom(voltagesChange);
+                    caldera.PostVoltagesChange(voltagesChange);
+                }
+
         }
     }
 }

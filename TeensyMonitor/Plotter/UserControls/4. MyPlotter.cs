@@ -40,7 +40,7 @@ namespace TeensyMonitor.Plotter.UserControls
         }
 
         private float _currentViewRight = 0.0f;
-        private float _maxTime = 0.0f;
+//        private float _maxTime = 0.0f;
 
         private readonly double RightEdgeBufferSeconds = 0.004;
 
@@ -50,7 +50,7 @@ namespace TeensyMonitor.Plotter.UserControls
         {
             if (DateTime.Now - lastTime > timeBetweenDebug)
             {
-                System.Diagnostics.Debug.WriteLine($"[MyPlotter] Plots: {Plots.Count}, TimeWindow: {Window:F1}s, MaxTime: {_maxTime:F3}s");
+//              System.Diagnostics.Debug.WriteLine($"[MyPlotter] Plots: {Plots.Count}, TimeWindow: {Window:F1}s, MaxTime: {_maxTime:F3}s");
 
                 lastTime = DateTime.Now;
             }
@@ -68,7 +68,7 @@ namespace TeensyMonitor.Plotter.UserControls
                 }
                 plotsSnapshot = _plotsSnapshot;
             }
-
+/*
             // 1. Get the latest time from all plots
             float maxTime = float.MinValue;
             for (int i = 0; i < plotsSnapshot.Length; i++)
@@ -79,7 +79,7 @@ namespace TeensyMonitor.Plotter.UserControls
             _maxTime = maxTime;
 
             if (_maxTime == float.MinValue) return;
-
+*/
             _currentViewRight = (float)(Scheduler.Time + RightEdgeBufferSeconds);
 
 

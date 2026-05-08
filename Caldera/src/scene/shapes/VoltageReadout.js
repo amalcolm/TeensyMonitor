@@ -6,11 +6,14 @@ import { TextLabel } from "./TextLabel.js";
 export class VoltageReadout extends Shape {
   constructor({
     color = INK,
+    formatValue = formatVoltage,
     label = "OUT",
     position = [0, 0, 0],
   } = {}) {
     super({ name: "VoltageReadout", position });
 
+    this.displayVoltage = null;
+    this.formatValue = formatValue;
     this.label = label;
     this.inputPort = this.addPort("input", [-0.48, 0], {
       direction: [-1, 0, 0],
@@ -27,10 +30,17 @@ export class VoltageReadout extends Shape {
   }
 
   evaluateVoltage() {
-    this.readout.setText(this.formatReadout(this.inputPort.voltage));
+    this.readout.setText(this.formatReadout(this.displayVoltage ?? this.inputPort.voltage));
+  }
+
+  setDisplayVoltage(voltage) {
+    const value = Number(voltage);
+
+    this.displayVoltage = Number.isFinite(value) ? value : null;
+    this.readout.setText(this.formatReadout(this.displayVoltage));
   }
 
   formatReadout(voltage) {
-    return formatVoltage(voltage);
+    return this.formatValue(voltage);
   }
 }

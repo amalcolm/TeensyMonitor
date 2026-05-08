@@ -4,8 +4,9 @@ import { formatVoltage, isKnownVoltage } from "../voltage.js";
 import { Shape } from "./Shape.js";
 import { TextLabel } from "./TextLabel.js";
 
-export const STANDARD_OUTPUT_LEAD_LENGTH = 0.28;
-const VOLTAGE_LABEL_WIDTH = 0.384;
+export const STANDARD_OUTPUT_LEAD_LENGTH = 0.42;
+const VOLTAGE_LABEL_WIDTH = 0.576;
+const VOLTAGE_LABEL_HEIGHT = 0.18;
 
 export class Wire extends Shape {
   constructor({
@@ -14,6 +15,7 @@ export class Wire extends Shape {
     hideVoltageLabel = false,
     hideVoltageLabels = [],
     name = "Wire",
+    outputLeadLength = STANDARD_OUTPUT_LEAD_LENGTH,
     propagateVoltage = true,
     route = null,
     singleVoltageLabel = "auto",
@@ -27,6 +29,7 @@ export class Wire extends Shape {
     this.from = from;
     this.hiddenVoltageLabels = normaliseHiddenVoltageLabels(hideVoltageLabel ? "both" : hideVoltageLabels);
     this.hideVoltageLabel = this.hiddenVoltageLabels.size === 2;
+    this.outputLeadLength = outputLeadLength;
     this.propagateVoltage = propagateVoltage;
     this.route = route;
     this.singleVoltageLabel = singleVoltageLabel;
@@ -36,13 +39,13 @@ export class Wire extends Shape {
     this.line = makeLine([]);
     this.startVoltageLabel = new TextLabel("?V", {
       color: INK,
-      height: 0.12,
+      height: VOLTAGE_LABEL_HEIGHT,
       renderOrder: 4,
       width: VOLTAGE_LABEL_WIDTH,
     });
     this.endVoltageLabel = new TextLabel("?V", {
       color: INK,
-      height: 0.12,
+      height: VOLTAGE_LABEL_HEIGHT,
       renderOrder: 4,
       width: VOLTAGE_LABEL_WIDTH,
     });
@@ -104,7 +107,7 @@ export class Wire extends Shape {
 
     const leadDirection = this.from.getWorldDirection();
     const leadEnd = this.worldToLocal(
-      this.resolve(this.from).add(leadDirection.multiplyScalar(STANDARD_OUTPUT_LEAD_LENGTH)),
+      this.resolve(this.from).add(leadDirection.multiplyScalar(this.outputLeadLength)),
     );
     const route = [start, leadEnd];
 
@@ -161,7 +164,7 @@ export class Wire extends Shape {
         this.endVoltageLabel.position.set(999, 999, 999);
       } else {
         this.startVoltageLabel.position.set(999, 999, 999);
-        this.endVoltageLabel.position.y = Math.min(routePoints[0].y, routePoints.at(-1).y) + 0.05;
+        this.endVoltageLabel.position.y = Math.min(routePoints[0].y, routePoints.at(-1).y) + 0.06;
       }
     }
 
@@ -172,7 +175,7 @@ export class Wire extends Shape {
     const isVertical = this.isVerticalEndpoint(endpoint, point, neighbour);
     const offset = isVertical
       ? new THREE.Vector3(-0.15, -0.06, 0.02)
-      : new THREE.Vector3(point.x < neighbour.x ? 0.13 : -0.15, 0.05, 0.02);
+      : new THREE.Vector3(point.x < neighbour.x ? 0.20 : -0.22, 0.06, 0.02);
 
     return point.clone().add(offset);
   }

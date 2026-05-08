@@ -35,20 +35,20 @@ export class DifferentialAmp extends Shape {
     const leadLength = STANDARD_OUTPUT_LEAD_LENGTH;
     const rightLeadLength = leadLength;
     const sourceResistorX = leftX - leadLength * 2 - RESISTOR_LEAD_HALF_WIDTH;
-    const feedbackResistorX = leftX + leadLength;
+    const feedbackResistorX = leftX + leadLength*1.2;
     const variableResistorX = rightX  - RESISTOR_LEAD_HALF_WIDTH;
     const variableResistorY = height / 2 + 0.78;
-    const feedbackSliderY = variableResistorY + 1.36;
+    const gainSliderY = variableResistorY + 1.36;
     const verticalThenHorizontalRoute = ({ end, start }) => [start, [start.x, end.y, 0], end];
     const horizontalThenVerticalRoute = ({ end, start }) => [start, [end.x, start.y, 0], end];
 
     this.hasMultiplierInput = hasMultiplierInput;
     this.multiplier = multiplier;
-    this.opAmpInvertingPort = this.addPort("opAmpInverting", [leftX - leadLength, inputY], {
+    this.opAmpInvertingPort = this.addPort("opAmpInverting", [leftX - leadLength/2, inputY], {
       kind: "input",
       signal: "negative",
     });
-    this.nonInvertingPort = this.addPort("nonInverting", [leftX - leadLength, -inputY], {
+    this.nonInvertingPort = this.addPort("nonInverting", [leftX - leadLength/2, -inputY], {
       kind: "input",
       signal: "positive",
     });
@@ -77,41 +77,47 @@ export class DifferentialAmp extends Shape {
       position: [variableResistorX, variableResistorY, 0],
       value: feedbackResistance,
     });
-    this.feedbackSlider = new Slider({
+    this.gainSlider = new Slider({
       color,
       label: "gain",
       leftValue: 0,
-      position: [variableResistorX, feedbackSliderY, 0],
+      position: [variableResistorX, gainSliderY, 0],
       rightValue: 255,
       signal: "wiper",
       value: 255,
       wiperHalfWidth: 0.14,
     });
+    this.sourceJoinWire = new Wire({
+      from: this.sourceResistor.port("output"),
+      to: this.opAmpInvertingPort,
+      propagateVoltage: false,
+    });
     this.feedbackOutputWire = new Wire({
       from: this.outputPort,
-      route: verticalThenHorizontalRoute,
       to: this.variableResistor.port("input"),
+      route: verticalThenHorizontalRoute,
     });
     this.feedbackControlWire = new Wire({
+      from: this.gainSlider.port("output"),
+      to: this.variableResistor.port("topInput"),
       formatValue: formatSliderValue,
-      from: this.feedbackSlider.port("output"),
       hideVoltageLabel: true,
       route: verticalThenHorizontalRoute,
-      to: this.variableResistor.port("topInput"),
     });
     this.feedbackReturnWire = new Wire({
       from: this.feedbackResistor.port("output"),
+      to: this.opAmpInvertingPort,
+      hideVoltageLabel: true,
       propagateVoltage: false,
       route: horizontalThenVerticalRoute,
-      to: this.opAmpInvertingPort,
     });
     this.feedbackJoinWire = new Wire({
       from: this.feedbackResistor.port("input"),
-      hideVoltageLabel: true,
-      propagateVoltage: false,
       to: this.variableResistor.port("output"),
+      propagateVoltage: false,
     });
     this.internalWires = [
+      this.sourceJoinWire,
       this.feedbackOutputWire,
       this.feedbackControlWire,
       this.feedbackReturnWire,
@@ -124,10 +130,10 @@ export class DifferentialAmp extends Shape {
       color,
       width: COMPONENT_STROKE_WIDTH,
     }));
-    this.add(makeLine([[leftX - leadLength, inputY], [leftX, inputY]], { color, width: COMPONENT_STROKE_WIDTH }));
+    this.add(makeLine([[leftX - leadLength/2, inputY], [leftX, inputY]], { color, width: COMPONENT_STROKE_WIDTH }));
     this.add(makeLine([[leftX - leadLength, -inputY], [leftX, -inputY]], { color, width: COMPONENT_STROKE_WIDTH }));
     this.add(makeLine([[rightX, 0], [rightX + rightLeadLength, 0]], { color, width: COMPONENT_STROKE_WIDTH }));
-    this.add(makeLine([[sourceResistorX + RESISTOR_LEAD_HALF_WIDTH, inputY], [leftX - leadLength, inputY]], { color, width: COMPONENT_STROKE_WIDTH }));
+    this.add(makeLine([[sourceResistorX + RESISTOR_LEAD_HALF_WIDTH, inputY], [leftX - leadLength*2, inputY]], { color, width: COMPONENT_STROKE_WIDTH }));
     this.addPlusSign(signX, -inputY, color);
     this.addMinusSign(signX, inputY, color);
     if (hasMultiplierInput) {
@@ -151,7 +157,7 @@ export class DifferentialAmp extends Shape {
       this.sourceResistor,
       this.feedbackResistor,
       this.variableResistor,
-      this.feedbackSlider,
+      this.gainSlider,
       ...this.internalWires,
       this.multiplierLabel,
     );
@@ -213,8 +219,8 @@ export class DifferentialAmp extends Shape {
   }
 
   updateVariableResistance() {
-    this.feedbackSlider.evaluateVoltage();
-    this.feedbackControlWire.setVoltage(this.feedbackSlider.port("output").voltage);
+    this.gainSlider.evaluateVoltage();
+    this.feedbackControlWire.setVoltage(this.gainSlider.port("output").voltage);
     this.variableResistor.updateResistanceFromControl();
   }
 

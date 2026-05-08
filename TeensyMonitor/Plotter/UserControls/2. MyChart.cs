@@ -18,6 +18,8 @@ namespace TeensyMonitor.Plotter.UserControls
     {
         private const int WindowSize = 0x10000;
 
+        public static MyChart? ActiveChart { get; set; } = null;
+
         public bool EnablePlots  { get; set; } = true;
         public bool EnableLabels { get; set; } = true;
 
@@ -62,11 +64,15 @@ namespace TeensyMonitor.Plotter.UserControls
         private readonly float _labelLineSpacing = 35f;
         private readonly float _labelTopMargin   = 20f;
 
+        public Caldera.WipersChangedMessage   LastWipersChange   { get; private set; } = new();
+        public Caldera.VoltagesChangedMessage LastVoltagesChange { get; private set; } = new();
+
         public MyChart()
         {
             InitializeComponent();
 
             if (SP == null) return;
+            ActiveChart ??= this;
 
             SP.ConnectionChanged += SP_ConnectionChanged;
 
@@ -181,9 +187,10 @@ namespace TeensyMonitor.Plotter.UserControls
                 {
                     _latestValues[state] = c0_percentage;
                     foreach (var info in dataSelectorsToOutput)
-                    {
                         _latestValues[state | info.AdditionalMask] = data.get(info.Selector);
-                    }
+
+                    LastWipersChange.CopyFrom(blockPacket);
+                    LastVoltagesChange.CopyFrom(blockPacket);
                 }
             }
 

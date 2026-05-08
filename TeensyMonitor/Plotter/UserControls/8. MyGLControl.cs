@@ -2,7 +2,7 @@
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
-
+using PsycSerial;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -88,10 +88,26 @@ namespace TeensyMonitor.Plotter.UserControls
             GLThread = new(MyGL);
 
             this.Resize += (s,e) => GLThread?.Enqueue(GL_Resize);
-            MyGL.MouseDown += (s,e) => Scheduler.IsPaused = true;
+            MyGL.MouseDown += (s, e) =>
+            {
+                Scheduler.IsPaused = true;
+                if (e.Button == MouseButtons.Right)
+                {
+                    XCMD_SetWipers xCMD = new()
+                    {
+                        top = 1,
+                        bot = 2,
+                        mid = 3,
+                        offset = 4,
+                        gain = 5
+                    };
+                    Program.serialPort?.Write(xCMD);
+                }
+            };
+
             MyGL.MouseUp += (s,e) => Scheduler.IsPaused = false;
 
-            GLThread.RenderAction = RenderLoop;
+            GLThread.RenderAction = RenderMethod;
 
             CalcFPS = _CalcFPS();
         }
@@ -197,7 +213,7 @@ namespace TeensyMonitor.Plotter.UserControls
         }
 
 
-        private void RenderLoop()
+        private void RenderMethod()
         {
             if (!IsLoaded || IsDisposed) return;
             

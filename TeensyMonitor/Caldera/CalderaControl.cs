@@ -65,16 +65,9 @@ namespace TeensyMonitor.Caldera
                 browserExecutableFolder: null,
                 userDataFolder: userDataFolder);
 
-
             await web.EnsureCoreWebView2Async(env);
 
-            web.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                "my.web",
-                Path.Combine(BuildPaths.SolutionDir, "Caldera"),
-                CoreWebView2HostResourceAccessKind.Allow);
-
-
-            web.CoreWebView2.Navigate("https://my.web/index.html");
+            web.CoreWebView2.Navigate(DevServer.URL);
 
         }
     }

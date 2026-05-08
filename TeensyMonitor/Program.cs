@@ -8,6 +8,8 @@ namespace TeensyMonitor
         public static readonly TeensySerial? serialPort = new();
 
         public static bool IsRunning = false;
+        public static Caldera.Caldera? Caldera = null;
+
 
         /// <summary>
         ///  The main entry point for the application.

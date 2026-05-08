@@ -3,6 +3,7 @@
 #include "ManagedCallbacks.h"
 #include "CSerial.h"
 #include "Packets/Packets.h"
+#include "Packets/XCommands.h"
 
 using namespace System;
 using namespace System::Diagnostics;
@@ -52,6 +53,8 @@ namespace PsycSerial {
         void OnErrorOccurred(const std::exception& ex);
         void OnConnectionChanged(ConnectionState state);
 
+        array<Byte>^ EncodeXCommand(IXCommand^ command);
+
 
     public:
         // --- Public Events ---
@@ -76,6 +79,7 @@ namespace PsycSerial {
         
         bool Close();
         
+		bool Write(IXCommand^ command);
         bool Write(String^ data);
         bool Write(array<Byte>^ data);
         bool Write(array<Byte>^ data, int offset, int count);

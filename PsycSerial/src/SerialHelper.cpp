@@ -2,6 +2,7 @@
 #include "Utilities.h"
 #include "EventRaisers.h"
 #include "Packets/Decoder.h"
+#include "Packets/XCommands.h"
 
 // Include necessary headers for interop
 #include <vcclr.h> // For GCHandle, pin_ptr
@@ -223,6 +224,55 @@ namespace PsycSerial
             result = FAIL;
         }
         return result;
+    }
+
+
+    array<Byte>^ SerialHelper::EncodeXCommand(IXCommand^ command)
+    {
+        if (command == nullptr)
+            return nullptr;
+
+        Type^ type = command->GetType();
+
+        int payloadSize = Marshal::SizeOf(type);
+        array<Byte>^ packet = gcnew array<Byte>(4 + payloadSize);
+
+        packet[0] = XCMD_MAGIC[0];
+        packet[1] = XCMD_MAGIC[1];
+        packet[2] = command->CommandID;
+        packet[3] = XCMD_MAGIC[3];
+
+        IntPtr ptr = Marshal::AllocHGlobal(payloadSize);
+
+        try
+        {
+            Marshal::StructureToPtr(command, ptr, false);
+            Marshal::Copy(ptr, packet, 4, payloadSize);
+        }
+        finally
+        {
+            Marshal::FreeHGlobal(ptr);
+        }
+
+        return packet;
+    }
+
+    bool SerialHelper::Write(IXCommand^ command) {
+		constexpr bool FAIL = false;
+		ThrowIfDisposed();
+        if (command == nullptr) return FAIL;
+        if (m_nativeSerial == nullptr) return FAIL;
+        CPacket* nativePacket = nullptr;
+
+        array<Byte>^ packet = EncodeXCommand(command);
+
+        if (packet == nullptr || packet->Length == 0)
+        {
+            Debug::WriteLine("SerialHelper::Write(IXCommand^) Error: Failed to encode command.");
+            return FAIL;
+        }
+
+		return Write(packet);
     }
 
     bool SerialHelper::Write(array<Byte>^ data) {

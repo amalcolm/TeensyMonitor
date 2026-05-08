@@ -1,32 +1,26 @@
-import * as THREE from "three";
-import { Gain } from "./shapes/Gain.js";
 import { DifferentialAmp } from "./shapes/DifferentialAmp.js";
 import { TIA } from "./shapes/TIA.js";
 import { PhotoDiode } from "./shapes/PhotoDiode.js";
 import { PoweredDigipot } from "./shapes/PoweredDigipot.js";
-import { Slider, formatMultiplier } from "./shapes/Slider.js";
-import { ThreePot } from "./shapes/ThreePot.js";
+import { DIGIPOT_OUTPUT_LEAD_LENGTH, ThreePot } from "./shapes/ThreePot.js";
 import { VoltageReadout } from "./shapes/VoltageReadout.js";
-import { Wire } from "./shapes/Wire.js";
-import { clampVoltage } from "./voltage.js";
+import { STANDARD_OUTPUT_LEAD_LENGTH, Wire } from "./shapes/Wire.js";
+import { Renderer } from "./Renderer.js";
+import { clampVoltage, isKnownVoltage } from "./voltage.js";
 
 export class CircuitScene {
   constructor(mount, model, { onSettingsChange = null } = {}) {
     this.mount = mount;
     this.model = model;
     this.onSettingsChange = onSettingsChange;
-    this.scene = new THREE.Scene();
-    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
-    this.resizeObserver = new ResizeObserver(() => this.resize());
-    this.pointer = new THREE.Vector2();
-    this.raycaster = new THREE.Raycaster();
-    this.circuitPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
-    this.worldPointer = new THREE.Vector3();
+    this.renderer = new Renderer(mount, { onResize: () => this.render() });
     this.shapes = [];
     this.dragControls = [];
     this.controlById = new Map();
+    this.differentialAmp = null;
     this.photoDiode = null;
+    this.voltageReadoutById = new Map();
+    this.wireById = new Map();
     this.wires = [];
     this.dragTarget = null;
     this.dragOffsetY = 0;
@@ -39,26 +33,21 @@ export class CircuitScene {
     this.handleModelWiperChange = this.handleModelWiperChange.bind(this);
     this.model.onChange = this.handleModelWiperChange;
 
-    this.setupRenderer();
-    this.setupCamera();
     this.setupCircuit();
   }
 
   start() {
-    this.mount.append(this.renderer.domElement);
-    this.resizeObserver.observe(this.mount);
     this.addMouseHandlers();
-    this.resize();
+    this.renderer.start();
   }
 
   stop() {
-    this.resizeObserver.disconnect();
     this.removeMouseHandlers();
-    this.renderer.domElement.remove();
+    this.renderer.stop();
   }
 
   add(shape) {
-    shape.addTo(this.scene);
+    this.renderer.addShape(shape);
     this.shapes.push(shape);
 
     if (shape instanceof Wire) {
@@ -69,10 +58,11 @@ export class CircuitScene {
   }
 
   render() {
-    this.scene.updateMatrixWorld(true);
+    this.renderer.updateMatrixWorld();
     this.evaluateVoltages();
+    this.applyModelVoltageOverrides();
     this.shapes.forEach((shape) => shape.update(0, 0));
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.render();
   }
 
   evaluateVoltages() {
@@ -80,7 +70,7 @@ export class CircuitScene {
       this.model.evaluate();
 
       this.shapes.forEach((shape) => {
-        if (!(shape instanceof Wire)) {
+        if (!(shape instanceof Wire) && shape !== this.differentialAmp) {
           shape.evaluateVoltage?.();
         }
       });
@@ -92,16 +82,16 @@ export class CircuitScene {
   }
 
   addMouseHandlers() {
-    this.renderer.domElement.addEventListener("mousedown", this.handleMouseDown);
-    this.renderer.domElement.addEventListener("mousemove", this.handleMouseMove);
-    this.renderer.domElement.addEventListener("mouseleave", this.handleMouseLeave);
+    this.renderer.addCanvasEventListener("mousedown", this.handleMouseDown);
+    this.renderer.addCanvasEventListener("mousemove", this.handleMouseMove);
+    this.renderer.addCanvasEventListener("mouseleave", this.handleMouseLeave);
     window.addEventListener("mouseup", this.handleMouseUp);
   }
 
   removeMouseHandlers() {
-    this.renderer.domElement.removeEventListener("mousedown", this.handleMouseDown);
-    this.renderer.domElement.removeEventListener("mousemove", this.handleMouseMove);
-    this.renderer.domElement.removeEventListener("mouseleave", this.handleMouseLeave);
+    this.renderer.removeCanvasEventListener("mousedown", this.handleMouseDown);
+    this.renderer.removeCanvasEventListener("mousemove", this.handleMouseMove);
+    this.renderer.removeCanvasEventListener("mouseleave", this.handleMouseLeave);
     window.removeEventListener("mousemove", this.handleDragMove);
     window.removeEventListener("mouseup", this.handleMouseUp);
   }
@@ -122,7 +112,7 @@ export class CircuitScene {
     event.preventDefault();
     this.dragTarget = dragControl;
     this.dragOffsetY = this.dragTarget.getWiperDragOffset(worldPoint);
-    this.renderer.domElement.style.cursor = "grabbing";
+    this.renderer.setCursor("grabbing");
     window.addEventListener("mousemove", this.handleDragMove);
   }
 
@@ -132,12 +122,12 @@ export class CircuitScene {
     }
 
     const worldPoint = this.getWorldPoint(event);
-    this.renderer.domElement.style.cursor = this.findDragControlAt(worldPoint) ? "grab" : "default";
+    this.renderer.setCursor(this.findDragControlAt(worldPoint) ? "grab" : "default");
   }
 
   handleMouseLeave() {
     if (!this.dragTarget) {
-      this.renderer.domElement.style.cursor = "default";
+      this.renderer.setCursor("default");
     }
   }
 
@@ -174,21 +164,14 @@ export class CircuitScene {
     this.dragTarget.snapWiper({ emit: false });
     this.dragTarget = null;
     this.dragOffsetY = 0;
-    this.renderer.domElement.style.cursor = "default";
+    this.renderer.setCursor("default");
     window.removeEventListener("mousemove", this.handleDragMove);
     this.render();
     this.notifySettingsChange();
   }
 
   getWorldPoint(event) {
-    const bounds = this.renderer.domElement.getBoundingClientRect();
-
-    this.pointer.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
-    this.pointer.y = -(((event.clientY - bounds.top) / bounds.height) * 2 - 1);
-    this.raycaster.setFromCamera(this.pointer, this.camera);
-    this.raycaster.ray.intersectPlane(this.circuitPlane, this.worldPointer);
-
-    return this.worldPointer.clone();
+    return this.renderer.getWorldPoint(event);
   }
 
   findDragControlAt(worldPoint) {
@@ -209,15 +192,7 @@ export class CircuitScene {
       return;
     }
 
-    const wipers = settings.wipers ?? {};
-
-    this.controlById.forEach((control, id) => {
-      const value = Number(wipers[id]);
-
-      if (Number.isFinite(value)) {
-        control.setWiperValue(value, { emit: false });
-      }
-    });
+    this.model.applyWiperValues?.(settings.wipers);
 
     if (settings.photodiodeVoltage !== undefined) {
       this.setPhotoDiodeVoltage(settings.photodiodeVoltage, { notify: false, render: false });
@@ -246,6 +221,78 @@ export class CircuitScene {
     return true;
   }
 
+  applyPhysicalVoltages(voltages) {
+    if (!voltages || typeof voltages !== "object") {
+      return false;
+    }
+
+    const appliedToModel = this.model.applyPhysicalVoltages?.(voltages) ?? false;
+
+    this.applyModelVoltageOverrides();
+
+    return appliedToModel;
+  }
+
+  applyModelVoltageOverrides() {
+    this.setReadoutVoltage("sensor1", this.model.sensor1Voltage);
+    this.setReadoutVoltage("sensor2", this.model.sensor2Voltage);
+    this.setReadoutVoltage("sensor2Error", this.model.diffAmp?.outputErrorVoltage);
+    this.applyDifferentialAmpModelVoltages();
+  }
+
+  setReadoutVoltage(id, voltage) {
+    this.voltageReadoutById.get(id)?.setDisplayVoltage(voltage);
+  }
+
+  applyDifferentialAmpModelVoltages() {
+    const differentialAmp = this.differentialAmp;
+    const diffAmpModel = this.model.diffAmp;
+
+    if (!differentialAmp || !diffAmpModel) {
+      return;
+    }
+
+    const {
+      feedbackJoinVoltage,
+      nonInvertingVoltage,
+      outputVoltage,
+      summingNodeVoltage,
+    } = diffAmpModel.snapshot();
+
+    differentialAmp.updateVariableResistance();
+    differentialAmp.updateMultiplierLabel(1);
+
+    if (Number.isFinite(this.model.sensor1Voltage)) {
+      this.wireById.get("sensor1")?.setVoltage(this.model.sensor1Voltage);
+      this.wireById.get("diffAmpInput")?.setVoltage(this.model.sensor1Voltage);
+    }
+
+    if (Number.isFinite(nonInvertingVoltage)) {
+      differentialAmp.nonInvertingPort.voltage = nonInvertingVoltage;
+      this.wireById.get("offset")?.setVoltage(nonInvertingVoltage);
+    }
+
+    if (Number.isFinite(summingNodeVoltage)) {
+      differentialAmp.sourceResistor.port("output").voltage = summingNodeVoltage;
+      differentialAmp.opAmpInvertingPort.voltage = summingNodeVoltage;
+      differentialAmp.feedbackResistor.port("output").voltage = summingNodeVoltage;
+      differentialAmp.sourceJoinWire.setVoltage(summingNodeVoltage);
+      differentialAmp.feedbackReturnWire.setVoltage(summingNodeVoltage);
+    }
+
+    if (Number.isFinite(outputVoltage)) {
+      differentialAmp.outputPort.voltage = outputVoltage;
+      this.wireById.get("sensor2")?.setVoltage(outputVoltage);
+      differentialAmp.feedbackOutputWire.setVoltage(outputVoltage);
+    }
+
+    if (Number.isFinite(feedbackJoinVoltage)) {
+      differentialAmp.variableResistor.port("output").voltage = feedbackJoinVoltage;
+      differentialAmp.feedbackResistor.port("input").voltage = feedbackJoinVoltage;
+      differentialAmp.feedbackJoinWire.setVoltage(feedbackJoinVoltage);
+    }
+  }
+
   notifySettingsChange() {
     this.onSettingsChange?.(this.getSettings());
   }
@@ -253,47 +300,6 @@ export class CircuitScene {
   handleModelWiperChange() {
     this.render();
     this.notifySettingsChange();
-  }
-
-  resize() {
-    const width = Math.max(this.mount.clientWidth, 1);
-    const height = Math.max(this.mount.clientHeight, 1);
-    const aspect = width / height;
-    const minimumViewHeight = 10.2;
-
-    let viewWidth = 12;
-    let viewHeight = viewWidth / aspect;
-
-    if (viewHeight < minimumViewHeight) {
-      viewHeight = minimumViewHeight;
-      viewWidth = viewHeight * aspect;
-    }
-
-    this.camera.left = -viewWidth / 2;
-    this.camera.right = viewWidth / 2;
-    this.camera.top = viewHeight / 2;
-    this.camera.bottom = -viewHeight / 2;
-    this.camera.updateProjectionMatrix();
-
-    this.renderer.setSize(width, height, false);
-    this.render();
-  }
-
-  setupRenderer() {
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.setClearColor(0xf7f4ed, 1);
-    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.domElement.className = "circuit-canvas";
-    this.renderer.domElement.setAttribute("role", "img");
-    this.renderer.domElement.setAttribute(
-      "aria-label",
-      "A two dimensional circuit with powered digipots, a photodiode, differential amplifiers, a slider, and a gain stage.",
-    );
-  }
-
-  setupCamera() {
-    this.camera.position.set(0, 0, 10);
-    this.camera.lookAt(0, 0, 0);
   }
 
   setupCircuit() {
@@ -320,42 +326,81 @@ export class CircuitScene {
       position: [3.0, 0.0, 0],
       sourceResistance: "1.0K",
     }));
-    const outputReadout = this.add(new VoltageReadout({ position: [5.2, 0.0, 0] }));
-    const sensor1Readout = this.add(new VoltageReadout({ position: [0.2, 0.75, 0] }));
+    this.differentialAmp = differentialAmp;
+    this.model.gain?.connectShape?.(differentialAmp.gainSlider);
+
+    const sensor2Readout = this.add(new VoltageReadout({ position: [5.2, 0.0, 0] }));
+    const sensor1Readout = this.add(new VoltageReadout({ position: [0.1, 0.75, 0] }));
+    const sensor2ErrorReadout = this.add(new VoltageReadout({
+      formatValue: formatSignedVoltage,
+      position: [5.2, -0.75, 0],
+    }));
+    this.voltageReadoutById = new Map([
+      ["sensor1", sensor1Readout],
+      ["sensor2", sensor2Readout],
+      ["sensor2Error", sensor2ErrorReadout],
+    ]);
+
     this.controlById = new Map([
       ["top", threePot.topDigipot],
       ["bot", threePot.botDigipot],
       ["mid", threePot.midDigipot],
       ["offset", offsetPot.digipot],
-      ["feedback", differentialAmp.feedbackSlider],
+      ["gain", differentialAmp.gainSlider],
     ]);
     this.dragControls = Array.from(this.controlById.values());
 
-    this.add(new Wire({ from: threePot.port("output"), to: tia.port("nonInverting") }));
-    this.add(new Wire({ from: photoDiode.port("output"), to: tia.port("inverting") }));
     this.add(new Wire({
+      from: threePot.port("output"),
+      hideVoltageLabels: "start",
+      outputLeadLength: DIGIPOT_OUTPUT_LEAD_LENGTH,
+      to: tia.port("nonInverting"),
+    }));
+    this.add(new Wire({ from: photoDiode.port("output"), to: tia.port("inverting") }));
+    const diffAmpInputWire = this.add(new Wire({
       from: tia.port("output"),
       singleVoltageLabel: "end",
       hideVoltageLabel: true,
+      outputLeadLength: DIGIPOT_OUTPUT_LEAD_LENGTH,
       to: differentialAmp.port("inverting"),
     }));
-    this.add(new Wire({
+    const sensor1Wire = this.add(new Wire({
       from: tia.port("output"),
       singleVoltageLabel: "sensor",
       hideVoltageLabel: true,
+      outputLeadLength: DIGIPOT_OUTPUT_LEAD_LENGTH,
       to: sensor1Readout.port("input"),
     }));
-    this.add(new Wire({ from: offsetPot.port("output"), to: differentialAmp.port("nonInverting") }));
-    this.add(new Wire({
+    const offsetWire = this.add(new Wire({
+      from: offsetPot.port("output"),
+      to: differentialAmp.port("nonInverting"),
+      outputLeadLength: STANDARD_OUTPUT_LEAD_LENGTH * 1.3,
+
+    }));
+    const sensor2Wire = this.add(new Wire({
       from: differentialAmp.port("output"),
       hideVoltageLabel: true,
-      to: outputReadout.port("input"),
+      to: sensor2Readout.port("input"),
     }));
+    this.wireById = new Map([
+      ["diffAmpInput", diffAmpInputWire],
+      ["offset", offsetWire],
+      ["sensor1", sensor1Wire],
+      ["sensor2", sensor2Wire],
+    ]);
   }
 
   alignGroundNode(ground, port) {
-    this.scene.updateMatrixWorld(true);
+    this.renderer.updateMatrixWorld();
     ground.setNodeWorldY(port.getWorldPosition().y);
-    this.scene.updateMatrixWorld(true);
+    this.renderer.updateMatrixWorld();
   }
+}
+
+function formatSignedVoltage(value) {
+  if (!isKnownVoltage(value)) {
+    return "? V";
+  }
+
+  return `${value >= 0 ? "+" : ""}${value.toFixed(3)} V`;
 }

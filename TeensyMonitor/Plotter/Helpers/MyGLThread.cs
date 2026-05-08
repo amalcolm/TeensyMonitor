@@ -73,8 +73,6 @@ namespace TeensyMonitor.Plotter.Helpers
                 if (_glControl.Context == null)
                     throw new InvalidOperationException("GLControl context is not initialized.");
 
-
-
                 _glControl.Context.MakeNoneCurrent();
 
                 if (AutoStart)

@@ -8,13 +8,9 @@ namespace TeensyMonitor.Plotter.UserControls
     {
         private readonly Dictionary<HeadState, SignalExtractor> _extractors = [];
 
-        public Caldera.Caldera Caldera => calderaControl.Caldera;
-
-        private Caldera.Caldera caldera;
         public DataForm()
         {
             InitializeComponent();
-            caldera = calderaControl.Caldera;
 
             MyColour colour = chart.BackColor;
 

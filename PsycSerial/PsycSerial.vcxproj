@@ -144,6 +144,7 @@
     <ClInclude Include="src\Packets\CPackets.h" />
     <ClInclude Include="src\Packets\Decoder.h" />
     <ClInclude Include="src\Packets\Packets.h" />
+    <ClInclude Include="src\Packets\XCommands.h" />
     <ClInclude Include="src\RunningAverage.h" />
     <ClInclude Include="src\SerialHelper.h" />
     <ClInclude Include="src\_Config.h" />
