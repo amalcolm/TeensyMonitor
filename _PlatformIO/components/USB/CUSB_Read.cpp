@@ -55,7 +55,7 @@ void CUSB::do_read() {
     switch (id) {
       case XCMD_SetWipers::ID: { XCMD_SetWipers cmd; std::memcpy(&cmd, pRead, payloadSize);
 
-        HW->setWipers(cmd.top, cmd.bot, cmd.mid, cmd.offset, cmd.gain);
+        HW->setWipers(cmd);
         break;
       }
 

@@ -1,16 +1,15 @@
-#include "CStage1.h"
-#include "DataTypes.h"
 #include "HWforState.h"
+#include "DataTypes.h"
 #include "Hardware.h"
 #include "CUSB.h"
 
 const int midLevel = 512;
 
-void CStage1::findSignal()
+void HWforState::_findSignal()
 {
   static constexpr int MAX_ITERATIONS = 400;
-  top.setLevel(CAutoPot::POT_MAX);
-  bot.setLevel(CAutoPot::POT_MIN);
+  top.setLevel(CDigiPot::POT_MAX);
+  bot.setLevel(CDigiPot::POT_MIN);
   mid.setLevel(midLevel);
 
   delayMicroseconds(10);
@@ -19,7 +18,7 @@ void CStage1::findSignal()
   int Wtop = 255, Wbot = 0;
 
   while (Wtop - Wbot > GAP_TOPBOT*2) {
-    if (readSensor() < midLevel) {
+    if (sensor1.read() < midLevel) {
       Wbot = wiper;
       wiper = (wiper + Wtop) / 2;
     } else {
@@ -34,12 +33,12 @@ void CStage1::findSignal()
 
   bool signalFound = false;
 
-  int initialHILO = readSensor() < midLevel ? -1 : +1;
+  int initialHILO = sensor1.read() < midLevel ? -1 : +1;
   int HILO = 0;
 
   for (int i = 0; top.getLevel() - bot.getLevel() > GAP_TOPBOT && i < MAX_ITERATIONS; i++) {
 
-    HILO = (readSensor() < midLevel) ? -1 : +1;
+    HILO = (sensor1.read() < midLevel) ? -1 : +1;
 
     switch (signalFound)
     {
@@ -73,15 +72,15 @@ void CStage1::findSignal()
     delayMicroseconds(5); // signalFound ? 500 : 50 );
   }
 
-  initialHILO = readSensor() < midLevel ? -1 : +1;
+  initialHILO = sensor1.read() < midLevel ? -1 : +1;
   double lastDelta = 0, delta = 0;
   
   for (int i = 0; i < MAX_ITERATIONS; i++) { 
     lastDelta = delta;
-    readSensor();
+    sensor1.read();
     
-    delta = abs(lastSensorValue() - midLevel);
-    HILO = (lastSensorValue() < midLevel) ? -1 : +1;
+    delta = abs(sensor1.lastValue() - midLevel);
+    HILO = (sensor1.lastValue() < midLevel) ? -1 : +1;
 
     if (HILO != initialHILO)
       break;
@@ -94,9 +93,10 @@ void CStage1::findSignal()
   { 
     mid.offsetLevel( +HILO );
     delayMicroseconds(5);
-    readSensor();
+    sensor1.read();
   }
 
   phase = Phase::NORMAL;
-  HW->OpAmp.reset();
+  offset.reset(128);
+  gain.reset(0);
 }

@@ -110,28 +110,28 @@ bool CA2D::storeNewData() {
 void CA2D::setDebugData(DataType& data) {
   static uint8_t sequenceNumber = 0;
  
-  auto& [flags, state, Stage1, opAmp] = *getHWforState(data);
+  auto& hw = *getHWforState(data);
   
   uint32_t hi32 =
-    ((Stage1.mid.getLevel() & 0xFFu) << 24) |
-    ((Stage1.top.getLevel() & 0xFFu) << 16) |
-    ((Stage1.bot.getLevel() & 0xFFu) <<  8) |
+    ((hw.mid.getLevel() & 0xFFu) << 24) |
+    ((hw.top.getLevel() & 0xFFu) << 16) |
+    ((hw.bot.getLevel() & 0xFFu) <<  8) |
     ((++sequenceNumber)  & 0xFFu);
 
 uint32_t lo32 =
-    ((opAmp.offsetPot.getLevel() & 0xFFu) << 24) |
-    ((opAmp.gainPot  .getLevel() & 0xFFu) << 16) |
+    ((hw.offset.getLevel() & 0xFFu) << 24) |
+    ((hw.gain  .getLevel() & 0xFFu) << 16) |
     0xFFFFu;
 
   data.hardwareState = (uint64_t(hi32) << 32) | uint64_t(lo32);
 
-  data.sensorState = (Stage1.lastSensorValue() << 16);
+  data.sensorState = (hw.sensor1.lastValue() << 16);
   
 
-  if (Timer.sampleReady || flags.holdStage2)
-    data.sensorState |= opAmp.lastSensorValue();
+  if (Timer.sampleReady || hw.flags.holdWipers)
+    data.sensorState |= hw.sensor2.lastValue();
   else
-    data.sensorState |= opAmp.gainPot.lastSensorValue();
+    data.sensorState |= hw.sensor2.lastValue();
 }
 
 

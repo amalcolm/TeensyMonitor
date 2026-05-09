@@ -3,12 +3,10 @@
 #include "HWforState.h"
 #include "Helpers.h"
 #include "CUSB.h"
-#include "CAutoPot.h"
 #include "CA2D.h"
 #include "CHead.h"
 #include "CTimer.h"
 #include "CTelemetry.h"
-#include <map>
 
 void Hardware::begin() {
     SPI .begin();  // initialise SPI
@@ -30,7 +28,6 @@ void Hardware::begin() {
     // ensure A2D has a valid getLastDataTime();
     while (A2D.poll() == false)
       delayMicroseconds(5);
-    
 
     Timer.restart();
 }

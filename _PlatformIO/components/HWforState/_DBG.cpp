@@ -17,7 +17,7 @@ bool setKnownConfig(int cfg);
 void HWforState::HWflags::dbg() {
   auto& [_, started, startTime, markTime, toggle] = getDBGflags(HW->state);
 
-  if (startTime < 0.0) { if (HW->OpAmp.inZone)  startTime = Timer.getConnectTime(); else return; }
+  if (startTime < 0.0) { if (HW->sensor2.inZone)  startTime = Timer.getConnectTime(); else return; }
 
   double now = Timer.getConnectTime() - startTime;
 
@@ -27,9 +27,8 @@ void HWforState::HWflags::dbg() {
 
     setKnownConfig(0);
 
-    offsetsChanged = true;
-    holdStage1 = true;
-    holdStage2 = true;
+    wipersChanged = true;
+    holdWipers = true;
 
     delayMicroseconds(10);
   }
@@ -68,11 +67,11 @@ bool setKnownConfig(int cfg) {
 
   auto [top, bot, mid, offset, gain] = knownConfigs[cfg];
 
-    HW->Stage1.top     .setLevel(top   );
-    HW->Stage1.bot     .setLevel(bot   );
-    HW->Stage1.mid     .setLevel(mid   );
-    HW->OpAmp.offsetPot.setLevel(offset);
-    HW->OpAmp.gainPot  .setLevel(gain  );
+    HW->top   .setLevel(top   );
+    HW->bot   .setLevel(bot   );
+    HW->mid   .setLevel(mid   );
+    HW->offset.setLevel(offset);
+    HW->gain  .setLevel(gain  );
     delayMicroseconds(10);
     return true;
 }
