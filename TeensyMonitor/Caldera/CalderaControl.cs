@@ -6,12 +6,12 @@ namespace TeensyMonitor.Caldera
     {
         public CoreWebView2 CoreWebView2 => web.CoreWebView2;
 
-        public Caldera Caldera { get => _caldera; }
+        public Caldera? Caldera { get => _caldera; }
         private bool _webInitStarted = false;
         private bool _disposedOrClosing = false;
 
         private readonly DevServer _devServer = new();
-        private Caldera _caldera = default!;
+        private Caldera? _caldera;
 
         public CalderaControl()
         {
@@ -31,6 +31,7 @@ namespace TeensyMonitor.Caldera
             {
                 await InitWebView();
                 _caldera = new Caldera(this);
+                web.CoreWebView2.Navigate(DevServer.URL);
 
             }
             catch (Exception ex)
@@ -45,6 +46,8 @@ namespace TeensyMonitor.Caldera
             if (!RecreatingHandle && !_disposedOrClosing)
             {
                 _disposedOrClosing = true;
+                _caldera?.Dispose();
+                _caldera = null;
                 _devServer.StopViteIfStartedByMe();
             }
 
@@ -66,9 +69,6 @@ namespace TeensyMonitor.Caldera
                 userDataFolder: userDataFolder);
 
             await web.EnsureCoreWebView2Async(env);
-
-            web.CoreWebView2.Navigate(DevServer.URL);
-
         }
     }
 }

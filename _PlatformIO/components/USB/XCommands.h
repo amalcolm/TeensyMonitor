@@ -15,4 +15,5 @@ struct XCMD_SetWipers {
 
   uint8_t _reserved1;
   uint8_t _reserved2;
+  uint8_t _reserved3;
 };

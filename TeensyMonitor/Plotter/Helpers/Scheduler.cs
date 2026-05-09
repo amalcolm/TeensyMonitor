@@ -110,17 +110,17 @@ namespace TeensyMonitor.Plotter.Helpers
             VoltagesChangedMessage voltagesChange = activeChart.LastVoltagesChange;
 
             if (wipersChange != null && wipersChange.IsValid)
-                if (wipersChange != lastWipersChangeSent)
+                if (!wipersChange.Equals(lastWipersChangeSent))
                 {
-                    lastWipersChangeSent.CopyFrom(wipersChange);
-                    caldera.PostWipersChange(wipersChange);
+                    if (caldera.PostWipersChange(wipersChange))
+                        lastWipersChangeSent.CopyFrom(wipersChange);
                 }
 
             if (voltagesChange != null && voltagesChange.IsValid)
-                if (voltagesChange != lastVoltagesChangeSent)
+                if (!voltagesChange.Equals(lastVoltagesChangeSent))
                 {
-                    lastVoltagesChangeSent.CopyFrom(voltagesChange);
-                    caldera.PostVoltagesChange(voltagesChange);
+                    if (caldera.PostVoltagesChange(voltagesChange))
+                        lastVoltagesChangeSent.CopyFrom(voltagesChange);
                 }
 
         }

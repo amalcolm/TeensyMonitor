@@ -141,6 +141,25 @@ PacketKind CDecoder::process(const CPacket& in, CDecodedPacket& out) noexcept
 
                 if (out.kind == PacketKind::Text && out.text.timeStamp == 0)
                     out.text.timeStamp = static_cast<uint32_t>(in.timestamp);
+                else
+                {
+
+                    size_t frameStartIndex = m_buf.size();
+
+                    for (size_t i = 0; i + 4 <= frameStartIndex; ++i)
+                        if (IsKnownFrameHeaderAt(m_buf, i))
+                            frameStartIndex = i;
+
+                    if (frameStartIndex != m_buf.size())
+                        usedBytesText = frameStartIndex;
+                    else
+                    {
+                        // No full frame header found.
+                        // Keep last 3 bytes in case they are the start of a split header:
+                        // ED, ED D1, or ED D1 FA.
+                        usedBytesText = m_buf.size() > 3 ? m_buf.size() - 3 : 1;
+                    }
+                }
 
                 m_buf.erase(m_buf.begin(), m_buf.begin() + usedBytesText);
 				m_badHeaderAttempts = 0;
@@ -187,6 +206,26 @@ PacketKind CDecoder::process(const CPacket& in, CDecodedPacket& out) noexcept
     return PacketKind::Unknown;
 }
 
+bool CDecoder::IsKnownFrameHeaderAt(const std::vector<uint8_t>& buf, size_t i)
+{
+    if (i + 4 > buf.size())
+        return false;
+
+    if (buf[i + 0] != 0xED) return false;
+    if (buf[i + 2] != 0xFA) return false;
+    if (buf[i + 3] != 0xB4) return false;
+
+    switch (buf[i + 1])
+    {
+    case 0xD1: // Data packet
+    case 0xB1: // Block packet
+    case 0x71: // Telemetry packet
+        return true;
+
+    default:
+        return false;
+    }
+}
 
 
 void CDecoder::reset() noexcept
@@ -402,6 +441,9 @@ namespace
     {
         CTextPacket tp{};
         size_t len = std::min(payloadBytes, CTextPacket::MAX_TEXT_SIZE - 1u);
+
+        for (const uint8_t* p = payload, *end = payload + len; p != end; p++)
+            if (*p > 0x7F) return FrameParseResult::InvalidHeader; 
 
         memcpy_s(tp.utf8Bytes, CTextPacket::MAX_TEXT_SIZE, payload, len);
         tp.utf8Bytes[len] = '\0';

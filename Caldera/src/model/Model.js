@@ -142,6 +142,23 @@ export class Model {
     return applied;
   }
 
+  applyEstimatedVoltages({ sensor1 } = {}) {
+    if (sensor1 === undefined) {
+      return false;
+    }
+
+    this.sensor1Voltage = normaliseVoltage(sensor1);
+    this.diffAmp.setSourceInputVoltage(this.sensor1Voltage);
+    this.diffAmp.setOutputVoltage(null);
+    this.evaluate();
+
+    this.sensor2Voltage = normaliseVoltage(this.diffAmp.expectedOutputVoltage);
+    this.diffAmp.setOutputVoltage(this.sensor2Voltage);
+    this.evaluate();
+
+    return true;
+  }
+
   handleComponentChange(id, event) {
     this.evaluate();
     this.onChange?.({

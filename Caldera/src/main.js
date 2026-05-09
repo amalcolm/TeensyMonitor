@@ -5,6 +5,7 @@ import { WebView } from "./WebView.js";
 
 const SETTINGS_STORAGE_KEY = "caldera:circuit-settings:v1";
 const WIPER_IDS = ["top", "bot", "mid", "offset", "gain"];
+const RESET_WIPERS = Object.freeze({ top: 0, bot: 0, mid: 0, offset: 0, gain: 0 });
 const model = new Model();
 const webView = new WebView(model);
 const storedSettings = readStoredSettings();
@@ -23,14 +24,24 @@ document.querySelector("#app").innerHTML = `
     />
     <span>V</span>
   </div>
-  <button
-    class="webview-freeze"
-    type="button"
-    data-webview-freeze
-    aria-pressed="false"
-  >
-    Freeze inputs
-  </button>
+  <div class="webview-freeze-controls">
+    <button
+      class="webview-freeze"
+      type="button"
+      data-webview-freeze-wipers
+      aria-pressed="false"
+    >
+      Freeze wipers
+    </button>
+    <button
+      class="webview-freeze"
+      type="button"
+      data-webview-freeze-voltages
+      aria-pressed="false"
+    >
+      Freeze voltages
+    </button>
+  </div>
   <div class="scene-stage" data-scene></div>
   <div class="wiper-debug" data-wiper-debug>
     <div class="wiper-debug__header">
@@ -53,7 +64,8 @@ document.querySelector("#app").innerHTML = `
 
 const sceneRoot = document.querySelector("[data-scene]");
 const photodiodeInput = document.querySelector("[data-photodiode-voltage]");
-const webViewFreezeButton = document.querySelector("[data-webview-freeze]");
+const freezeWipersButton = document.querySelector("[data-webview-freeze-wipers]");
+const freezeVoltagesButton = document.querySelector("[data-webview-freeze-voltages]");
 const wiperDebugStatus = document.querySelector("[data-wiper-debug-status]");
 const wiperDebugKeys = document.querySelector("[data-wiper-debug-keys]");
 const incomingDebugById = new Map(
@@ -63,8 +75,12 @@ const modelDebugById = new Map(
   WIPER_IDS.map((id) => [id, document.querySelector(`[data-wiper-debug-model="${id}"]`)]),
 );
 let wiperMessageCount = 0;
-let webViewInputsFrozen = false;
+let webViewWipersFrozen = false;
+let webViewVoltagesFrozen = false;
+let lastManualWiperCommandKey = null;
+let lastLiveVoltages = null;
 const circuitScene = new CircuitScene(sceneRoot, model, {
+  onManualWiperInput: handleManualWiperInput,
   onSettingsChange: saveStoredSettings,
 });
 
@@ -80,16 +96,15 @@ photodiodeInput.addEventListener("change", () => {
   photodiodeInput.value = formatInputValue(circuitScene.getPhotoDiodeVoltage());
 });
 
-webViewFreezeButton.addEventListener("click", () => {
-  webViewInputsFrozen = !webViewInputsFrozen;
-  updateFreezeButton();
+freezeWipersButton.addEventListener("click", () => {
+  setWebViewWipersFrozen(!webViewWipersFrozen);
+});
+
+freezeVoltagesButton.addEventListener("click", () => {
+  setWebViewVoltagesFrozen(!webViewVoltagesFrozen);
 });
 
 webView.on("setPhotodiodeVoltage", ({ value }) => {
-  if (webViewInputsFrozen) {
-    return;
-  }
-
   const wasApplied = circuitScene.setPhotoDiodeVoltage(value, { notify: false });
 
   if (wasApplied) {
@@ -98,7 +113,7 @@ webView.on("setPhotodiodeVoltage", ({ value }) => {
 });
 
 webView.on("wipersChanged", ({ wipers }) => {
-  if (webViewInputsFrozen) {
+  if (webViewWipersFrozen) {
     updateWiperDebug(wipers, { frozen: true });
     return;
   }
@@ -113,16 +128,16 @@ webView.on("wipersChanged", ({ wipers }) => {
 });
 
 webView.on("voltagesChanged", ({ voltages }) => {
-  if (webViewInputsFrozen) {
+  lastLiveVoltages = voltages;
+
+  if (webViewVoltagesFrozen) {
     return;
   }
 
-  if (circuitScene.applyPhysicalVoltages(voltages)) {
-    circuitScene.render();
-  }
+  applyLiveVoltages(voltages);
 });
 
-updateFreezeButton();
+updateFreezeButtons();
 updateWiperDebug(null, { applied: false });
 
 function readStoredSettings() {
@@ -143,18 +158,108 @@ function saveStoredSettings(settings) {
   webView.postSettingsChange(settings);
 }
 
+function handleManualWiperInput({ phase, wipers }) {
+  setWebViewWipersFrozen(true);
+
+  if (phase === "start") {
+    lastManualWiperCommandKey = null;
+    return;
+  }
+
+  if (phase !== "change") {
+    return;
+  }
+
+  const commandWipers = normaliseWipers(wipers);
+  const commandKey = JSON.stringify(commandWipers);
+
+  if (commandKey === lastManualWiperCommandKey) {
+    return;
+  }
+
+  lastManualWiperCommandKey = commandKey;
+  webView.postSetWipers(commandWipers);
+}
+
+function normaliseWipers(wipers) {
+  return Object.fromEntries(
+    WIPER_IDS.map((id) => [id, clampWiper(wipers?.[id])]),
+  );
+}
+
+function clampWiper(value) {
+  const wiper = Math.round(Number(value));
+
+  if (!Number.isFinite(wiper)) {
+    return 0;
+  }
+
+  return Math.min(Math.max(wiper, 0), 255);
+}
+
 function formatInputValue(value) {
   const number = Number(value);
 
   return Number.isFinite(number) ? String(number) : "0.444";
 }
 
-function updateFreezeButton() {
-  webViewFreezeButton.textContent = webViewInputsFrozen
-    ? "Resume inputs"
-    : "Freeze inputs";
-  webViewFreezeButton.setAttribute("aria-pressed", String(webViewInputsFrozen));
-  webViewFreezeButton.dataset.frozen = String(webViewInputsFrozen);
+function applyLiveVoltages(voltages) {
+  if (circuitScene.applyPhysicalVoltages(voltages)) {
+    circuitScene.render();
+  }
+}
+
+function setWebViewWipersFrozen(isFrozen) {
+  if (webViewWipersFrozen === isFrozen) {
+    return;
+  }
+
+  webViewWipersFrozen = isFrozen;
+
+  if (!webViewWipersFrozen) {
+    lastManualWiperCommandKey = null;
+    webView.postSetWipers(RESET_WIPERS);
+  }
+
+  updateFreezeWipersButton();
+}
+
+function setWebViewVoltagesFrozen(isFrozen) {
+  if (webViewVoltagesFrozen === isFrozen) {
+    return;
+  }
+
+  webViewVoltagesFrozen = isFrozen;
+  circuitScene.setPhysicalVoltagesFrozen(webViewVoltagesFrozen);
+
+  if (!webViewVoltagesFrozen && lastLiveVoltages) {
+    applyLiveVoltages(lastLiveVoltages);
+  } else {
+    circuitScene.render();
+  }
+
+  updateFreezeVoltagesButton();
+}
+
+function updateFreezeButtons() {
+  updateFreezeWipersButton();
+  updateFreezeVoltagesButton();
+}
+
+function updateFreezeWipersButton() {
+  freezeWipersButton.textContent = webViewWipersFrozen
+    ? "Resume wipers"
+    : "Freeze wipers";
+  freezeWipersButton.setAttribute("aria-pressed", String(webViewWipersFrozen));
+  freezeWipersButton.dataset.frozen = String(webViewWipersFrozen);
+}
+
+function updateFreezeVoltagesButton() {
+  freezeVoltagesButton.textContent = webViewVoltagesFrozen
+    ? "Resume voltages"
+    : "Freeze voltages";
+  freezeVoltagesButton.setAttribute("aria-pressed", String(webViewVoltagesFrozen));
+  freezeVoltagesButton.dataset.frozen = String(webViewVoltagesFrozen);
 }
 
 function updateWiperDebug(wipers, { applied = false, frozen = false } = {}) {

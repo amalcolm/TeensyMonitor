@@ -9,9 +9,13 @@ import { Renderer } from "./Renderer.js";
 import { clampVoltage, isKnownVoltage } from "./voltage.js";
 
 export class CircuitScene {
-  constructor(mount, model, { onSettingsChange = null } = {}) {
+  constructor(mount, model, {
+    onManualWiperInput = null,
+    onSettingsChange = null,
+  } = {}) {
     this.mount = mount;
     this.model = model;
+    this.onManualWiperInput = onManualWiperInput;
     this.onSettingsChange = onSettingsChange;
     this.renderer = new Renderer(mount, { onResize: () => this.render() });
     this.shapes = [];
@@ -24,6 +28,7 @@ export class CircuitScene {
     this.wires = [];
     this.dragTarget = null;
     this.dragOffsetY = 0;
+    this.physicalVoltagesFrozen = false;
 
     this.handleMouseDown = this.handleMouseDown.bind(this);
     this.handleMouseMove = this.handleMouseMove.bind(this);
@@ -60,6 +65,7 @@ export class CircuitScene {
   render() {
     this.renderer.updateMatrixWorld();
     this.evaluateVoltages();
+    this.applyEstimatedVoltagesWhenFrozen();
     this.applyModelVoltageOverrides();
     this.shapes.forEach((shape) => shape.update(0, 0));
     this.renderer.render();
@@ -112,6 +118,7 @@ export class CircuitScene {
     event.preventDefault();
     this.dragTarget = dragControl;
     this.dragOffsetY = this.dragTarget.getWiperDragOffset(worldPoint);
+    this.notifyManualWiperInput("start");
     this.renderer.setCursor("grabbing");
     window.addEventListener("mousemove", this.handleDragMove);
   }
@@ -142,11 +149,18 @@ export class CircuitScene {
     }
 
     event.preventDefault();
+    const previousValue = this.dragTarget.value;
+
     this.dragTarget.dragWiperTo(
       this.getWorldPoint(event),
       this.dragOffsetY,
       { emit: false },
     );
+
+    if (this.dragTarget.value !== previousValue) {
+      this.notifyManualWiperInput("change");
+    }
+
     this.render();
   }
 
@@ -161,7 +175,14 @@ export class CircuitScene {
       return;
     }
 
+    const previousValue = this.dragTarget.value;
     this.dragTarget.snapWiper({ emit: false });
+
+    if (this.dragTarget.value !== previousValue) {
+      this.notifyManualWiperInput("change");
+    }
+
+    this.notifyManualWiperInput("end");
     this.dragTarget = null;
     this.dragOffsetY = 0;
     this.renderer.setCursor("default");
@@ -181,10 +202,14 @@ export class CircuitScene {
   getSettings() {
     return {
       photodiodeVoltage: this.getPhotoDiodeVoltage(),
-      wipers: Object.fromEntries(
-        Array.from(this.controlById, ([id, control]) => [id, control.value]),
-      ),
+      wipers: this.getWiperValues(),
     };
+  }
+
+  getWiperValues() {
+    return Object.fromEntries(
+      Array.from(this.controlById, ([id, control]) => [id, control.value]),
+    );
   }
 
   applySettings(settings) {
@@ -222,6 +247,10 @@ export class CircuitScene {
   }
 
   applyPhysicalVoltages(voltages) {
+    if (this.physicalVoltagesFrozen) {
+      return false;
+    }
+
     if (!voltages || typeof voltages !== "object") {
       return false;
     }
@@ -231,6 +260,26 @@ export class CircuitScene {
     this.applyModelVoltageOverrides();
 
     return appliedToModel;
+  }
+
+  setPhysicalVoltagesFrozen(isFrozen) {
+    this.physicalVoltagesFrozen = isFrozen;
+  }
+
+  applyEstimatedVoltagesWhenFrozen() {
+    if (!this.physicalVoltagesFrozen) {
+      return false;
+    }
+
+    return this.model.applyEstimatedVoltages?.({
+      sensor1: this.getSceneSensor1Voltage(),
+    }) ?? false;
+  }
+
+  getSceneSensor1Voltage() {
+    const sensor1Wire = this.wireById.get("sensor1");
+
+    return sensor1Wire?.voltage ?? sensor1Wire?.from?.voltage ?? null;
   }
 
   applyModelVoltageOverrides() {
@@ -295,6 +344,13 @@ export class CircuitScene {
 
   notifySettingsChange() {
     this.onSettingsChange?.(this.getSettings());
+  }
+
+  notifyManualWiperInput(phase) {
+    this.onManualWiperInput?.({
+      phase,
+      wipers: this.getWiperValues(),
+    });
   }
 
   handleModelWiperChange() {

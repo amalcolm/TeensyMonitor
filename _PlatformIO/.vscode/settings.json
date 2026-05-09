@@ -71,6 +71,9 @@
     "**/.gitignore": true,
     "**/一 Scripts": true,
     "**/library.json": true,
+	"**/bin": true,
+	"**/obj": true,
+	"**/_PlatformIO.csproj": true,
     "**/teensy_compat.h": true,
   },
 

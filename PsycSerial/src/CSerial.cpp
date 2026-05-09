@@ -123,19 +123,6 @@ void CSerial::InvokeDataReceived(CPacket& packet) {
         if (kind == PacketKind::Block && dataPacket.block.state == CDataPacket::STATE_UNSET)
             continue;
 
-/*      if (kind == PacketKind::Text)
-        {
-			char* debugBuffer = new char[dataPacket.text.length + 3];
-			memcpy(debugBuffer, dataPacket.text.utf8Bytes, dataPacket.text.length);
-            uint32_t i = dataPacket.text.length;
-            if (debugBuffer[i - 1] == '\n') i--;
-			debugBuffer[i++] = '\r';
-			debugBuffer[i++] = '\n';
-			debugBuffer[i++] = '\0';
-            OutputDebugStringA(debugBuffer); // Debug output for text packets
-			delete[] debugBuffer;
-        }
-*/
         // Invoke outside the lock
         if (handler) {
             try {

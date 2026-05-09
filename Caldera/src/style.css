@@ -61,11 +61,19 @@ body {
   font: inherit;
 }
 
-.webview-freeze {
+.webview-freeze-controls {
   position: absolute;
   z-index: 10;
-  top: 12px;
+  top: 56px;
   right: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  max-width: calc(100vw - 24px);
+}
+
+.webview-freeze {
   min-height: 34px;
   border: 1px solid #59636e;
   border-radius: 5px;
@@ -87,6 +95,12 @@ body {
 .webview-freeze[data-frozen="true"] {
   border-color: #b42318;
   color: #b42318;
+}
+
+@media (min-width: 560px) {
+  .webview-freeze-controls {
+    top: 12px;
+  }
 }
 
 .wiper-debug {

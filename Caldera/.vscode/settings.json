@@ -1,0 +1,19 @@
+{
+  "files.exclude": {
+    "**/dist": true,
+    "**/node_modules": true,
+    "**/obj": true,
+    "**/Caldera.esproj": true,
+    "**/Caldera.esproj.user": true,
+    "**/package-lock.json": true
+  },
+
+  "search.exclude": {
+    "**/dist": true,
+    "**/node_modules": true,
+    "**/obj": true,
+    "**/Caldera.esproj": true,
+    "**/Caldera.esproj.user": true,
+    "**/package-lock.json": true
+  }
+}}

@@ -18,6 +18,8 @@ public:
 private:
     std::vector<uint8_t> m_buf;
 
+    static bool IsKnownFrameHeaderAt(const std::vector<uint8_t>& buf, size_t i);
+
 	static constexpr int MAX_BADHEADER_ATTEMPTS = 3;
 	int m_badHeaderAttempts = 0;   
 };

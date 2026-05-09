@@ -40,6 +40,13 @@ export class WebView {
     });
   }
 
+  postSetWipers(wipers) {
+    return this.postMessage({
+      type: "setWipers",
+      wipers,
+    });
+  }
+
   postMessage(message) {
     if (!this.webview) {
       return false;

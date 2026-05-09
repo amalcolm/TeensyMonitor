@@ -48,6 +48,13 @@ namespace TeensyMonitor.Caldera
 
         override public int GetHashCode() => HashCode.Combine(Type, Wipers);
     }
+
+    public sealed class SetWipersMessage : IWebMesage
+    {
+        [JsonPropertyName("type")]      public string      Type   { get; init; } = "setWipers";
+        [JsonPropertyName("wipers")]    public WiperValues Wipers { get; init; } = new();
+    }
+
     public sealed class VoltageValues
     {
         [JsonPropertyName("sensor1")]   public float Sensor1    { get; set; }
