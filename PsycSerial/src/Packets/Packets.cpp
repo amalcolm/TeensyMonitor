@@ -1,4 +1,5 @@
 #include "Packets.h"
+#include "WebData.h"
 #include "../_Config.h"
 
 namespace PsycSerial

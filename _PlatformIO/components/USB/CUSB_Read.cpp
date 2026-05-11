@@ -3,11 +3,13 @@
 #include "HWforState.h"
 #include <algorithm>
 #include <cstring>
+#include "Setup.h"
 
 struct PayloadInfo { uint8_t id; size_t size; };
 
-const std::array<PayloadInfo, 1> s_payloads = {{
-  {XCMD_SetWipers::ID, sizeof(XCMD_SetWipers)}
+const std::array<PayloadInfo, 2> s_payloads = {{
+  {XCMD_SetWipers::ID, sizeof(XCMD_SetWipers)},
+  {XCMD_SetState::ID,  sizeof(XCMD_SetState)}
 }};
 
 void CUSB::do_read() {
@@ -56,6 +58,16 @@ void CUSB::do_read() {
       case XCMD_SetWipers::ID: { XCMD_SetWipers cmd; std::memcpy(&cmd, pRead, payloadSize);
 
         HW->setWipers(cmd);
+        break;
+      }
+
+      case XCMD_SetState::ID:  { XCMD_SetState cmd; std::memcpy(&cmd, pRead, payloadSize);
+
+        LED.writeState(cmd.state);
+
+        if (cmd.flags & 0x01)  // hold flag is set
+          HW->flags.holdWipers = true;
+
         break;
       }
 

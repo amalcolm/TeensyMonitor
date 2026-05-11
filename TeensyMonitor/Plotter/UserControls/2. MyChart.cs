@@ -2,6 +2,7 @@
 using OpenTK.Mathematics;
 using PsycSerial;
 using PsycSerial.Math;
+using PsycSerial.Packets;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
@@ -64,8 +65,8 @@ namespace TeensyMonitor.Plotter.UserControls
         private readonly float _labelLineSpacing = 35f;
         private readonly float _labelTopMargin   = 20f;
 
-        public Caldera.WipersChangedMessage   LastWipersChange   { get; private set; } = new();
-        public Caldera.VoltagesChangedMessage LastVoltagesChange { get; private set; } = new();
+        public WipersChangedMessage   LastWipersChange   { get; private set; } = new();
+        public VoltagesChangedMessage LastVoltagesChange { get; private set; } = new();
 
         public MyChart()
         {

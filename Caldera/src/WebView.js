@@ -47,6 +47,20 @@ export class WebView {
     });
   }
 
+  postGetWipers() {
+    return this.postMessage({
+      type: "getWipers",
+    });
+  }
+
+  postSetState({ flags = 0, state }) {
+    return this.postMessage({
+      type: "setState",
+      state,
+      flags,
+    });
+  }
+
   postMessage(message) {
     if (!this.webview) {
       return false;

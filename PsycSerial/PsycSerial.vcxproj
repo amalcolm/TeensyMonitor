@@ -144,6 +144,8 @@
     <ClInclude Include="src\Packets\CPackets.h" />
     <ClInclude Include="src\Packets\Decoder.h" />
     <ClInclude Include="src\Packets\Packets.h" />
+    <ClInclude Include="src\Packets\UnsafeStrings.h" />
+    <ClInclude Include="src\Packets\WebData.h" />
     <ClInclude Include="src\Packets\XCommands.h" />
     <ClInclude Include="src\RunningAverage.h" />
     <ClInclude Include="src\SerialHelper.h" />
@@ -165,6 +167,7 @@
     <ClCompile Include="src\Packets\CPackets.cpp" />
     <ClCompile Include="src\Packets\Decoder.cpp" />
     <ClCompile Include="src\Packets\Packets.cpp" />
+    <ClCompile Include="src\Packets\UnsafeStrings.cpp" />
     <ClCompile Include="src\RunningAverage.cpp" />
     <ClCompile Include="src\SerialHelper.cpp" />
     <ClCompile Include="src\SerialHelper_GetUSBSerialPorts.cpp" />

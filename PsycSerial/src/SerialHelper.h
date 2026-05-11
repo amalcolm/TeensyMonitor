@@ -12,6 +12,8 @@ using namespace System::Threading;
 
 namespace PsycSerial {
 
+	using namespace Packets;
+
 	public enum class ConnectionState { Disconnected = 0, Connected = 1, HandshakeInProgress = 2, HandshakeSuccessful = 3 };
 
     public delegate void DataEventHandler(IPacket^ packet);

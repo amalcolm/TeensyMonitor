@@ -1,8 +1,7 @@
 ﻿using OpenTK.GLControl;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
-using OpenTK.Windowing.Common;
-using PsycSerial;
+using PsycSerial.Packets;
 using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;

@@ -1,6 +1,7 @@
 #include "HWforState.h"
 #include "CMasterTimer.h"
 
+constexpr int GAIN_WINDOW_SIZE = 300;
 constexpr int SAMPLES_IN_LONGREAD = 50;
 
 HWforState::HWforState(StateType state) : state(state) {
@@ -17,7 +18,18 @@ HWforState::HWforState(StateType state) : state(state) {
 
 void HWforState::_update() {
 
-  if (HW->flags.holdWipers) return;
+  sensor1.read();
+
+  if (flags.holdWipers) {
+    if (flags.wipersChanged) {
+      flags.wipersChanged = false;
+      sensor2.resetFilter();
+      flags.lastV = static_cast<double>(sensor2.lastValue());
+    }
+
+    _readSensor2();
+    return;
+  }
 
   switch (phase) {
     case Phase::SEARCH: _findSignal(); break;
@@ -25,15 +37,45 @@ void HWforState::_update() {
     default: break;
   }
 
+  bool opAmpInZone = flags.inZone && _updateOpAmp();
+
   if (flags.wipersChanged) {
     flags.wipersChanged = false;
-    flags.lastV = static_cast<double>(sensor2.read());
+    sensor2.resetFilter();
+    flags.lastV = static_cast<double>(sensor2.lastValue());
   }
 
-  if (sensor2.inZone == false) 
+  if (!opAmpInZone || sensor2.inZone == false)
     return;
 
 
+  _readSensor2();
+
+}
+
+
+bool HWforState::_updateOpAmp() {
+  sensor2.read();
+
+  if (sensor2.inZone == false)
+    return false;
+
+  sensor2.read();
+
+  bool boostSignal = sensor2.lastValue() >= CSensor::MIDPOINT - GAIN_WINDOW_SIZE
+                  && sensor2.lastValue() <= CSensor::MIDPOINT + GAIN_WINDOW_SIZE;
+
+  if (sensor2.zone != Zone::inZone)
+    gain.offsetLevel(-1);
+  else
+  if (boostSignal)
+    gain.offsetLevel(+1);
+
+  return sensor2.inZone;
+}
+
+
+void HWforState::_readSensor2() {
   if (Timer.getStateTime() > 0.001) {
     sensor2.filter(SAMPLES_IN_LONGREAD, 0.002);
     Timer.sampleReady = true;
@@ -41,7 +83,6 @@ void HWforState::_update() {
   } else {
     sensor2.filter(1, 0.01);
   }
-
 }
 
 
@@ -77,8 +118,9 @@ void HWforState::set() {
 
 
 void HWforState::setWipers(XCMD_SetWipers& cmd) {
-      
-      if (cmd.top == 0 && cmd.bot == 0) { // release hold
+      bool holdRequested = (cmd.flags & XCMD_SetWipers::FLAG_HOLD) != 0;
+
+      if (!holdRequested && cmd.top == 0 && cmd.bot == 0) { // release hold
         flags.holdWipers = false;
         return;
       }
@@ -89,5 +131,5 @@ void HWforState::setWipers(XCMD_SetWipers& cmd) {
       offset.setLevel(cmd.offset);
       gain  .setLevel(cmd.gain);
 
-      flags.holdWipers = true; // release hold when wipers are set manually
+      flags.holdWipers = true; // hold when wipers are set manually
     }

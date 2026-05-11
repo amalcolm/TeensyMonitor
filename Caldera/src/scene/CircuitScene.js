@@ -389,7 +389,7 @@ export class CircuitScene {
     const sensor1Readout = this.add(new VoltageReadout({ position: [0.1, 0.75, 0] }));
     const sensor2ErrorReadout = this.add(new VoltageReadout({
       formatValue: formatSignedVoltage,
-      position: [5.2, -0.75, 0],
+      position: [5.2, -99.75, 0],
     }));
     this.voltageReadoutById = new Map([
       ["sensor1", sensor1Readout],
@@ -412,7 +412,11 @@ export class CircuitScene {
       outputLeadLength: DIGIPOT_OUTPUT_LEAD_LENGTH,
       to: tia.port("nonInverting"),
     }));
-    this.add(new Wire({ from: photoDiode.port("output"), to: tia.port("inverting") }));
+    this.add(new Wire({ 
+      from: photoDiode.port("output"), 
+      to: tia.port("inverting"),
+      hideVoltageLabel: true,
+    }));
     const diffAmpInputWire = this.add(new Wire({
       from: tia.port("output"),
       singleVoltageLabel: "end",

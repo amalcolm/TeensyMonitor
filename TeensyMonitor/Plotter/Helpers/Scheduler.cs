@@ -1,4 +1,4 @@
-﻿
+﻿using PsycSerial.Packets;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -99,20 +99,46 @@ namespace TeensyMonitor.Plotter.Helpers
 
         private static readonly WipersChangedMessage     lastWipersChangeSent = new();
         private static readonly VoltagesChangedMessage lastVoltagesChangeSent = new();
+        private static int forceNextWipersPost;
+
+        private static readonly double PostIntervalMs = 50.0;
+        private static readonly Stopwatch swPost = Stopwatch.StartNew();
+
+        public static void RequestWipersRefresh()
+        {
+            Interlocked.Exchange(ref forceNextWipersPost, 1);
+            Program.serialPort?.Write(new XCMD_SetWipers());
+        }
+
         private static void PostToCaldera()
         {
             var caldera     = Program.Caldera;
             var activeChart = MyChart.ActiveChart;
+            var forceWipers = Interlocked.Exchange(ref forceNextWipersPost, 0) != 0;
 
-            if (caldera == null || activeChart == null) return;
+            if (swPost.Elapsed.TotalMilliseconds < PostIntervalMs)
+            {
+                if (forceWipers)
+                    Interlocked.Exchange(ref forceNextWipersPost, 1);
+                return;
+            }
+            else
+                swPost.Restart();
+
+            if (caldera == null || activeChart == null)
+            {
+                if (forceWipers)
+                    Interlocked.Exchange(ref forceNextWipersPost, 1);
+                return;
+            }
             
             WipersChangedMessage     wipersChange = activeChart.  LastWipersChange;
             VoltagesChangedMessage voltagesChange = activeChart.LastVoltagesChange;
 
-            if (wipersChange != null && wipersChange.IsValid)
-                if (!wipersChange.Equals(lastWipersChangeSent))
+            if (wipersChange != null && (forceWipers || wipersChange.IsValid))
+                if (forceWipers || !wipersChange.Equals(lastWipersChangeSent))
                 {
-                    if (caldera.PostWipersChange(wipersChange))
+                    if (caldera.PostWipersChange(wipersChange, forceWipers))
                         lastWipersChangeSent.CopyFrom(wipersChange);
                 }
 

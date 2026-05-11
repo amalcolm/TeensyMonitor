@@ -92,6 +92,12 @@
     <ClInclude Include="src\Packets\XCommands.h">
       <Filter>Source Files\Packets</Filter>
     </ClInclude>
+    <ClInclude Include="src\Packets\WebData.h">
+      <Filter>Source Files\Packets</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Packets\UnsafeStrings.h">
+      <Filter>Source Files\Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssemblyInfo.cpp" />
@@ -147,6 +153,9 @@
       <Filter>Source Files\Math</Filter>
     </ClCompile>
     <ClCompile Include="Sleep.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Packets\UnsafeStrings.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

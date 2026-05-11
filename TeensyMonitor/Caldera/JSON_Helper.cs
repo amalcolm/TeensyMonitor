@@ -1,4 +1,4 @@
-﻿using PsycSerial;
+﻿using PsycSerial.Packets;
 using System.Globalization;
 using System.Text.Json;
 

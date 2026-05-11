@@ -57,6 +57,12 @@ CSensor::Zone CSensor::_updateZone() {
 
 
 
+void CSensor::resetFilter() {
+  _lastV = static_cast<double>(read());
+}
+
+
+
 void CSensor::filter(int numSamples, double t) {
   double tInv = 1.0 - t;
   int sensor = getPin();

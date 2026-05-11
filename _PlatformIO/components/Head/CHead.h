@@ -17,28 +17,28 @@ class CHead {
     //                                                 RED             IR
     //                                              987654321       987654321
 
-    static constexpr StateType IR1      = 0b00000000000000000000000000000001;
-    static constexpr StateType IR2      = 0b00000000000000000000000000000010;
-    static constexpr StateType IR3      = 0b00000000000000000000000000000100;
-    static constexpr StateType IR4      = 0b00000000000000000000000000001000;
-    static constexpr StateType IR5      = 0b00000000000000000000000000010000;
-    static constexpr StateType IR6      = 0b00000000000000000000000000100000;
-    static constexpr StateType IR7      = 0b00000000000000000000000001000000;
-    static constexpr StateType IR8      = 0b00000000000000000000000010000000;
-    static constexpr StateType IR9      = 0b00000000000000000000000100000000;
+    static constexpr StateType IR1       = 0b00000000000000000000000000000001;
+    static constexpr StateType IR2       = 0b00000000000000000000000000000010;
+    static constexpr StateType IR3       = 0b00000000000000000000000000000100;
+    static constexpr StateType IR4       = 0b00000000000000000000000000001000;
+    static constexpr StateType IR5       = 0b00000000000000000000000000010000;
+    static constexpr StateType IR6       = 0b00000000000000000000000000100000;
+    static constexpr StateType IR7       = 0b00000000000000000000000001000000;
+    static constexpr StateType IR8       = 0b00000000000000000000000010000000;
+    static constexpr StateType IR9       = 0b00000000000000000000000100000000;
 
     //                                                 RED             IR
     //                                              987654321       987654321
 
-    static constexpr StateType RED1       = 0b00000000000000010000000000000000;
-    static constexpr StateType RED2       = 0b00000000000000100000000000000000;
-    static constexpr StateType RED3       = 0b00000000000001000000000000000000;
-    static constexpr StateType RED4       = 0b00000000000010000000000000000000;
-    static constexpr StateType RED5       = 0b00000000000100000000000000000000;
-    static constexpr StateType RED6       = 0b00000000001000000000000000000000;
-    static constexpr StateType RED7       = 0b00000000010000000000000000000000;
-    static constexpr StateType RED8       = 0b00000000100000000000000000000000;
-    static constexpr StateType RED9       = 0b00000001000000000000000000000000;
+    static constexpr StateType RED1      = 0b00000000000000010000000000000000;
+    static constexpr StateType RED2      = 0b00000000000000100000000000000000;
+    static constexpr StateType RED3      = 0b00000000000001000000000000000000;
+    static constexpr StateType RED4      = 0b00000000000010000000000000000000;
+    static constexpr StateType RED5      = 0b00000000000100000000000000000000;
+    static constexpr StateType RED6      = 0b00000000001000000000000000000000;
+    static constexpr StateType RED7      = 0b00000000010000000000000000000000;
+    static constexpr StateType RED8      = 0b00000000100000000000000000000000;
+    static constexpr StateType RED9      = 0b00000001000000000000000000000000;
 
     //                                                 RED             IR
     //                                              987654321       987654321

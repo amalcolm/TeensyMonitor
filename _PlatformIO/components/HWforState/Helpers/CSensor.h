@@ -22,6 +22,7 @@ public:
 
   CRunningAverageMinMax<uint16_t>& getRunningAverage() { return _ra; }
 
+  void resetFilter();
   void filter(int numSamples, double t);
 
 

@@ -50,6 +50,8 @@ struct HWforState {
 
   private:
     void _update(); 
+    bool _updateOpAmp();
+    void _readSensor2();
     void _findSignal();
     void _fineTuning();
 

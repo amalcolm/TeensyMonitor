@@ -1,4 +1,4 @@
-import { DigiPot, DIGIPOT_RESISTANCE_OHMS, getPoweredDigipotTerminalVoltages } from "./components/DigiPot.js";
+import { DigiPot, Slider, DIGIPOT_RESISTANCE_OHMS, getPoweredDigipotTerminalVoltages } from "./components/DigiPot.js";
 import { DifferentialAmp } from "./components/DifferentialAmp.js";
 import { GROUND_VOLTAGE, SUPPLY_VOLTAGE } from "./voltage.js";
 
@@ -85,9 +85,8 @@ export class Model {
   }
 
   makeSlider(id) {
-    return new DigiPot({ // make slider only - using digipot as slider
+    return new Slider({ 
       value: 0,
-      sliderOnly: true,
       onChange: (event) => this.handleComponentChange(id, event),
     });
   }

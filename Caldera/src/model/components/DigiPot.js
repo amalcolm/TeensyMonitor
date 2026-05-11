@@ -205,3 +205,9 @@ export function getPoweredDigipotTerminalVoltages({
 
   return { bottom, top };
 }
+
+export class Slider extends DigiPot {
+  constructor(options = {}) {
+    super({ ...options, sliderOnly: true });
+  }
+}

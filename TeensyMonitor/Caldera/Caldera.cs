@@ -1,6 +1,8 @@
 ﻿using Microsoft.Web.WebView2.Core;
 using PsycSerial;
+using PsycSerial.Packets;
 using System.Text.Json;
+using TeensyMonitor.Plotter.Helpers;
 
 namespace TeensyMonitor.Caldera
 {
@@ -45,10 +47,11 @@ namespace TeensyMonitor.Caldera
 
         private readonly VoltagesChangedMessage _lastVoltagesWritten = new();
         private readonly WipersChangedMessage   _lastWipersWritten   = new();
+        private bool _forceNextWipersWrite;
 
-        public bool PostWipersChange(WipersChangedMessage wipers)
+        public bool PostWipersChange(WipersChangedMessage wipers, bool force = false)
         {
-            if (!CanQueueMessages() || !wipers.IsValid)
+            if (!CanQueueMessages() || (!force && !wipers.IsValid))
                 return false;
 
             lock (_messageLock)
@@ -56,11 +59,12 @@ namespace TeensyMonitor.Caldera
                 var alreadyPending = (_pendingMessages & PendingMessage.Wipers) != 0;
                 var current = alreadyPending ? _pendingWipers : _lastWipersWritten;
 
-                if (wipers.Equals(current))
+                if (!force && wipers.Equals(current))
                     return false;
 
                 _pendingWipers.CopyFrom(wipers);
                 _pendingMessages |= PendingMessage.Wipers;
+                _forceNextWipersWrite |= force;
             }
 
             return ScheduleFlush();
@@ -95,7 +99,8 @@ namespace TeensyMonitor.Caldera
 
             if (Interlocked.Exchange(ref _flushScheduled, 1) != 0) return true;
 
-            try { Control.BeginInvoke(_flushInvoker); return true; }
+//            try { Control.BeginInvoke(_flushInvoker); return true; }
+           try {  FlushPendingMessages(); return true; }
             catch (InvalidOperationException)
             {
                 Interlocked.Exchange(ref _flushScheduled, 0);
@@ -110,23 +115,28 @@ namespace TeensyMonitor.Caldera
             if (!CanQueueMessages()) return;
 
             PendingMessage pendingMessages;
+            bool forceWipersWrite;
             lock (_messageLock)
             {
                 pendingMessages = _pendingMessages;
                 _pendingMessages = PendingMessage.None;
+                forceWipersWrite = (pendingMessages & PendingMessage.Wipers) != 0 && _forceNextWipersWrite;
 
                 if ((pendingMessages & PendingMessage.Wipers  ) != 0)   _wipersToSend.CopyFrom(_pendingWipers  );
                 if ((pendingMessages & PendingMessage.Voltages) != 0) _voltagesToSend.CopyFrom(_pendingVoltages);
+
+                if ((pendingMessages & PendingMessage.Wipers) != 0)
+                    _forceNextWipersWrite = false;
             }
 
-            if ((pendingMessages & PendingMessage.Wipers)   != 0)   SendWipersMessage(_wipersToSend);
+            if ((pendingMessages & PendingMessage.Wipers)   != 0)   SendWipersMessage(_wipersToSend, forceWipersWrite);
 
             if ((pendingMessages & PendingMessage.Voltages) != 0) SendVoltagesMessage(_voltagesToSend);
         }
 
-        private void SendWipersMessage(WipersChangedMessage wipers)
+        private void SendWipersMessage(WipersChangedMessage wipers, bool force = false)
         {
-            if (wipers.Equals(_lastWipersWritten)) return;
+            if (!force && wipers.Equals(_lastWipersWritten)) return;
 
             if (TryPostJson(CalderaJson.CreateWipersChanged(wipers.Wipers)))
                 _lastWipersWritten.CopyFrom(wipers);
@@ -194,13 +204,19 @@ namespace TeensyMonitor.Caldera
 
             switch (typeElement.GetString())
             {
+                case "getWipers":
+                    Scheduler.RequestWipersRefresh();
+                    break;
                 case "setWipers":
                     HandleSetWipersMessage(root);
+                    break;
+                case "setState":
+                    HandleSetStateMessage(root);
                     break;
             }
         }
 
-        private void HandleWebMessageString(string? message)
+        private static void HandleWebMessageString(string? message)
         {
             if (message == "dataReady")
             {
@@ -208,7 +224,7 @@ namespace TeensyMonitor.Caldera
             }
         }
 
-        private void HandleSetWipersMessage(JsonElement root)
+        private static void HandleSetWipersMessage(JsonElement root)
         {
             var message = root.Deserialize<SetWipersMessage>();
             if (message?.Wipers == null) return;
@@ -220,7 +236,22 @@ namespace TeensyMonitor.Caldera
                 bot    = ClampWiper(wipers.Bot),
                 mid    = ClampWiper(wipers.Mid),
                 offset = ClampWiper(wipers.Offset),
-                gain   = ClampWiper(wipers.Gain)
+                gain   = ClampWiper(wipers.Gain),
+                flags  = XCMD_SetWipers.FLAG_HOLD
+            };
+
+            Program.serialPort?.Write(xCMD);
+        }
+
+        private static void HandleSetStateMessage(JsonElement root)
+        {
+            var message = root.Deserialize<SetStateMessage>();
+            if (message == null) return;
+
+            XCMD_SetState xCMD = new()
+            {
+                state = (uint)message.State,
+                flags = message.Flags
             };
 
             Program.serialPort?.Write(xCMD);
