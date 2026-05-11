@@ -1,4 +1,5 @@
-const HOLD_WIPERS_FLAG = 0x01;
+import { COMMAND_FLAGS } from "./CommandFlags.js";
+
 const STATE_BITS = Object.freeze({
   ir1: 0b00000000000000000000000000000001,
   red1: 0b00000000000000010000000000000000,
@@ -34,7 +35,7 @@ export class StateControl {
 
     this.freezeWipers.setFrozen(true);
     this.webView.postSetState({
-      flags: 0, // HOLD_WIPERS_FLAG,
+      flags: COMMAND_FLAGS.HOLD_WIPERS,
       state,
     });
     this.updateStatus(`sent ${formatStateHex(state)}`);

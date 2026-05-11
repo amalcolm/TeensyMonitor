@@ -1,5 +1,6 @@
 #pragma once
 #include "Packets.h"
+#include "XCommands.h"
 
 using namespace System;
 using namespace System::Text::Json::Serialization;
@@ -190,12 +191,14 @@ namespace PsycSerial::Packets
     private:
         String^ _type;
         WiperValues^ _wipers;
+        CommandFlags _flags;
 
     public:
-        SetWipersMessage() { _type = "setWipers"; _wipers = gcnew WiperValues(); }
+        SetWipersMessage() { _type = "setWipers"; _wipers = gcnew WiperValues(); _flags = CommandFlags::HoldWipers; }
 
         [JsonPropertyName("type")] virtual property String^      Type   { String^      get() { return _type;   } void set(String^      value) {   _type = value; } }
         [JsonPropertyName("wipers")]       property WiperValues^ Wipers { WiperValues^ get() { return _wipers; } void set(WiperValues^ value) { _wipers = value; } }
+        [JsonPropertyName("flags")]        property CommandFlags Flags  { CommandFlags get() { return _flags;  } void set(CommandFlags value) { _flags = value; } }
     };
 
 
@@ -204,12 +207,12 @@ namespace PsycSerial::Packets
     private:
         String^ _type;
         HeadState _state;
-		UInt32 _flags;
+		CommandFlags _flags;
 
     public:
-        SetStateMessage() { _type = "setState"; _state = HeadState::UNSET; _flags = 0; }
+        SetStateMessage() { _type = "setState"; _state = HeadState::UNSET; _flags = CommandFlags::None; }
         [JsonPropertyName("type")]  virtual property String^    Type  { String^   get() { return _type;  } void set(String^   value) { _type  = value; } }
         [JsonPropertyName("state")]         property HeadState  State { HeadState get() { return _state; } void set(HeadState value) { _state = value; } }
-		[JsonPropertyName("flags")]         property UInt32     Flags { UInt32    get() { return _flags; } void set(UInt32    value) { _flags = value; } }
+		[JsonPropertyName("flags")]         property CommandFlags Flags { CommandFlags get() { return _flags; } void set(CommandFlags value) { _flags = value; } }
 	};
 }

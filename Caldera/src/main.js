@@ -95,8 +95,7 @@ const sceneRoot = document.querySelector("[data-scene]");
 const freezeWipersButton = document.querySelector("[data-webview-freeze-wipers]");
 const freezeVoltagesButton = document.querySelector("[data-webview-freeze-voltages]");
 const midSweepButton = document.querySelector("[data-mid-sweep-button]");
-const stateInput = document.querySelector("[data-state-input]");
-const stateSendButton = document.querySelector("[data-state-send-button]");
+const stateButtons = document.querySelectorAll("[data-state-toggle]");
 const stateStatus = document.querySelector("[data-state-status]");
 const testCopyButton = document.querySelector("[data-test-copy-button]");
 const testClearButton = document.querySelector("[data-test-clear-button]");
@@ -126,9 +125,8 @@ const freezeVoltages = new FreezeVoltages({
   circuitScene,
 });
 new StateControl({
-  button: stateSendButton,
+  buttons: stateButtons,
   freezeWipers,
-  input: stateInput,
   status: stateStatus,
   webView,
 });

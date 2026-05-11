@@ -237,7 +237,7 @@ namespace TeensyMonitor.Caldera
                 mid    = ClampWiper(wipers.Mid),
                 offset = ClampWiper(wipers.Offset),
                 gain   = ClampWiper(wipers.Gain),
-                flags  = XCMD_SetWipers.FLAG_HOLD
+                flags  = message.Flags
             };
 
             Program.serialPort?.Write(xCMD);

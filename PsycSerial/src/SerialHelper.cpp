@@ -234,20 +234,20 @@ namespace PsycSerial
 
         Type^ type = command->GetType();
 
-        int payloadSize = Marshal::SizeOf(type);
-        array<Byte>^ packet = gcnew array<Byte>(4 + payloadSize);
+        int packetSize = Marshal::SizeOf(type);
+        array<Byte>^ packet = gcnew array<Byte>(packetSize);
 
-        packet[0] = XCMD_MAGIC[0];
-        packet[1] = XCMD_MAGIC[1];
-        packet[2] = command->CommandID;
-        packet[3] = XCMD_MAGIC[3];
-
-        IntPtr ptr = Marshal::AllocHGlobal(payloadSize);
+        IntPtr ptr = Marshal::AllocHGlobal(packetSize);
 
         try
         {
             Marshal::StructureToPtr(command, ptr, false);
-            Marshal::Copy(ptr, packet, 4, payloadSize);
+            Marshal::Copy(ptr, packet, 0, packetSize);
+
+            packet[0] = XCMD_MAGIC[0];
+            packet[1] = XCMD_MAGIC[1];
+            packet[2] = command->CommandID;
+            packet[3] = XCMD_MAGIC[3];
         }
         finally
         {

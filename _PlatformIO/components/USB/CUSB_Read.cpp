@@ -46,37 +46,44 @@ void CUSB::do_read() {
     }
 
     uint8_t id = pRead[2];
-    uint32_t payloadSize = 0;
+    uint32_t packetSize = 0;
     for (const auto& [payloadId, size] : s_payloads)
-      if (payloadId == id) payloadSize = size;
+      if (payloadId == id) packetSize = size;
 
-    if (pWrite - pRead < 4 + payloadSize) break; // wait for more data
+    if (packetSize == 0) {
+      pRead += 4;
+      continue;
+    }
 
-    pRead += 4; // move past header
+    if (pWrite - pRead < packetSize) break; // wait for more data
+
+    XCMD_Header header;
+    std::memcpy(&header, pRead, sizeof(header));
+    bool handledCommand = true;
+  
 
     switch (id) {
-      case XCMD_SetWipers::ID: { XCMD_SetWipers cmd; std::memcpy(&cmd, pRead, payloadSize);
+      case XCMD_SetWipers::ID: { XCMD_SetWipers cmd; std::memcpy(&cmd, pRead, packetSize);
 
         HW->setWipers(cmd);
         break;
       }
 
-      case XCMD_SetState::ID:  { XCMD_SetState cmd; std::memcpy(&cmd, pRead, payloadSize);
+      case XCMD_SetState::ID:  { XCMD_SetState cmd; std::memcpy(&cmd, pRead, packetSize);
 
         LED.writeState(cmd.state);
-
-        if (cmd.flags & 0x01)  // hold flag is set
-          HW->flags.holdWipers = true;
-
         break;
       }
 
       default:
-        // skip unknown command - payloadSize is 0 for unknown commands
+        handledCommand = false;
         break;
     }
 
-    pRead += payloadSize;
+    if (handledCommand && hasFlag(header.flags, CommandFlags::HoldWipers))
+      HW->flags.holdWipers = true;
+
+    pRead += packetSize;
   }
 
   m_numBuffered = pWrite - pRead;

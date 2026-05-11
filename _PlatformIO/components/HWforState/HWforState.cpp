@@ -118,7 +118,7 @@ void HWforState::set() {
 
 
 void HWforState::setWipers(XCMD_SetWipers& cmd) {
-      bool holdRequested = (cmd.flags & XCMD_SetWipers::FLAG_HOLD) != 0;
+      bool holdRequested = hasFlag(cmd.header.flags, CommandFlags::HoldWipers);
 
       if (!holdRequested && cmd.top == 0 && cmd.bot == 0) { // release hold
         flags.holdWipers = false;
@@ -130,6 +130,4 @@ void HWforState::setWipers(XCMD_SetWipers& cmd) {
       mid   .setLevel(cmd.mid);
       offset.setLevel(cmd.offset);
       gain  .setLevel(cmd.gain);
-
-      flags.holdWipers = true; // hold when wipers are set manually
     }

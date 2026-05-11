@@ -1,3 +1,5 @@
+import { COMMAND_FLAGS } from "./helpers/CommandFlags.js";
+
 const DEFAULT_HOST_CONFIG = {
   postSettingsChanges: false,
 };
@@ -40,10 +42,11 @@ export class WebView {
     });
   }
 
-  postSetWipers(wipers) {
+  postSetWipers(wipers, { flags = COMMAND_FLAGS.HOLD_WIPERS } = {}) {
     return this.postMessage({
       type: "setWipers",
       wipers,
+      flags,
     });
   }
 
@@ -53,7 +56,7 @@ export class WebView {
     });
   }
 
-  postSetState({ flags = 0, state }) {
+  postSetState({ flags = COMMAND_FLAGS.NONE, state }) {
     return this.postMessage({
       type: "setState",
       state,

@@ -3,9 +3,27 @@
 
 static const uint8_t XCMD_MAGIC[4] = {0x58, 0x43, 0x00, 0xFF};
 
+enum class CommandFlags : uint32_t {
+  None = 0,
+  HoldWipers = 0x01
+};
+
+inline bool hasFlag(CommandFlags flags, CommandFlags flag) {
+  return (static_cast<uint32_t>(flags) & static_cast<uint32_t>(flag)) != 0;
+}
+struct XCMD_Header
+{
+  uint8_t magic0;
+  uint8_t magic1;
+  uint8_t id;
+  uint8_t magic3;
+  CommandFlags flags;
+};
+
+
 struct XCMD_SetWipers {
   static constexpr uint8_t ID = 0x01;
-  static constexpr uint8_t FLAG_HOLD = 0x01;
+  XCMD_Header header; // must be first
   
   uint8_t top;
   uint8_t bot;
@@ -14,16 +32,22 @@ struct XCMD_SetWipers {
   uint8_t offset;
   uint8_t gain;
 
-  uint8_t flags; // bit 0 = hold
+  uint8_t _reserved1;
   uint8_t _reserved2;
   uint8_t _reserved3;
 };
 
+static_assert(sizeof(CommandFlags) == sizeof(uint32_t) );
+static_assert(sizeof(XCMD_Header) == 8);
+static_assert(sizeof(XCMD_SetWipers) == 16);
+
 struct XCMD_SetState {
   static constexpr uint8_t ID = 0x02;
+  XCMD_Header header; // must be first
 
   uint32_t state; // bitfield for LEDs
 
-  uint32_t flags; // bit 0 = hold
 
 };
+
+static_assert(sizeof(XCMD_SetState) == 12);
