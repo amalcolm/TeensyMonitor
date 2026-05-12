@@ -29,7 +29,8 @@ void CHead::waitForReady() const {
   A2D.setReadState(CA2D::ReadState::READ); // clear dataReady to ensure fresh read on next A2D read
  }
 
-StateType CHead::setNextState() {
+StateType CHead::setNextState() { if (m_sequencePosition < 0) Ready = true;
+  
   Timer.syncAndChangeState(); // wait on state timer, then align timers to the state change marker
 
   const bool reset = (m_sequencePosition == -1) || Pins::flashReset;

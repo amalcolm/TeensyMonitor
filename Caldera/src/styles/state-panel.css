@@ -1,0 +1,62 @@
+.state-panel {
+  position: absolute;
+  z-index: 10;
+  bottom: 12px;
+  left: 300px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100vw - 312px);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.state-panel__grid {
+  display: grid;
+  gap: 6px;
+}
+
+.state-panel__row {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(44px, 1fr));
+  gap: 6px;
+}
+
+.state-panel__button {
+  min-width: 0;
+  min-height: 30px;
+  border: 1px solid #444b55;
+  border-radius: 30px;
+  padding: 5px 8px;
+  color: rgb(255 255 255 / 52%);
+  background: #56815b;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 16%);
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.state-panel__button:hover {
+  color: rgb(255 255 255 / 68%);
+  background: #48515c;
+}
+
+.state-panel__button[data-state-kind="red"][data-active="true"] {
+  border-color: var(--control-active-red);
+  color: #ffffff;
+  background: var(--control-active-red);
+}
+
+.state-panel__button[data-state-kind="ir"][data-active="true"] {
+  border-color: var(--control-active-blue);
+  color: #ffffff;
+  background: var(--control-active-blue);
+}
+
+.state-panel [data-state-status] {
+  min-width: 132px;
+  color: var(--panel-muted);
+  font-size: 12px;
+  font-weight: 700;
+}

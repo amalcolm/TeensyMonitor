@@ -64,6 +64,13 @@ export class WebView {
     });
   }
 
+  postSetDebugFlags(debugFlags) {
+    return this.postMessage({
+      type: "setDebugFlags",
+      debugFlags,
+    });
+  }
+
   postMessage(message) {
     if (!this.webview) {
       return false;

@@ -1,0 +1,43 @@
+.debug-panel {
+  position: absolute;
+  z-index: 10;
+  top: 5%;
+  left: 50%;
+  width: min(240px, calc(100vw - 24px));
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--panel-text);
+  background: var(--panel-bg);
+  box-shadow: var(--panel-shadow);
+  font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.debug-panel__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.debug-panel__header [data-debug-flags-status] {
+  color: var(--panel-muted);
+  font-weight: 600;
+}
+
+.debug-panel__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  cursor: pointer;
+}
+
+.debug-panel__option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--control-warning);
+}

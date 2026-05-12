@@ -1,0 +1,35 @@
+.webview-freeze-controls {
+  position: absolute;
+  z-index: 10;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  max-width: calc(100vw - 24px);
+}
+
+.webview-freeze {
+  min-height: 34px;
+  border: 1px solid var(--control-border);
+  border-radius: 5px;
+  padding: 6px 12px;
+  color: var(--panel-text);
+  background: var(--control-bg);
+  box-shadow: var(--panel-shadow);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.webview-freeze:hover {
+  background: var(--control-bg-hover);
+}
+
+.webview-freeze[data-frozen="true"] {
+  border-color: var(--control-warning);
+  color: #f0b3b5;
+}

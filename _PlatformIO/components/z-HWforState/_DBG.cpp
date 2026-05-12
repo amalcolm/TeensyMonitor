@@ -1,4 +1,5 @@
 #include "HWforState.h"
+#include "Config.h"
   static constexpr std::tuple<int, int, int, int, int> knownConfigs[] = {
   //  {71, 47, 175, 181, 12},    {71, 47, 175, 181,164},
       {74, 50, 170, 152, 12},    {74, 50, 170, 152,164},
@@ -13,8 +14,11 @@ DBGflags& getDBGflags(StateType state);
 bool setKnownConfig(int cfg);
 
 
-
+int count = 0;
+int offsets[3] = {-1, 0, +1};
+int baseValue = 0;
 void HWforState::HWflags::dbg() {
+
   auto& [_, started, startTime, markTime, toggle] = getDBGflags(HW->state);
 
   if (startTime < 0.0) { if (HW->sensor2.inZone)  startTime = Timer.getConnectTime(); else return; }
@@ -24,23 +28,18 @@ void HWforState::HWflags::dbg() {
   if (now < 1.0) return; // only start toggling after a second to allow settling
 
   if (!started) { started = true; markTime = now;
-
-    setKnownConfig(0);
-
     wipersChanged = true;
     holdWipers = true;
-
-    delayMicroseconds(10);
+    
+    baseValue = HW->mid.getLevel();
   }
 
   if (now - markTime >= 2.0) { // toggle every 2 seconds
     markTime = now;
     toggle = !toggle;
 
-    if (toggle) 
-      setKnownConfig(1);
-    else 
-      setKnownConfig(0);
+    HW->mid.setLevel(baseValue + offsets[count % 3]);
+    count++;
   }
 }
 

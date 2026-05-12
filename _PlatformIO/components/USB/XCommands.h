@@ -23,7 +23,7 @@ struct XCMD_Header
 
 struct XCMD_SetWipers {
   static constexpr uint8_t ID = 0x01;
-  XCMD_Header header; // must be first
+  XCMD_Header header; // must be first field
   
   uint8_t top;
   uint8_t bot;
@@ -37,13 +37,12 @@ struct XCMD_SetWipers {
   uint8_t _reserved3;
 };
 
-static_assert(sizeof(CommandFlags) == sizeof(uint32_t) );
 static_assert(sizeof(XCMD_Header) == 8);
 static_assert(sizeof(XCMD_SetWipers) == 16);
 
 struct XCMD_SetState {
   static constexpr uint8_t ID = 0x02;
-  XCMD_Header header; // must be first
+  XCMD_Header header; // must be first field
 
   uint32_t state; // bitfield for LEDs
 
@@ -51,3 +50,12 @@ struct XCMD_SetState {
 };
 
 static_assert(sizeof(XCMD_SetState) == 12);
+
+struct XCMD_SetDebugFlags {
+  static constexpr uint8_t ID = 0x03;
+  XCMD_Header header; // must be first field
+
+  uint32_t debugFlags; // bitfield for various debug options
+};
+
+static_assert(sizeof(XCMD_SetDebugFlags) == 12);

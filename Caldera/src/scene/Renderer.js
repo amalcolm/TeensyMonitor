@@ -83,16 +83,17 @@ export class Renderer {
     const height = Math.max(this.mount.clientHeight, 1);
     const aspect = width / height;
 
-    let viewWidth = 12;
+    let viewWidth = 12.5;
     let viewHeight = viewWidth / aspect;
+    let xOffset = -0.3;
 
     if (viewHeight < MINIMUM_VIEW_HEIGHT) {
       viewHeight = MINIMUM_VIEW_HEIGHT;
       viewWidth = viewHeight * aspect;
     }
 
-    this.camera.left = -viewWidth / 2;
-    this.camera.right = viewWidth / 2;
+    this.camera.left = -viewWidth / 2 + xOffset;
+    this.camera.right = viewWidth / 2 + xOffset;
     this.camera.top = viewHeight / 2;
     this.camera.bottom = -viewHeight / 2;
     this.camera.updateProjectionMatrix();

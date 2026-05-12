@@ -31,5 +31,13 @@ public:
     inline static constexpr char DEVICE_NAME[]     = "fNIRS (Teensy 4.1)";
     inline static           char HOST_VERSION[16]  = "[unknown]";
 
+
+    inline static uint32_t debugFlags = 0; // bitfield for various debug options, set via USB command
+    inline static bool hasDebugFlag(uint32_t flag) { return (debugFlags & flag) != 0; }
+
 };
 
+struct DebugFlags {
+    static constexpr uint32_t None = 0;
+    static constexpr uint32_t Update = 0x01; // done via HWforState::HWflags::dbg() in _DBG.cpp
+};

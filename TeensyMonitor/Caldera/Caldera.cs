@@ -10,7 +10,7 @@ namespace TeensyMonitor.Caldera
     {
         public CalderaControl Control { get; }
         public CoreWebView2 WebView { get; }
-
+        public bool IsRunning => !_disposed && _ready;
         public Caldera(CalderaControl control)
         {
             Control = control ?? throw new ArgumentNullException(nameof(control));
@@ -213,6 +213,9 @@ namespace TeensyMonitor.Caldera
                 case "setState":
                     HandleSetStateMessage(root);
                     break;
+                case "setDebugFlags":
+                    HandleSetDebugFlagsMessage(root);
+                    break;
             }
         }
 
@@ -252,6 +255,19 @@ namespace TeensyMonitor.Caldera
             {
                 state = (uint)message.State,
                 flags = message.Flags
+            };
+
+            Program.serialPort?.Write(xCMD);
+        }
+
+        private static void HandleSetDebugFlagsMessage(JsonElement root)
+        {
+            var message = root.Deserialize<SetDebugFlagsMessage>();
+            if (message == null) return;
+
+            XCMD_SetDebugFlags xCMD = new()
+            {
+                debugFlags = message.Flags
             };
 
             Program.serialPort?.Write(xCMD);

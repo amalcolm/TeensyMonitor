@@ -1,8 +1,9 @@
 import { CircuitScene } from "./scene/CircuitScene.js";
+import { DebugFlagsControl } from "./helpers/DebugFlagsControl.js";
 import { FreezeVoltages } from "./helpers/FreezeVoltages.js";
 import { FreezeWipers } from "./helpers/FreezeWipers.js";
 import { Model } from "./model/Model.js";
-import { StateControl } from "./helpers/StateControl.js";
+import { STATE_LED_ROWS, StateControl } from "./helpers/StateControl.js";
 import { Sweep } from "./helpers/Sweep.js";
 import { WebView } from "./WebView.js";
 import { WIPER_IDS, getModelWipers, normaliseWipers } from "./helpers/Wipers.js";
@@ -14,20 +15,22 @@ const storedSettings = readStoredSettings();
 
 document.querySelector("#app").innerHTML = `
   <div class="state-panel">
-    <button
-      class="state-panel__button"
-      type="button"
-      data-state-toggle="red1"
-    >
-      RED1
-    </button>
-    <button
-      class="state-panel__button"
-      type="button"
-      data-state-toggle="ir1"
-    >
-      IR1
-    </button>
+    <div class="state-panel__grid">
+      ${STATE_LED_ROWS.map((row) => `
+        <div class="state-panel__row">
+          ${row.map(({ id, kind, label }) => `
+            <button
+              class="state-panel__button"
+              type="button"
+              data-state-toggle="${id}"
+              data-state-kind="${kind}"
+            >
+              ${label}
+            </button>
+          `).join("")}
+        </div>
+      `).join("")}
+    </div>
     <span data-state-status>idle</span>
   </div>
   <div class="webview-freeze-controls">
@@ -49,6 +52,16 @@ document.querySelector("#app").innerHTML = `
     </button>
   </div>
   <div class="scene-stage" data-scene></div>
+  <div class="debug-panel" data-debug-panel>
+    <div class="debug-panel__header">
+      <span>Debug flags</span>
+      <span data-debug-flags-status>0x00000000</span>
+    </div>
+    <label class="debug-panel__option">
+      <input type="checkbox" data-debug-flag="update" />
+      <span>Update</span>
+    </label>
+  </div>
   <div class="test-panel">
     <div class="test-panel__header">
       <span>Tests</span>
@@ -72,7 +85,7 @@ document.querySelector("#app").innerHTML = `
       spellcheck="false"
     ></textarea>
   </div>
-  <div class="wiper-debug" data-wiper-debug>
+  <div class="wiper-debug" data-wiper-debug hidden>
     <div class="wiper-debug__header">
       <span>WebView wipers</span>
       <span data-wiper-debug-status>idle</span>
@@ -97,6 +110,8 @@ const freezeVoltagesButton = document.querySelector("[data-webview-freeze-voltag
 const midSweepButton = document.querySelector("[data-mid-sweep-button]");
 const stateButtons = document.querySelectorAll("[data-state-toggle]");
 const stateStatus = document.querySelector("[data-state-status]");
+const debugFlagInputs = document.querySelectorAll("[data-debug-flag]");
+const debugFlagsStatus = document.querySelector("[data-debug-flags-status]");
 const testCopyButton = document.querySelector("[data-test-copy-button]");
 const testClearButton = document.querySelector("[data-test-clear-button]");
 const testOutput = document.querySelector("[data-test-output]");
@@ -128,6 +143,11 @@ new StateControl({
   buttons: stateButtons,
   freezeWipers,
   status: stateStatus,
+  webView,
+});
+new DebugFlagsControl({
+  inputs: debugFlagInputs,
+  status: debugFlagsStatus,
   webView,
 });
 new Sweep({

@@ -211,8 +211,21 @@ namespace PsycSerial::Packets
 
     public:
         SetStateMessage() { _type = "setState"; _state = HeadState::UNSET; _flags = CommandFlags::None; }
-        [JsonPropertyName("type")]  virtual property String^    Type  { String^   get() { return _type;  } void set(String^   value) { _type  = value; } }
-        [JsonPropertyName("state")]         property HeadState  State { HeadState get() { return _state; } void set(HeadState value) { _state = value; } }
-		[JsonPropertyName("flags")]         property CommandFlags Flags { CommandFlags get() { return _flags; } void set(CommandFlags value) { _flags = value; } }
+        [JsonPropertyName("type")]  virtual property String^      Type  { String^      get() { return _type;  } void set(String^      value) { _type  = value; } }
+        [JsonPropertyName("state")]         property HeadState    State { HeadState    get() { return _state; } void set(HeadState    value) { _state = value; } }
+	    [JsonPropertyName("flags")]         property CommandFlags Flags { CommandFlags get() { return _flags; } void set(CommandFlags value) { _flags = value; } }
+	};
+
+
+    public ref class SetDebugFlagsMessage sealed : public IWebMessage
+	{
+    private:
+        String^ _type;
+        DebugFlags _debugFlags;
+
+    public:
+        SetDebugFlagsMessage() { _type = "setDebugFlags"; _debugFlags = DebugFlags::None; }
+        [JsonPropertyName("type")]       virtual property String^    Type  { String^    get() { return _type;       } void set(String^    value) { _type       = value; } }
+        [JsonPropertyName("debugFlags")]         property DebugFlags Flags { DebugFlags get() { return _debugFlags; } void set(DebugFlags value) { _debugFlags = value; } }
 	};
 }

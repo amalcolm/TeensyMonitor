@@ -16,6 +16,18 @@ namespace TeensyMonitor.Caldera
         public CalderaControl()
         {
             InitializeComponent();
+
+            if (Program.serialPort == null) return;
+
+            Program.serialPort.ConnectionChanged += SerialPort_ConnectionChanged;
+        }
+
+       
+        private void SerialPort_ConnectionChanged(PsycSerial.ConnectionState state)
+        {
+            if (state == PsycSerial.ConnectionState.Connected)
+                if (Caldera?.IsRunning == true)
+                    this.Invoker(web.CoreWebView2.Reload);
         }
 
         protected override async void OnHandleCreated(EventArgs e)

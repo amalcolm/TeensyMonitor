@@ -38,7 +38,9 @@ struct HWforState {
       Timer.addEvent(EventKind::HW_UPDATE_START);
 
       _update();
-//    flags.dbg();  // defined in _DBG.cpp
+      
+      if (CFG::hasDebugFlag(DebugFlags::Update)) 
+        flags.dbg();  // defined in _DBG.cpp
       
       Timer.addEvent(EventKind::HW_UPDATE_COMPLETE);
     }

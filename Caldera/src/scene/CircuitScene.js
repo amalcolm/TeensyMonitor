@@ -108,6 +108,13 @@ export class CircuitScene {
     }
 
     const worldPoint = this.getWorldPoint(event);
+    const stepControl = this.findWiperStepControlAt(worldPoint);
+
+    if (stepControl) {
+      event.preventDefault();
+      this.applyWiperStep(stepControl);
+      return;
+    }
 
     const dragControl = this.findDragControlAt(worldPoint);
 
@@ -129,7 +136,15 @@ export class CircuitScene {
     }
 
     const worldPoint = this.getWorldPoint(event);
-    this.renderer.setCursor(this.findDragControlAt(worldPoint) ? "grab" : "default");
+    let cursor = "default";
+
+    if (this.findWiperStepControlAt(worldPoint)) {
+      cursor = "pointer";
+    } else if (this.findDragControlAt(worldPoint)) {
+      cursor = "grab";
+    }
+
+    this.renderer.setCursor(cursor);
   }
 
   handleMouseLeave() {
@@ -195,8 +210,36 @@ export class CircuitScene {
     return this.renderer.getWorldPoint(event);
   }
 
+  findWiperStepControlAt(worldPoint) {
+    for (const control of this.dragControls) {
+      const direction = control.getWiperStepDirectionAt?.(worldPoint) ?? 0;
+
+      if (direction !== 0) {
+        return { control, direction };
+      }
+    }
+
+    return null;
+  }
+
   findDragControlAt(worldPoint) {
     return this.dragControls.find((control) => control.containsWiperPoint(worldPoint));
+  }
+
+  applyWiperStep({ control, direction }) {
+    const previousValue = control.value;
+
+    control.stepWiper(direction, { emit: false });
+
+    if (control.value === previousValue) {
+      return;
+    }
+
+    this.notifyManualWiperInput("start");
+    this.notifyManualWiperInput("change");
+    this.notifyManualWiperInput("end");
+    this.render();
+    this.notifySettingsChange();
   }
 
   getSettings() {
@@ -404,7 +447,10 @@ export class CircuitScene {
       ["offset", offsetPot.digipot],
       ["gain", differentialAmp.gainSlider],
     ]);
-    this.dragControls = Array.from(this.controlById.values());
+    this.dragControls = [
+      ...this.controlById.values(),
+      threePot.linkedWiperControl,
+    ];
 
     this.add(new Wire({
       from: threePot.port("output"),
