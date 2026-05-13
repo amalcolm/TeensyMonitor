@@ -8,6 +8,12 @@ import { STANDARD_OUTPUT_LEAD_LENGTH, Wire } from "./shapes/Wire.js";
 import { Renderer } from "./Renderer.js";
 import { clampVoltage, isKnownVoltage } from "./voltage.js";
 
+const OFFSET_LOW_V = 1.589830508474576;
+const OFFSET_HIGH_V = 1.689709443099274;
+const WIPER_MIN = 0;
+const WIPER_MAX = 255;
+const ERROR_READOUT_PLUS_WIDTH = 0.082;
+
 export class CircuitScene {
   constructor(mount, model, {
     onManualWiperInput = null,
@@ -326,14 +332,35 @@ export class CircuitScene {
   }
 
   applyModelVoltageOverrides() {
+    const sensorModelErrorVoltages = this.getSensorModelErrorVoltages();
+
     this.setReadoutVoltage("sensor1", this.model.sensor1Voltage);
     this.setReadoutVoltage("sensor2", this.model.sensor2Voltage);
-    this.setReadoutVoltage("sensor2Error", this.model.diffAmp?.outputErrorVoltage);
+    this.setReadoutVoltage("sensor1Error", sensorModelErrorVoltages.sensor1);
+    this.setReadoutVoltage("sensor2Error", sensorModelErrorVoltages.sensor2);
     this.applyDifferentialAmpModelVoltages();
   }
 
   setReadoutVoltage(id, voltage) {
     this.voltageReadoutById.get(id)?.setDisplayVoltage(voltage);
+  }
+
+  getSensorModelErrorVoltages() {
+    const gainWiper = this.model.gain?.wiper;
+    const offsetWiper = this.model.offset?.wiper;
+    const sensor1Voltage = this.model.sensor1Voltage;
+    const sensor2Voltage = this.model.sensor2Voltage;
+
+    return {
+      sensor1: getSensorErrorVoltage(
+        sensor1FromSensor2(sensor2Voltage, gainWiper, offsetWiper),
+        sensor1Voltage,
+      ),
+      sensor2: getSensorErrorVoltage(
+        sensor2FromSensor1(sensor1Voltage, gainWiper, offsetWiper),
+        sensor2Voltage,
+      ),
+    };
   }
 
   applyDifferentialAmpModelVoltages() {
@@ -428,14 +455,19 @@ export class CircuitScene {
     this.differentialAmp = differentialAmp;
     this.model.gain?.connectShape?.(differentialAmp.gainSlider);
 
-    const sensor2Readout = this.add(new VoltageReadout({ position: [5.2, 0.0, 0] }));
     const sensor1Readout = this.add(new VoltageReadout({ position: [0.1, 0.75, 0] }));
+    const sensor1ErrorReadout = this.add(new VoltageReadout({
+      formatValue: formatSignedVoltage,
+      position: [0.1 - ERROR_READOUT_PLUS_WIDTH, 0.3, 0],
+    }));
+    const sensor2Readout = this.add(new VoltageReadout({ position: [5.2, 0.0, 0] }));
     const sensor2ErrorReadout = this.add(new VoltageReadout({
       formatValue: formatSignedVoltage,
-      position: [5.2, -99.75, 0],
+      position: [5.2 - ERROR_READOUT_PLUS_WIDTH, -0.45, 0],
     }));
     this.voltageReadoutById = new Map([
       ["sensor1", sensor1Readout],
+      ["sensor1Error", sensor1ErrorReadout],
       ["sensor2", sensor2Readout],
       ["sensor2Error", sensor2ErrorReadout],
     ]);
@@ -509,4 +541,51 @@ function formatSignedVoltage(value) {
   }
 
   return `${value >= 0 ? "+" : ""}${value.toFixed(3)} V`;
+}
+
+function getSensorErrorVoltage(modeledVoltage, measuredVoltage) {
+  if (!isKnownVoltage(modeledVoltage) || !isKnownVoltage(measuredVoltage)) {
+    return null;
+  }
+
+  return modeledVoltage - measuredVoltage;
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function offsetVoltageFromWiper(offsetWiper) {
+  offsetWiper = clamp(Number(offsetWiper), WIPER_MIN, WIPER_MAX);
+
+  return OFFSET_LOW_V
+    + offsetWiper * (OFFSET_HIGH_V - OFFSET_LOW_V) / WIPER_MAX;
+}
+
+function gainRatioFromWiper(gainWiper) {
+  gainWiper = clamp(Number(gainWiper), WIPER_MIN, WIPER_MAX);
+
+  return 1.2 + gainWiper * 10.0 / WIPER_MAX;
+}
+
+function sensor2FromSensor1(sensor1V, gainWiper, offsetWiper) {
+  if (!isKnownVoltage(sensor1V)) {
+    return null;
+  }
+
+  const offsetV = offsetVoltageFromWiper(offsetWiper);
+  const gainRatio = gainRatioFromWiper(gainWiper);
+
+  return offsetV + gainRatio * (offsetV - sensor1V);
+}
+
+function sensor1FromSensor2(sensor2V, gainWiper, offsetWiper) {
+  if (!isKnownVoltage(sensor2V)) {
+    return null;
+  }
+
+  const offsetV = offsetVoltageFromWiper(offsetWiper);
+  const gainRatio = gainRatioFromWiper(gainWiper);
+
+  return offsetV - (sensor2V - offsetV) / gainRatio;
 }
