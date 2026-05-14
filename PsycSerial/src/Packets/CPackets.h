@@ -34,6 +34,8 @@ struct CDataPacket
     double   stateTime{};
     uint64_t hardwareState{};
 	uint32_t sensorState{};
+    float    Sensor1;
+	float    Sensor2;
     uint32_t channel[A2D_NUM_CHANNELS]{};
 
     static constexpr uint32_t STATE_UNSET = 0b1000'0000'0000'0000'0000'0000'0000'0000;
@@ -92,7 +94,7 @@ static_assert(std::is_trivially_copyable_v<CDataPacket> , "CDataPacket must be P
 static_assert(std::is_trivially_copyable_v<CBlockPacket>, "CBlockPacket must be POD");
 
 static_assert(sizeof(CDataPacket) ==
-    sizeof(uint32_t) + sizeof(double) + sizeof(double) + sizeof(uint64_t) + sizeof(uint32_t) + CDataPacket::A2D_NUM_CHANNELS * sizeof(uint32_t),
+    sizeof(uint32_t) + sizeof(double) + sizeof(double) + sizeof(uint64_t) + sizeof(uint32_t) + sizeof(float) + sizeof(float) + CDataPacket::A2D_NUM_CHANNELS * sizeof(uint32_t),
     "Unexpected CDataPacket layout/packing");
 
 static_assert(offsetof(CBlockPacket, blockData) ==

@@ -1,35 +1,46 @@
 import { getModelWipers, normaliseWipers } from "./Wipers.js";
 
-const MID_SWEEP_STEP = 16;
-const MID_SWEEP_INTERVAL_MS = 50;
-const MID_SWEEP_HEADER = "top,bot,mid,mid-outV,Sensor1";
+const MID_SWEEP_START = 16;
+const MID_SWEEP_END = 240;
+const MID_SWEEP_STEP = 8;
+const SWEEP_SETTLE_MS = 100;
+const SWEEP_SAMPLE_INTERVAL_MS = 50;
+const SWEEP_FILTER_SAMPLE_COUNT = 10;
+const SWEEP_FILTER_T = 1 / SWEEP_FILTER_SAMPLE_COUNT;
+const GAIN_SWEEP_WIPERS = Object.freeze([0, 1, 2, 4, 8, 16, 32]);
 
 export class Sweep {
   constructor({
     button,
+    canClear = null,
     circuitScene,
     clearButton,
-    copyButton,
     freezeVoltages,
     freezeWipers,
     model,
-    output,
+    onClear = null,
+    onStart = null,
+    onSample = null,
     status,
     updateWiperDebug,
     webView,
   }) {
     this.button = button;
+    this.canClear = canClear;
     this.circuitScene = circuitScene;
     this.clearButton = clearButton;
-    this.copyButton = copyButton;
     this.freezeVoltages = freezeVoltages;
     this.freezeWipers = freezeWipers;
     this.model = model;
-    this.output = output;
+    this.onClear = onClear;
+    this.onStart = onStart;
+    this.onSample = onSample;
     this.status = status;
     this.updateWiperDebug = updateWiperDebug;
     this.webView = webView;
-    this.currentMid = 0;
+    this.currentMid = MID_SWEEP_START;
+    this.filteredVoltages = null;
+    this.sampleCount = 0;
     this.timer = null;
     this.wasVoltagesFrozen = false;
     this.wasWipersFrozen = false;
@@ -42,14 +53,13 @@ export class Sweep {
       }
     });
 
-    this.copyButton?.addEventListener("click", () => this.copyOutput());
     this.clearButton?.addEventListener("click", () => this.clear());
 
-    this.setOutput("");
     this.updateButton();
   }
 
   start() {
+    this.onStart?.(this);
     this.wasWipersFrozen = this.freezeWipers.frozen;
     this.wasVoltagesFrozen = this.freezeVoltages.frozen;
     this.freezeWipers.setFrozen(true);
@@ -58,40 +68,43 @@ export class Sweep {
       this.freezeVoltages.setFrozen(false);
     }
 
-    this.setOutput(`${MID_SWEEP_HEADER}\n`);
-    this.currentMid = 0;
-    this.applyMidWiper(this.currentMid);
-    this.updateStatus(`mid ${this.currentMid}`);
-
-    this.timer = window.setInterval(() => this.runStep(), MID_SWEEP_INTERVAL_MS);
-    this.updateButton();
+    this.onClear?.();
+    this.currentMid = MID_SWEEP_START;
+    this.beginCurrentPoint();
   }
 
   runStep() {
-    this.appendRow();
-
-    if (this.currentMid >= 255) {
-      this.stop("done");
+    if (!this.timer) {
       return;
     }
 
-    this.currentMid = Math.min(this.currentMid + MID_SWEEP_STEP, 255);
-    this.applyMidWiper(this.currentMid);
-    this.updateStatus(`mid ${this.currentMid}`);
+    this.captureFilterSample();
+
+    if (this.sampleCount < SWEEP_FILTER_SAMPLE_COUNT) {
+      this.scheduleStep(SWEEP_SAMPLE_INTERVAL_MS);
+      return;
+    }
+
+    this.addFilteredSample();
+    this.advanceSweep();
   }
 
   stop(status = "idle") {
+    const wasRunning = Boolean(this.timer);
+
     if (this.timer) {
-      window.clearInterval(this.timer);
+      window.clearTimeout(this.timer);
       this.timer = null;
     }
 
-    if (!this.wasWipersFrozen) {
-      this.freezeWipers.setFrozen(false);
-    }
+    if (wasRunning) {
+      if (!this.wasWipersFrozen) {
+        this.freezeWipers.setFrozen(false);
+      }
 
-    if (this.wasVoltagesFrozen) {
-      this.freezeVoltages.setFrozen(true);
+      if (this.wasVoltagesFrozen) {
+        this.freezeVoltages.setFrozen(true);
+      }
     }
 
     this.updateStatus(status);
@@ -99,12 +112,67 @@ export class Sweep {
   }
 
   clear() {
-    if (this.timer) {
+    if (this.timer || this.canClear?.() === false) {
       return;
     }
 
-    this.setOutput("");
+    this.onClear?.();
     this.updateStatus("idle");
+  }
+
+  beginCurrentPoint() {
+    this.filteredVoltages = null;
+    this.sampleCount = 0;
+    this.applyCurrentWipers();
+    this.updateStatus(this.getSweepStatus());
+    this.scheduleStep(SWEEP_SETTLE_MS);
+  }
+
+  scheduleStep(delayMs) {
+    this.timer = window.setTimeout(() => this.runStep(), delayMs);
+    this.updateButton();
+  }
+
+  captureFilterSample() {
+    this.filteredVoltages = filterVoltages(
+      this.filteredVoltages,
+      this.readVoltages(),
+    );
+    this.sampleCount += 1;
+    this.updateStatus(
+      `${this.getSweepStatus()} sample ${this.sampleCount}/${SWEEP_FILTER_SAMPLE_COUNT}`,
+    );
+  }
+
+  readVoltages() {
+    return {
+      sensor1: getKnownVoltage(this.model?.sensor1Voltage)
+        ?? getKnownVoltage(this.circuitScene?.getSceneSensor1Voltage?.()),
+      sensor2: getKnownVoltage(this.model?.sensor2Voltage),
+    };
+  }
+
+  addFilteredSample() {
+    this.onSample?.({
+      circuitScene: this.circuitScene,
+      model: this.model,
+      sensorVoltages: this.filteredVoltages ? { ...this.filteredVoltages } : null,
+      source: this.getSampleSource(),
+    });
+  }
+
+  advanceSweep() {
+    if (this.currentMid >= MID_SWEEP_END) {
+      this.stop("done");
+      return;
+    }
+
+    this.currentMid = Math.min(this.currentMid + MID_SWEEP_STEP, MID_SWEEP_END);
+    this.beginCurrentPoint();
+  }
+
+  applyCurrentWipers() {
+    this.applyMidWiper(this.currentMid);
   }
 
   applyMidWiper(mid) {
@@ -119,28 +187,12 @@ export class Sweep {
     this.webView.postSetWipers(wipers);
   }
 
-  appendRow() {
-    const wipers = getModelWipers(this.model);
-    const row = [
-      wipers.top,
-      wipers.bot,
-      wipers.mid,
-      this.formatCsvNumber(this.model.mid?.wiperVoltage),
-      this.formatCsvNumber(this.getSensor1Voltage()),
-    ].join(",");
-
-    this.output.value += `${row}\n`;
-    this.output.scrollTop = this.output.scrollHeight;
+  getSweepStatus() {
+    return `mid ${this.currentMid}`;
   }
 
-  getSensor1Voltage() {
-    return Number.isFinite(this.model.sensor1Voltage)
-      ? this.model.sensor1Voltage
-      : this.circuitScene.getSceneSensor1Voltage();
-  }
-
-  setOutput(value) {
-    this.output.value = value;
+  getSampleSource() {
+    return "mid-sweep";
   }
 
   updateStatus(status) {
@@ -155,31 +207,111 @@ export class Sweep {
     this.button.textContent = this.timer ? "Stop sweep" : "Sweep mid";
     this.button.dataset.running = String(Boolean(this.timer));
   }
+}
 
-  async copyOutput() {
-    const text = this.output.value;
+export class GainSweep extends Sweep {
+  constructor(options) {
+    super(options);
+    this.currentGainIndex = 0;
+    this.updateButton();
+  }
 
-    if (!text) {
+  start() {
+    this.onStart?.(this);
+    this.wasWipersFrozen = this.freezeWipers.frozen;
+    this.wasVoltagesFrozen = this.freezeVoltages.frozen;
+    this.freezeWipers.setFrozen(true);
+
+    if (this.freezeVoltages.frozen) {
+      this.freezeVoltages.setFrozen(false);
+    }
+
+    this.onClear?.();
+    this.currentGainIndex = 0;
+    this.currentMid = MID_SWEEP_START;
+    this.beginCurrentPoint();
+  }
+
+  advanceSweep() {
+    if (this.currentMid < MID_SWEEP_END) {
+      this.currentMid = Math.min(this.currentMid + MID_SWEEP_STEP, MID_SWEEP_END);
+      this.beginCurrentPoint();
       return;
     }
 
-    try {
-      if (!navigator.clipboard?.writeText) {
-        throw new Error("Clipboard unavailable");
-      }
-
-      await navigator.clipboard.writeText(text);
-      this.updateStatus("copied");
-    } catch {
-      this.output.focus();
-      this.output.select();
-      this.updateStatus("selected");
+    if (this.currentGainIndex < GAIN_SWEEP_WIPERS.length - 1) {
+      this.currentGainIndex += 1;
+      this.currentMid = MID_SWEEP_START;
+      this.beginCurrentPoint();
+      return;
     }
+
+    this.stop("done");
   }
 
-  formatCsvNumber(value) {
-    const number = Number(value);
-
-    return Number.isFinite(number) ? number.toFixed(6) : "";
+  applyCurrentWipers() {
+    this.applyGainMidWipers();
   }
+
+  applyGainMidWipers() {
+    const gain = GAIN_SWEEP_WIPERS[this.currentGainIndex];
+    const wipers = normaliseWipers({
+      ...getModelWipers(this.model),
+      gain,
+      mid: this.currentMid,
+    });
+
+    this.model.applyWiperValues(wipers);
+    this.updateWiperDebug(wipers, { applied: true });
+    this.circuitScene.render();
+    this.webView.postSetWipers(wipers);
+  }
+
+  getSweepStatus() {
+    const gain = GAIN_SWEEP_WIPERS[this.currentGainIndex];
+
+    return `gain ${gain} mid ${this.currentMid}`;
+  }
+
+  getSampleSource() {
+    return "gain-mid-sweep";
+  }
+
+  updateButton() {
+    if (!this.button) {
+      return;
+    }
+
+    this.button.textContent = this.timer ? "Stop gain" : "Sweep gain";
+    this.button.dataset.running = String(Boolean(this.timer));
+  }
+}
+
+function filterVoltages(oldVoltages, newVoltages) {
+  return {
+    sensor1: filterVoltage(oldVoltages?.sensor1, newVoltages?.sensor1),
+    sensor2: filterVoltage(oldVoltages?.sensor2, newVoltages?.sensor2),
+  };
+}
+
+function filterVoltage(oldValue, newValue) {
+  const newVoltage = getKnownVoltage(newValue);
+
+  if (!Number.isFinite(newVoltage)) {
+    return getKnownVoltage(oldValue);
+  }
+
+  const oldVoltage = getKnownVoltage(oldValue);
+
+  if (!Number.isFinite(oldVoltage)) {
+    return newVoltage;
+  }
+
+  return (1 - SWEEP_FILTER_T) * oldVoltage + SWEEP_FILTER_T * newVoltage;
+}
+
+function getKnownVoltage(value) {
+  const voltage = Number(value);
+
+  return Number.isFinite(voltage) ? voltage : null;
 }

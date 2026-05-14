@@ -3,6 +3,7 @@ using Timer = System.Windows.Forms.Timer;
 namespace TeensyMonitor
 {
     using PsycSerial;
+    using TeensyMonitor.Caldera;
     using TeensyMonitor.Plotter.Helpers;
     using TeensyMonitor.Plotter.UserControls;
 
@@ -82,7 +83,7 @@ namespace TeensyMonitor
             {
                 chart.SP_DataReceived(blockPacket);
 
-                tallForm?.Process(blockPacket);
+//                tallForm?.Process(blockPacket);
             }
             else
                 AddChart(blockPacket);
@@ -188,7 +189,7 @@ namespace TeensyMonitor
 
 
         bool firstLoad = true;
-        DataForm? tallForm;
+        MyCalderaForm? calderaForm;
         private async void Form1_Shown(object sender, EventArgs e)
         {
             var ports = SerialHelper.GetUSBSerialPorts();
@@ -224,9 +225,9 @@ namespace TeensyMonitor
             {
                 if (firstLoad)
                 {
-                    tallForm = new DataForm();
-                    tallForm.FormClosed += (_, _) => this.Close();
-                    tallForm.Show();
+                    calderaForm = new MyCalderaForm() ;
+                    calderaForm.FormClosed += (_, _) => this.Close();
+                    calderaForm.Show();
 
                 }
 

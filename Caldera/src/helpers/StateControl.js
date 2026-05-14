@@ -12,10 +12,9 @@ const STATE_BITS = Object.freeze(
 );
 
 export class StateControl {
-  constructor({ buttons, freezeWipers, status, webView }) {
+  constructor({ buttons, freezeWipers, webView }) {
     this.buttons = Array.from(buttons ?? []);
     this.freezeWipers = freezeWipers;
-    this.status = status;
     this.webView = webView;
     this.activeById = new Map(this.buttons.map((button) => [button.dataset.stateToggle, false]));
 
@@ -44,7 +43,6 @@ export class StateControl {
       flags: COMMAND_FLAGS.HOLD_WIPERS,
       state,
     });
-    this.updateStatus(`sent ${formatStateHex(state)}`);
   }
 
   getState() {
@@ -60,16 +58,6 @@ export class StateControl {
       button.dataset.active = String(isActive);
     });
   }
-
-  updateStatus(status) {
-    if (this.status) {
-      this.status.textContent = status;
-    }
-  }
-}
-
-function formatStateHex(state) {
-  return `0x${state.toString(16).toUpperCase().padStart(8, "0")}`;
 }
 
 function makeStateLedRow(kind, labelPrefix, bitOffset) {

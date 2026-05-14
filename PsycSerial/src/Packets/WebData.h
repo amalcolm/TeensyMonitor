@@ -30,7 +30,7 @@ namespace PsycSerial::Packets
 
             DataPacket^ data = block->BlockData[block->Count - 1];                              if (data == nullptr) return;
 
-            Sensor1 = data->Stage1_Sensor * Scalar;
+            Sensor1 = (1023 - data->Stage1_Sensor) * Scalar;   // Sensor1 is inverted
             Sensor2 = data->Stage2_Sensor * Scalar;
         }
         void CopyFrom(VoltageValues^ other) { if (other == nullptr) return;

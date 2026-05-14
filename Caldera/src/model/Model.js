@@ -9,7 +9,7 @@ const THREE_POT_RAILS = Object.freeze({
   supplyResistanceOhms: 22000,
   supplyVoltage: SUPPLY_VOLTAGE,
 });
-const OFFSET_RAILS = Object.freeze({
+export const OFFSET_RAILS = Object.freeze({
   digipotResistanceOhms: DIGIPOT_RESISTANCE_OHMS,
   groundResistanceOhms: 79600,
   groundVoltage: GROUND_VOLTAGE,

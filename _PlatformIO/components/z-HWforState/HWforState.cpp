@@ -91,6 +91,7 @@ void HWforState::begin() {
   bot    .invert();
   sensor1.invert(); 
   gain   .invert();
+  offset .invert();
 
   top    .begin(255);
   bot    .begin(  0);

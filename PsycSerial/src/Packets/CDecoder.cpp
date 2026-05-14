@@ -31,6 +31,8 @@ namespace
                                            + sizeof(double)                                    // stateTime
                                            + sizeof(uint64_t)                                  // hardwareState
                                            + sizeof(uint32_t)                                  // sensorState
+                                           + sizeof(float)                                     // Sensor1
+                                           + sizeof(float)                                     // Sensor2
                                            + CDataPacket::A2D_NUM_CHANNELS * sizeof(uint32_t); // channel data
 
     constexpr size_t kBlockEventSize       = sizeof(uint8_t)  // eventKind
@@ -63,6 +65,7 @@ namespace
     inline FrameParseResult readU16   (const uint8_t* payload, uint16_t& out) noexcept;
     inline FrameParseResult readU32   (const uint8_t* payload, uint32_t& out) noexcept;
 	inline FrameParseResult readU64   (const uint8_t* payload, uint64_t& out) noexcept;
+    inline FrameParseResult readFloat (const uint8_t* payload, float   & out) noexcept;
     inline FrameParseResult readDouble(const uint8_t* payload, double  & out) noexcept;
 
     FrameParseResult readDataPayload (const uint8_t* payload, size_t payloadBytes, CDecodedPacket& out, size_t& consumed) noexcept;
@@ -398,6 +401,8 @@ namespace
             readDouble(rP, dp.stateTime    ); rP += sizeof(double  );
             readU64   (rP, dp.hardwareState); rP += sizeof(uint64_t);
             readU32   (rP, dp.sensorState  ); rP += sizeof(uint32_t);
+            readFloat (rP, dp.Sensor1      ); rP += sizeof(float   );
+            readFloat (rP, dp.Sensor2      ); rP += sizeof(float   );
 
             for (size_t ch = 0; ch < CDataPacket::A2D_NUM_CHANNELS; ++ch, rP += sizeof(uint32_t))
                 readU32(rP, dp.channel[ch]);

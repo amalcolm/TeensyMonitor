@@ -1,10 +1,11 @@
+import { AnalysisPanel } from "./analysis/AnalysisPanel.js";
 import { CircuitScene } from "./scene/CircuitScene.js";
 import { DebugFlagsControl } from "./helpers/DebugFlagsControl.js";
 import { FreezeVoltages } from "./helpers/FreezeVoltages.js";
 import { FreezeWipers } from "./helpers/FreezeWipers.js";
 import { Model } from "./model/Model.js";
 import { STATE_LED_ROWS, StateControl } from "./helpers/StateControl.js";
-import { Sweep } from "./helpers/Sweep.js";
+import { GainSweep, Sweep } from "./helpers/Sweep.js";
 import { WebView } from "./WebView.js";
 import { WIPER_IDS, getModelWipers, normaliseWipers } from "./helpers/Wipers.js";
 
@@ -14,107 +15,151 @@ const webView = new WebView(model);
 const storedSettings = readStoredSettings();
 
 document.querySelector("#app").innerHTML = `
-  <div class="state-panel">
-    <div class="state-panel__grid">
-      ${STATE_LED_ROWS.map((row) => `
-        <div class="state-panel__row">
-          ${row.map(({ id, kind, label }) => `
+  <div class="app-layout">
+    <section class="analysis-div" data-analysis-div>
+      <div class="analysis-panel">
+        <div class="analysis-panel__header">
+          <div>
+            <span class="analysis-panel__eyebrow">Caldera modelling</span>
+            <h1>Data analysis</h1>
+          </div>
+          <div class="analysis-panel__header-actions">
             <button
-              class="state-panel__button"
+              class="analysis-panel__button"
               type="button"
-              data-state-toggle="${id}"
-              data-state-kind="${kind}"
+              data-analysis-copy-csv
             >
-              ${label}
+              Copy CSV
             </button>
+            <span class="analysis-panel__badge" data-analysis-badge>empty dataset</span>
+          </div>
+        </div>
+        <div class="analysis-panel__body">
+          <aside class="analysis-panel__sidebar">
+            <div class="analysis-metric analysis-metric--primary">
+              <span class="analysis-metric__label">Linear slope</span>
+              <strong data-analysis-slope>-</strong>
+            </div>
+            <div class="analysis-metric">
+              <span class="analysis-metric__label">Fit RMS</span>
+              <strong data-analysis-rms>-</strong>
+            </div>
+            <div class="analysis-metric">
+              <span class="analysis-metric__label">Slope / gain</span>
+              <strong data-analysis-slope-ratio>-</strong>
+            </div>
+            <div class="analysis-metric">
+              <span class="analysis-metric__label">Samples</span>
+              <strong data-analysis-samples>0</strong>
+            </div>
+            <div class="analysis-gain-breakdown" data-analysis-gain-breakdown></div>
+            <div class="analysis-todo analysis-panel__disabled">
+              <span class="analysis-todo__title">Next calibration passes</span>
+              <span>Fit offset endpoint voltages</span>
+              <span>Fit gain intercept and slope</span>
+              <span>Reject clipped output samples</span>
+            </div>
+          </aside>
+          <div class="analysis-chart" data-analysis-chart></div>
+        </div>
+      </div>
+    </section>
+    <section class="circuit-div" data-circuit-div>
+      <div class="scene-stage" data-scene></div>
+      <div class="state-panel">
+        <div class="state-panel__grid">
+          ${STATE_LED_ROWS.map((row) => `
+            <div class="state-panel__row">
+              ${row.map(({ id, kind, label }) => `
+                <button
+                  class="state-panel__button"
+                  type="button"
+                  data-state-toggle="${id}"
+                  data-state-kind="${kind}"
+                >
+                  ${label}
+                </button>
+              `).join("")}
+            </div>
           `).join("")}
         </div>
-      `).join("")}
-    </div>
-    <span data-state-status>idle</span>
-  </div>
-  <div class="webview-freeze-controls">
-    <button
-      class="webview-freeze"
-      type="button"
-      data-webview-freeze-wipers
-      aria-pressed="false"
-    >
-      Freeze wipers
-    </button>
-    <button
-      class="webview-freeze"
-      type="button"
-      data-webview-freeze-voltages
-      aria-pressed="false"
-    >
-      Freeze voltages
-    </button>
-  </div>
-  <div class="scene-stage" data-scene></div>
-  <div class="debug-panel" data-debug-panel>
-    <div class="debug-panel__header">
-      <span>Debug flags</span>
-      <span data-debug-flags-status>0x00000000</span>
-    </div>
-    <label class="debug-panel__option">
-      <input type="checkbox" data-debug-flag="update" />
-      <span>Update</span>
-    </label>
-  </div>
-  <div class="test-panel">
-    <div class="test-panel__header">
-      <span>Tests</span>
-      <span data-test-status>idle</span>
-    </div>
-    <div class="test-panel__actions">
-      <button class="test-panel__button" type="button" data-mid-sweep-button>
-        Sweep mid
-      </button>
-      <button class="test-panel__button" type="button" data-test-copy-button>
-        Copy
-      </button>
-      <button class="test-panel__button" type="button" data-test-clear-button>
-        Clear
-      </button>
-    </div>
-    <textarea
-      class="test-panel__output"
-      data-test-output
-      readonly
-      spellcheck="false"
-    ></textarea>
-  </div>
-  <div class="wiper-debug" data-wiper-debug hidden>
-    <div class="wiper-debug__header">
-      <span>WebView wipers</span>
-      <span data-wiper-debug-status>idle</span>
-    </div>
-    <div class="wiper-debug__keys" data-wiper-debug-keys>keys: -</div>
-    <div class="wiper-debug__grid">
-      <span></span>
-      <span>web</span>
-      <span>model</span>
-      ${WIPER_IDS.map((id) => `
-        <span>${id}</span>
-        <span data-wiper-debug-incoming="${id}">-</span>
-        <span data-wiper-debug-model="${id}">${formatDebugValue(model[id]?.wiper)}</span>
-      `).join("")}
-    </div>
+      </div>
+      <div class="webview-freeze-controls">
+        <button
+          class="webview-freeze"
+          type="button"
+          data-webview-freeze-wipers
+          aria-pressed="false"
+        >
+          Freeze wipers
+        </button>
+        <button
+          class="webview-freeze"
+          type="button"
+          data-webview-freeze-voltages
+          aria-pressed="false"
+        >
+          Freeze voltages
+        </button>
+      </div>
+      <div class="debug-panel" data-debug-panel>
+        <div class="debug-panel__header">
+          <span>Debug flags</span>
+          <span data-debug-flags-status>0x00000000</span>
+        </div>
+        <label class="debug-panel__option">
+          <input type="checkbox" data-debug-flag="update" />
+          <span>Update</span>
+        </label>
+      </div>
+      <div class="test-panel">
+        <div class="test-panel__header">
+          <span>Tests</span>
+          <span data-test-status>idle</span>
+        </div>
+        <div class="test-panel__actions">
+          <button class="test-panel__button" type="button" data-mid-sweep-button>
+            Sweep mid
+          </button>
+          <button class="test-panel__button" type="button" data-gain-sweep-button>
+            Sweep gain
+          </button>
+          <button class="test-panel__button" type="button" data-test-clear-button>
+            Clear
+          </button>
+        </div>
+      </div>
+      <div class="wiper-debug" data-wiper-debug hidden>
+        <div class="wiper-debug__header">
+          <span>WebView wipers</span>
+          <span data-wiper-debug-status>idle</span>
+        </div>
+        <div class="wiper-debug__keys" data-wiper-debug-keys>keys: -</div>
+        <div class="wiper-debug__grid">
+          <span></span>
+          <span>web</span>
+          <span>model</span>
+          ${WIPER_IDS.map((id) => `
+            <span>${id}</span>
+            <span data-wiper-debug-incoming="${id}">-</span>
+            <span data-wiper-debug-model="${id}">${formatDebugValue(model[id]?.wiper)}</span>
+          `).join("")}
+        </div>
+      </div>
+    </section>
   </div>
 `;
 
+const analysisRoot = document.querySelector("[data-analysis-div]");
 const sceneRoot = document.querySelector("[data-scene]");
 const freezeWipersButton = document.querySelector("[data-webview-freeze-wipers]");
 const freezeVoltagesButton = document.querySelector("[data-webview-freeze-voltages]");
 const midSweepButton = document.querySelector("[data-mid-sweep-button]");
+const gainSweepButton = document.querySelector("[data-gain-sweep-button]");
 const stateButtons = document.querySelectorAll("[data-state-toggle]");
-const stateStatus = document.querySelector("[data-state-status]");
 const debugFlagInputs = document.querySelectorAll("[data-debug-flag]");
 const debugFlagsStatus = document.querySelector("[data-debug-flags-status]");
-const testCopyButton = document.querySelector("[data-test-copy-button]");
 const testClearButton = document.querySelector("[data-test-clear-button]");
-const testOutput = document.querySelector("[data-test-output]");
 const testStatus = document.querySelector("[data-test-status]");
 const wiperDebugStatus = document.querySelector("[data-wiper-debug-status]");
 const wiperDebugKeys = document.querySelector("[data-wiper-debug-keys]");
@@ -125,6 +170,9 @@ const modelDebugById = new Map(
   WIPER_IDS.map((id) => [id, document.querySelector(`[data-wiper-debug-model="${id}"]`)]),
 );
 let wiperMessageCount = 0;
+let midSweep = null;
+let gainSweep = null;
+const analysisPanel = new AnalysisPanel({ root: analysisRoot });
 const circuitScene = new CircuitScene(sceneRoot, model, {
   onManualWiperInput: handleManualWiperInput,
   onSettingsChange: saveStoredSettings,
@@ -142,7 +190,6 @@ const freezeVoltages = new FreezeVoltages({
 new StateControl({
   buttons: stateButtons,
   freezeWipers,
-  status: stateStatus,
   webView,
 });
 new DebugFlagsControl({
@@ -150,15 +197,31 @@ new DebugFlagsControl({
   status: debugFlagsStatus,
   webView,
 });
-new Sweep({
+midSweep = new Sweep({
   button: midSweepButton,
+  canClear: () => !gainSweep?.timer,
   circuitScene,
   clearButton: testClearButton,
-  copyButton: testCopyButton,
   freezeVoltages,
   freezeWipers,
   model,
-  output: testOutput,
+  onClear: () => analysisPanel.clear(),
+  onStart: () => gainSweep?.stop("idle"),
+  onSample: (sampleContext) => analysisPanel.addSampleFromModel(sampleContext),
+  status: testStatus,
+  updateWiperDebug,
+  webView,
+});
+gainSweep = new GainSweep({
+  button: gainSweepButton,
+  circuitScene,
+  clearButton: null,
+  freezeVoltages,
+  freezeWipers,
+  model,
+  onClear: () => analysisPanel.clear(),
+  onStart: () => midSweep?.stop("idle"),
+  onSample: (sampleContext) => analysisPanel.addSampleFromModel(sampleContext),
   status: testStatus,
   updateWiperDebug,
   webView,

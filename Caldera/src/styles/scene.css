@@ -1,6 +1,10 @@
 .scene-stage {
   position: absolute;
-  inset: 0;
+  bottom: 0;
+  left: 50%;
+  width: 100%;
+  height: var(--circuit-size);
+  transform: translateX(-50%);
 }
 
 .scene-stage canvas {

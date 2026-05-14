@@ -53,10 +53,3 @@
   color: #ffffff;
   background: var(--control-active-blue);
 }
-
-.state-panel [data-state-status] {
-  min-width: 132px;
-  color: var(--panel-muted);
-  font-size: 12px;
-  font-weight: 700;
-}

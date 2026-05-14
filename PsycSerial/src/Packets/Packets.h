@@ -52,13 +52,16 @@ namespace PsycSerial
         Timestamp,
         C0,
         Events,
-        Stage1_Mid,
-        Stage1_Top,
-		Stage1_Bot,
-        Stage2_Offset,
-        Stage2_Gain,
-        Stage1_Sensor,
-        Stage2_Sensor,
+
+        Mid,
+        Top,
+		Bot,
+        Offset,
+        Gain,
+		rawSensor1,
+		rawSensor2,
+        Sensor1,
+        Sensor2,
     };
 
 	public ref class DataPacket : IPacket, IDisposable
@@ -82,35 +85,38 @@ namespace PsycSerial
 		property double         StateTime;
         property System::UInt64 HardwareState;
         property int            SensorState;
+		property float          Sensor1;
+		property float          Sensor2;
 
         property array<unsigned int>^ Channel;
 
 
-        property int Stage1_Mid     { int get() { return (int)((HardwareState >> 56) & ByteMask);  } }
-        property int Stage1_Top     { int get() { return (int)((HardwareState >> 48) & ByteMask);  } }
-        property int Stage1_Bot     { int get() { return (int)((HardwareState >> 40) & ByteMask);  } }
-        property int SequenceNumber { int get() { return (int)((HardwareState >> 32) & ByteMask);  } }
-        property int Stage2_Offset  { int get() { return (int)((HardwareState >> 24) & ByteMask);  } }
-        property int Stage2_Gain    { int get() { return (int)((HardwareState >> 16) & ByteMask);  } }
-        
-        property int _Reserved      { int get() { return (int)((HardwareState      ) & WordMask);  } }
-       
+        property int Mid            { int get() { return (int)((HardwareState >> 56) & ByteMask); } }
+        property int Top            { int get() { return (int)((HardwareState >> 48) & ByteMask); } }
+        property int Bot            { int get() { return (int)((HardwareState >> 40) & ByteMask); } }
+        property int SequenceNumber { int get() { return (int)((HardwareState >> 32) & ByteMask); } }
+        property int Offset         { int get() { return (int)((HardwareState >> 24) & ByteMask); } }
+        property int Gain           { int get() { return (int)((HardwareState >> 16) & ByteMask); } }
+        property int _Reserved      { int get() { return (int)((HardwareState      ) & WordMask); } }
+        property int RawSensor1     { int get() { return (int)((SensorState   >> 16) & WordMask); } }
+		property int RawSensor2     { int get() { return (int)((SensorState        ) & WordMask); } }
 
-        property int Stage1_Sensor  { int get() { return (int)((SensorState   >> 16) & WordMask);  } }
-		property int Stage2_Sensor  { int get() { return (int)((SensorState        ) & WordMask);  } }
+
 
         double get(FieldEnum field) {
             switch (field) {
-                case FieldEnum::Timestamp:      return StateTime;
-                case FieldEnum::C0:             return Channel[0];
-				case FieldEnum::Stage1_Top:     return Stage1_Top;
-				case FieldEnum::Stage1_Bot:     return Stage1_Bot;
-                case FieldEnum::Stage1_Mid:     return Stage1_Mid;
-                case FieldEnum::Stage1_Sensor:  return Stage1_Sensor;
-                case FieldEnum::Stage2_Offset:  return Stage2_Offset;
-                case FieldEnum::Stage2_Gain:    return Stage2_Gain;
-                case FieldEnum::Stage2_Sensor:  return Stage2_Sensor;
-                default:                        return Double::NaN;
+                case FieldEnum::Timestamp:  return StateTime;
+                case FieldEnum::C0:         return Channel[0];
+				case FieldEnum::Top:        return Top;
+				case FieldEnum::Bot:        return Bot;
+                case FieldEnum::Mid:        return Mid;
+                case FieldEnum::rawSensor1: return RawSensor1;
+                case FieldEnum::rawSensor2: return RawSensor2;
+                case FieldEnum::Offset:     return Offset;
+                case FieldEnum::Gain:       return Gain;
+                case FieldEnum::Sensor1:    return Sensor1;
+                case FieldEnum::Sensor2:    return Sensor2;
+                default:                    return Double::NaN;
 			}
         }
     

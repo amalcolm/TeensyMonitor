@@ -67,13 +67,17 @@ void CSensor::filter(int numSamples, double t) {
   double tInv = 1.0 - t;
   int sensor = getPin();
 
+
+
   double v = _lastV < 0 ? static_cast<double>(analogRead(sensor)) : _lastV; 
 
   for (int i = 0; i < numSamples; ++i)
     v = t * static_cast<double>(analogRead(sensor)) + tInv * v;
 
   _lastV = v;
-  _lastValue = static_cast<uint16_t>(v);
+
+  uint16_t quantised = static_cast<uint16_t>(v);
+  _lastValue = _inverted ? 1023 - quantised : quantised;
 
   _updateZone();
 }
