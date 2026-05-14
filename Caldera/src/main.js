@@ -172,6 +172,9 @@ const modelDebugById = new Map(
 let wiperMessageCount = 0;
 let midSweep = null;
 let gainSweep = null;
+let liveWiperRevision = 0;
+let liveWipers = null;
+const hasHostTelemetry = Boolean(window.chrome?.webview);
 const analysisPanel = new AnalysisPanel({ root: analysisRoot });
 const circuitScene = new CircuitScene(sceneRoot, model, {
   onManualWiperInput: handleManualWiperInput,
@@ -204,10 +207,13 @@ midSweep = new Sweep({
   clearButton: testClearButton,
   freezeVoltages,
   freezeWipers,
+  getHardwareWiperRevision: () => liveWiperRevision,
+  getHardwareWipers: () => liveWipers,
   model,
   onClear: () => analysisPanel.clear(),
   onStart: () => gainSweep?.stop("idle"),
   onSample: (sampleContext) => analysisPanel.addSampleFromModel(sampleContext),
+  requireWiperAck: hasHostTelemetry,
   status: testStatus,
   updateWiperDebug,
   webView,
@@ -218,10 +224,13 @@ gainSweep = new GainSweep({
   clearButton: null,
   freezeVoltages,
   freezeWipers,
+  getHardwareWiperRevision: () => liveWiperRevision,
+  getHardwareWipers: () => liveWipers,
   model,
   onClear: () => analysisPanel.clear(),
   onStart: () => midSweep?.stop("idle"),
   onSample: (sampleContext) => analysisPanel.addSampleFromModel(sampleContext),
+  requireWiperAck: hasHostTelemetry,
   status: testStatus,
   updateWiperDebug,
   webView,
@@ -235,6 +244,9 @@ webView.on("setPhotodiodeVoltage", ({ value }) => {
 });
 
 webView.on("wipersChanged", ({ wipers }) => {
+  liveWipers = normaliseWipers(wipers);
+  liveWiperRevision += 1;
+
   if (freezeWipers.frozen) {
     updateWiperDebug(wipers, { frozen: true });
     return;

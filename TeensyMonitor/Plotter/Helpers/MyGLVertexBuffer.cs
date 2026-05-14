@@ -143,7 +143,7 @@ namespace TeensyMonitor.Plotter.Helpers
         }
 
 
-        static readonly FieldEnum[] DoNotJoin = [FieldEnum.C0, FieldEnum.Stage2_Sensor];
+        static readonly FieldEnum[] DoNotJoin = [FieldEnum.C0, FieldEnum.Sensor2];
 
         public void AddBlock(ref BlockPacket packet, FieldEnum? selector, bool onlyLast)
         {

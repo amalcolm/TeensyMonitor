@@ -15,10 +15,10 @@ HWforState::HWforState(StateType state) : state(state) {
   phase = Phase::SEARCH;
 }
 
-
+ 
 void HWforState::_update() {
 
-  sensor1.read();
+  sensor1.resetFilter(); // does read and sets lastV;
 
   if (flags.holdWipers) {
     if (flags.wipersChanged) {

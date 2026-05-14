@@ -18,6 +18,9 @@ namespace PsycSerial
 				pkt->State         = static_cast<HeadState>(nativePacket.data.state);
 				pkt->HardwareState = nativePacket.data.hardwareState;
 				pkt->SensorState   = nativePacket.data.sensorState;
+				pkt->Sensor1       = nativePacket.data.Sensor1;
+				pkt->Sensor2       = nativePacket.data.Sensor2;
+
 				for (size_t i = 0; i < CDataPacket::A2D_NUM_CHANNELS; ++i)
 				{
 					pkt->Channel[i] = nativePacket.data.channel[i];
@@ -48,6 +51,8 @@ namespace PsycSerial
 					dataPkt->State         = static_cast<HeadState>(nativePacket.block.blockData[i].state);
 					dataPkt->HardwareState = nativePacket.block.blockData[i].hardwareState;
 					dataPkt->SensorState   = nativePacket.block.blockData[i].sensorState;
+					dataPkt->Sensor1       = nativePacket.block.blockData[i].Sensor1;
+					dataPkt->Sensor2       = nativePacket.block.blockData[i].Sensor2;
 
 					for (size_t ch = 0; ch < CDataPacket::A2D_NUM_CHANNELS; ++ch)
 					{

@@ -56,13 +56,13 @@ namespace TeensyMonitor.Plotter.Helpers
             return field switch
             {
                 FieldEnum.C0             => BaseColours[0],
-                FieldEnum.Stage1_Mid     => BaseColours[1],
-                FieldEnum.Stage1_Top     => BaseColours[2], 
-                FieldEnum.Stage1_Bot     => BaseColours[3],
-                FieldEnum.Stage2_Offset  => BaseColours[4],
-                FieldEnum.Stage2_Gain    => BaseColours[5],
-                FieldEnum.Stage1_Sensor  => BaseColours[6],
-                FieldEnum.Stage2_Sensor  => BaseColours[7],
+                FieldEnum.Mid            => BaseColours[1],
+                FieldEnum.Top            => BaseColours[2], 
+                FieldEnum.Bot            => BaseColours[3],
+                FieldEnum.Offset         => BaseColours[4],
+                FieldEnum.Gain           => BaseColours[5],
+                FieldEnum.Sensor1        => BaseColours[6],
+                FieldEnum.Sensor2        => BaseColours[7],
                 FieldEnum.Timestamp      => BaseColours[8],
                 _                        => Color.Magenta
             };

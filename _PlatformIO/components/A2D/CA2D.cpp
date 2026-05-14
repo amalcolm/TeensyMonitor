@@ -125,13 +125,11 @@ uint32_t lo32 =
 
   data.hardwareState = (uint64_t(hi32) << 32) | uint64_t(lo32);
 
-  data.sensorState = (hw.sensor1.lastValue() << 16);
-  
+  data.sensorState = (hw.sensor1.lastValue() << 16) |
+                      hw.sensor2.lastValue();
 
-  if (Timer.sampleReady || hw.flags.holdWipers)
-    data.sensorState |= hw.sensor2.lastValue();
-  else
-    data.sensorState |= hw.sensor2.lastValue();
+  data.sensor1 = hw.sensor1.lastV();
+  data.sensor2 = hw.sensor2.lastV();
 }
 
 

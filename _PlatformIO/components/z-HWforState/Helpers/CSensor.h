@@ -24,7 +24,7 @@ public:
 
   void resetFilter();
   void filter(int numSamples, double t);
-
+  float lastV() const { return static_cast<float>(_lastV); }
 
 protected:
 

@@ -58,10 +58,10 @@ namespace TeensyMonitor.DataTools
 
 //            bool isDiscontinuity = packet.Stage2_Offset != lastOffset2;
 
-            lastOffset2 = packet.Stage2_Offset;
+            lastOffset2 = packet.Offset;
 
             double x = packet.TimeStamp;
-            double y = C0 + packet.Stage2_Offset * delta_Offset2;
+            double y = C0 + packet.Offset * delta_Offset2;
             bool changed = false;
 
 //            if (isDiscontinuity)
@@ -120,7 +120,7 @@ namespace TeensyMonitor.DataTools
 
             if (Chart?.GetMetrics() is var metrics && metrics != null)
             {
-                lastOffset2 = packet.Stage2_Offset;
+                lastOffset2 = packet.Offset;
                 chartSet = true;
 
                 return true;

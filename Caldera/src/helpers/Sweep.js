@@ -17,10 +17,13 @@ export class Sweep {
     clearButton,
     freezeVoltages,
     freezeWipers,
+    getHardwareWiperRevision = null,
+    getHardwareWipers = null,
     model,
     onClear = null,
     onStart = null,
     onSample = null,
+    requireWiperAck = false,
     status,
     updateWiperDebug,
     webView,
@@ -31,19 +34,24 @@ export class Sweep {
     this.clearButton = clearButton;
     this.freezeVoltages = freezeVoltages;
     this.freezeWipers = freezeWipers;
+    this.getHardwareWiperRevision = getHardwareWiperRevision;
+    this.getHardwareWipers = getHardwareWipers;
     this.model = model;
     this.onClear = onClear;
     this.onStart = onStart;
     this.onSample = onSample;
+    this.requireWiperAck = requireWiperAck;
     this.status = status;
     this.updateWiperDebug = updateWiperDebug;
     this.webView = webView;
     this.currentMid = MID_SWEEP_START;
     this.filteredVoltages = null;
     this.sampleCount = 0;
+    this.targetWipers = null;
     this.timer = null;
     this.wasVoltagesFrozen = false;
     this.wasWipersFrozen = false;
+    this.wiperAcknowledged = false;
 
     this.button?.addEventListener("click", () => {
       if (this.timer) {
@@ -78,9 +86,14 @@ export class Sweep {
       return;
     }
 
-    this.captureFilterSample();
+    const captureResult = this.captureFilterSample();
 
-    if (this.sampleCount < SWEEP_FILTER_SAMPLE_COUNT) {
+    if (captureResult === "settling") {
+      this.scheduleStep(SWEEP_SETTLE_MS);
+      return;
+    }
+
+    if (!captureResult || this.sampleCount < SWEEP_FILTER_SAMPLE_COUNT) {
       this.scheduleStep(SWEEP_SAMPLE_INTERVAL_MS);
       return;
     }
@@ -123,9 +136,11 @@ export class Sweep {
   beginCurrentPoint() {
     this.filteredVoltages = null;
     this.sampleCount = 0;
+    this.targetWipers = null;
+    this.wiperAcknowledged = !this.requireWiperAck;
     this.applyCurrentWipers();
     this.updateStatus(this.getSweepStatus());
-    this.scheduleStep(SWEEP_SETTLE_MS);
+    this.scheduleStep(this.wiperAcknowledged ? SWEEP_SETTLE_MS : SWEEP_SAMPLE_INTERVAL_MS);
   }
 
   scheduleStep(delayMs) {
@@ -134,6 +149,17 @@ export class Sweep {
   }
 
   captureFilterSample() {
+    if (!this.wiperAcknowledged) {
+      if (!this.hasHardwareAppliedTargetWipers()) {
+        this.updateStatus(`${this.getSweepStatus()} waiting for wipers`);
+        return false;
+      }
+
+      this.wiperAcknowledged = true;
+      this.updateStatus(`${this.getSweepStatus()} settling`);
+      return "settling";
+    }
+
     this.filteredVoltages = filterVoltages(
       this.filteredVoltages,
       this.readVoltages(),
@@ -142,6 +168,7 @@ export class Sweep {
     this.updateStatus(
       `${this.getSweepStatus()} sample ${this.sampleCount}/${SWEEP_FILTER_SAMPLE_COUNT}`,
     );
+    return true;
   }
 
   readVoltages() {
@@ -181,10 +208,25 @@ export class Sweep {
       mid,
     });
 
+    this.targetWipers = wipers;
     this.model.applyWiperValues(wipers);
     this.updateWiperDebug(wipers, { applied: true });
     this.circuitScene.render();
     this.webView.postSetWipers(wipers);
+  }
+
+  hasHardwareAppliedTargetWipers() {
+    if (!this.targetWipers) {
+      return true;
+    }
+
+    const revision = Number(this.getHardwareWiperRevision?.());
+
+    if (!Number.isFinite(revision) || revision <= 0) {
+      return false;
+    }
+
+    return areWipersEqual(this.getHardwareWipers?.(), this.targetWipers);
   }
 
   getSweepStatus() {
@@ -261,6 +303,7 @@ export class GainSweep extends Sweep {
       mid: this.currentMid,
     });
 
+    this.targetWipers = wipers;
     this.model.applyWiperValues(wipers);
     this.updateWiperDebug(wipers, { applied: true });
     this.circuitScene.render();
@@ -292,6 +335,14 @@ function filterVoltages(oldVoltages, newVoltages) {
     sensor1: filterVoltage(oldVoltages?.sensor1, newVoltages?.sensor1),
     sensor2: filterVoltage(oldVoltages?.sensor2, newVoltages?.sensor2),
   };
+}
+
+function areWipersEqual(actual, expected) {
+  if (!actual || !expected) {
+    return false;
+  }
+
+  return Object.entries(expected).every(([id, value]) => Number(actual[id]) === Number(value));
 }
 
 function filterVoltage(oldValue, newValue) {

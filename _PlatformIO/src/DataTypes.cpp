@@ -39,6 +39,8 @@ void DataType::writeSerial(bool includeFrameMarkers) {
   USB.write(stateTime);
   USB.write(hardwareState);
   USB.write(sensorState);
+  USB.write(sensor1);
+  USB.write(sensor2);
   USB.write((uint8_t*)&channels[0], CHANNELS_BYTESIZE);
 
   if (includeFrameMarkers) USB.write(FRAME_END);
@@ -60,7 +62,13 @@ void DataType::fillFromHardware(struct HWforState& HW) {
     (uint64_t(HW.gain  .getLevel() & 0xFFu) << 16) | 
     (0xFFFFu);
 
-  sensorState = (uint32_t(HW.sensor1.lastValue()) << 16) | uint32_t(HW.sensor2.lastValue());
+  sensorState = 
+    (uint32_t(HW.sensor1.lastValue()) << 16) |
+     uint32_t(HW.sensor2.lastValue());
+
+  sensor1 = HW.sensor1.lastV();
+  sensor2 = HW.sensor2.lastV();
+
   memset(&channels[0], 0, CHANNELS_BYTESIZE);
 }
 
@@ -103,6 +111,8 @@ void BlockType::writeSerial(bool includeFrameMarkers) {
     USB.write(item.stateTime);
     USB.write(item.hardwareState);
     USB.write(item.sensorState);
+    USB.write(item.sensor1);
+    USB.write(item.sensor2);
     USB.write((uint8_t*)&item.channels[0], CHANNELS_BYTESIZE);
   }
 
@@ -119,7 +129,8 @@ void BlockType::debugSerial() {
   USB.printf("N:%d", count);
   uint32_t limit = std::min(count, DEBUG_BLOCKSIZE);
   for(uint32_t i = 0; i < limit; i++) {
-    USB.printf("\t C%d:%d", i, data[i].channels[0]);
+    USB.printf("\t S1:%.2f", data[i].sensor1);
+    USB.printf("\t S2:%.2f", data[i].sensor2);
   }
   USB.printf("\n");
 }
