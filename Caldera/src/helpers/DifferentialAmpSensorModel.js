@@ -32,20 +32,40 @@ export class DifferentialAmpSensorModel {
   }
 
   getSensorErrorVoltages(model) {
+    const readings = this.getSensorErrorReadings(model);
+
+    return {
+      sensor1: readings.sensor1.errorVoltage,
+      sensor2: readings.sensor2.errorVoltage,
+    };
+  }
+
+  getSensorErrorReadings(model) {
     const gainWiper = model.gain?.wiper;
     const offsetWiper = model.offset?.wiper;
     const sensor1Voltage = model.sensor1Voltage;
     const sensor2Voltage = model.sensor2Voltage;
+    const sensor1PredictedVoltage = this.sensor1FromSensor2(
+      sensor2Voltage,
+      gainWiper,
+      offsetWiper,
+    );
+    const sensor2PredictedVoltage = this.sensor2FromSensor1(
+      sensor1Voltage,
+      gainWiper,
+      offsetWiper,
+    );
 
     return {
-      sensor1: this.getSensorErrorVoltage(
-        this.sensor1FromSensor2(sensor2Voltage, gainWiper, offsetWiper),
-        sensor1Voltage,
-      ),
-      sensor2: this.getSensorErrorVoltage(
-        this.sensor2FromSensor1(sensor1Voltage, gainWiper, offsetWiper),
-        sensor2Voltage,
-      ),
+      sensor1: this.getSensorErrorReading(sensor1PredictedVoltage, sensor1Voltage),
+      sensor2: this.getSensorErrorReading(sensor2PredictedVoltage, sensor2Voltage),
+    };
+  }
+
+  getSensorErrorReading(modeledVoltage, measuredVoltage) {
+    return {
+      errorVoltage: this.getSensorErrorVoltage(modeledVoltage, measuredVoltage),
+      predictedVoltage: modeledVoltage,
     };
   }
 

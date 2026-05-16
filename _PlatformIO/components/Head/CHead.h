@@ -1,6 +1,7 @@
 #pragma once
 #include <initializer_list>
 #include <vector>
+#include <span>
 #include "Setup.h"
 #include "DataTypes.h"
 #include "CRunningAverage.h"
@@ -76,7 +77,6 @@ class CHead {
   
 };
 
-#include <span>
   struct SequenceItem {
     bool isSingle = true;
     StateType single = 0;

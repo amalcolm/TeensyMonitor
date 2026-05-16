@@ -3,7 +3,9 @@
   z-index: 10;
   top: 12px;
   left: 50%;
-  width: min(300px, calc(100vw - 24px));
+  box-sizing: border-box;
+  width: 30%;
+  height: 20%;
   transform: translateX(-50%);
   border: 1px solid var(--panel-border);
   border-radius: 6px;
@@ -12,6 +14,7 @@
   background: var(--panel-bg);
   box-shadow: var(--panel-shadow);
   font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  overflow: auto;
 }
 
 .test-panel__header {
@@ -28,17 +31,35 @@
   font-weight: 600;
 }
 
-.test-panel__actions {
-  display: flex;
-  flex-wrap: wrap;
+.test-panel__groups {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+  min-height: calc(100% - 28px);
+}
+
+.test-panel__group {
+  min-width: 0;
+}
+
+.test-panel__group-title {
+  margin: 0 0 6px;
+  color: var(--panel-muted);
+  font: inherit;
+  font-weight: 700;
+}
+
+.test-panel__actions {
+  display: grid;
+  gap: 6px;
 }
 
 .test-panel__button {
+  width: 100%;
   min-height: 30px;
   border: 1px solid var(--control-border);
   border-radius: 5px;
-  padding: 5px 10px;
+  padding: 5px 8px;
   color: var(--panel-text);
   background: var(--control-bg);
   font: inherit;

@@ -1,11 +1,12 @@
 import { AnalysisPanel } from "./analysis/AnalysisPanel.js";
 import { CircuitScene } from "./scene/CircuitScene.js";
 import { DebugFlagsControl } from "./helpers/DebugFlagsControl.js";
+import { DebugSettingsControl } from "./helpers/DebugSettingsControl.js";
 import { FreezeVoltages } from "./helpers/FreezeVoltages.js";
 import { FreezeWipers } from "./helpers/FreezeWipers.js";
 import { Model } from "./model/Model.js";
 import { STATE_LED_ROWS, StateControl } from "./helpers/StateControl.js";
-import { GainSweep, Sweep } from "./helpers/Sweep.js";
+import { TEST_PANEL_HTML, TestPanel } from "./analysis/TestPanel.js";
 import { WebView } from "./WebView.js";
 import { WIPER_IDS, getModelWipers, normaliseWipers } from "./helpers/Wipers.js";
 
@@ -31,6 +32,13 @@ document.querySelector("#app").innerHTML = `
             >
               Copy CSV
             </button>
+            <button
+              class="analysis-panel__button"
+              type="button"
+              data-analysis-copy-analysis
+            >
+              Copy analysis
+            </button>
             <span class="analysis-panel__badge" data-analysis-badge>empty dataset</span>
           </div>
         </div>
@@ -52,7 +60,8 @@ document.querySelector("#app").innerHTML = `
               <span class="analysis-metric__label">Samples</span>
               <strong data-analysis-samples>0</strong>
             </div>
-            <div class="analysis-gain-breakdown" data-analysis-gain-breakdown></div>
+            <div class="analysis-breakdown analysis-gain-breakdown" data-analysis-gain-breakdown hidden></div>
+            <div class="analysis-breakdown analysis-test1-breakdown" data-analysis-test1-breakdown hidden></div>
             <div class="analysis-todo analysis-panel__disabled">
               <span class="analysis-todo__title">Next calibration passes</span>
               <span>Fit offset endpoint voltages</span>
@@ -111,24 +120,20 @@ document.querySelector("#app").innerHTML = `
           <input type="checkbox" data-debug-flag="update" />
           <span>Update</span>
         </label>
-      </div>
-      <div class="test-panel">
-        <div class="test-panel__header">
-          <span>Tests</span>
-          <span data-test-status>idle</span>
-        </div>
-        <div class="test-panel__actions">
-          <button class="test-panel__button" type="button" data-mid-sweep-button>
-            Sweep mid
+        <div class="debug-panel__actions">
+          <button class="debug-panel__button" type="button" data-debug-save-settings>
+            Save settings
           </button>
-          <button class="test-panel__button" type="button" data-gain-sweep-button>
-            Sweep gain
-          </button>
-          <button class="test-panel__button" type="button" data-test-clear-button>
-            Clear
+          <button class="debug-panel__button" type="button" data-debug-load-settings>
+            Load settings
           </button>
         </div>
+        <div class="debug-panel__status">
+          <span>settings</span>
+          <span data-debug-settings-status>empty</span>
+        </div>
       </div>
+      ${TEST_PANEL_HTML}
       <div class="wiper-debug" data-wiper-debug hidden>
         <div class="wiper-debug__header">
           <span>WebView wipers</span>
@@ -154,13 +159,13 @@ const analysisRoot = document.querySelector("[data-analysis-div]");
 const sceneRoot = document.querySelector("[data-scene]");
 const freezeWipersButton = document.querySelector("[data-webview-freeze-wipers]");
 const freezeVoltagesButton = document.querySelector("[data-webview-freeze-voltages]");
-const midSweepButton = document.querySelector("[data-mid-sweep-button]");
-const gainSweepButton = document.querySelector("[data-gain-sweep-button]");
 const stateButtons = document.querySelectorAll("[data-state-toggle]");
 const debugFlagInputs = document.querySelectorAll("[data-debug-flag]");
 const debugFlagsStatus = document.querySelector("[data-debug-flags-status]");
-const testClearButton = document.querySelector("[data-test-clear-button]");
-const testStatus = document.querySelector("[data-test-status]");
+const debugLoadSettingsButton = document.querySelector("[data-debug-load-settings]");
+const debugSaveSettingsButton = document.querySelector("[data-debug-save-settings]");
+const debugSettingsStatus = document.querySelector("[data-debug-settings-status]");
+const testPanelRoot = document.querySelector("[data-test-panel]");
 const wiperDebugStatus = document.querySelector("[data-wiper-debug-status]");
 const wiperDebugKeys = document.querySelector("[data-wiper-debug-keys]");
 const incomingDebugById = new Map(
@@ -170,8 +175,6 @@ const modelDebugById = new Map(
   WIPER_IDS.map((id) => [id, document.querySelector(`[data-wiper-debug-model="${id}"]`)]),
 );
 let wiperMessageCount = 0;
-let midSweep = null;
-let gainSweep = null;
 let liveWiperRevision = 0;
 let liveWipers = null;
 const hasHostTelemetry = Boolean(window.chrome?.webview);
@@ -183,14 +186,16 @@ const circuitScene = new CircuitScene(sceneRoot, model, {
 const freezeWipers = new FreezeWipers({
   button: freezeWipersButton,
   getWipers: () => getModelWipers(model),
+  initialFrozen: storedSettings?.freezeWipers?.frozen === true,
   normaliseWipers,
+  onSettingsChange: () => saveStoredSettings(),
   webView,
 });
 const freezeVoltages = new FreezeVoltages({
   button: freezeVoltagesButton,
   circuitScene,
 });
-new StateControl({
+const stateControl = new StateControl({
   buttons: stateButtons,
   freezeWipers,
   webView,
@@ -200,38 +205,26 @@ new DebugFlagsControl({
   status: debugFlagsStatus,
   webView,
 });
-midSweep = new Sweep({
-  button: midSweepButton,
-  canClear: () => !gainSweep?.timer,
-  circuitScene,
-  clearButton: testClearButton,
-  freezeVoltages,
-  freezeWipers,
-  getHardwareWiperRevision: () => liveWiperRevision,
-  getHardwareWipers: () => liveWipers,
-  model,
-  onClear: () => analysisPanel.clear(),
-  onStart: () => gainSweep?.stop("idle"),
-  onSample: (sampleContext) => analysisPanel.addSampleFromModel(sampleContext),
-  requireWiperAck: hasHostTelemetry,
-  status: testStatus,
-  updateWiperDebug,
-  webView,
+new DebugSettingsControl({
+  applySettings: applyDebugSettings,
+  getSettings: () => ({
+    wipers: getModelWipers(model),
+  }),
+  loadButton: debugLoadSettingsButton,
+  saveButton: debugSaveSettingsButton,
+  status: debugSettingsStatus,
 });
-gainSweep = new GainSweep({
-  button: gainSweepButton,
+new TestPanel({
+  analysisPanel,
   circuitScene,
-  clearButton: null,
   freezeVoltages,
   freezeWipers,
   getHardwareWiperRevision: () => liveWiperRevision,
   getHardwareWipers: () => liveWipers,
   model,
-  onClear: () => analysisPanel.clear(),
-  onStart: () => midSweep?.stop("idle"),
-  onSample: (sampleContext) => analysisPanel.addSampleFromModel(sampleContext),
   requireWiperAck: hasHostTelemetry,
-  status: testStatus,
+  root: testPanelRoot,
+  setLedState: (activeIds) => stateControl.setActiveIds(activeIds),
   updateWiperDebug,
   webView,
 });
@@ -244,7 +237,11 @@ webView.on("setPhotodiodeVoltage", ({ value }) => {
 });
 
 webView.on("wipersChanged", ({ wipers }) => {
-  liveWipers = normaliseWipers(wipers);
+  stateControl.applyHostState(getWiperState(wipers));
+  liveWipers = {
+    ...normaliseWipers(wipers),
+    state: stateControl.getLastHostState(),
+  };
   liveWiperRevision += 1;
 
   if (freezeWipers.frozen) {
@@ -261,9 +258,21 @@ webView.on("wipersChanged", ({ wipers }) => {
   }
 });
 
+webView.on("stateChanged", ({ state }) => {
+  stateControl.applyHostState(state);
+
+  if (liveWipers) {
+    liveWipers = {
+      ...liveWipers,
+      state: stateControl.getLastHostState(),
+    };
+  }
+});
+
 webView.on("voltagesChanged", ({ voltages }) => {
   freezeVoltages.handleLiveVoltages(voltages);
 });
+webView.postGetWipers();
 
 updateWiperDebug(null, { applied: false });
 
@@ -275,18 +284,51 @@ function readStoredSettings() {
   }
 }
 
-function saveStoredSettings(settings) {
+function saveStoredSettings(settings = circuitScene.getSettings()) {
+  const sceneSettings = settings && typeof settings === "object"
+    ? settings
+    : circuitScene.getSettings();
+  const storedSettings = {
+    ...sceneSettings,
+    freezeWipers: freezeWipers.getSettings(),
+  };
+
   try {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(storedSettings));
   } catch {
     // Storage is a convenience here; the circuit still works without it.
   }
 
-  webView.postSettingsChange(settings);
+  webView.postSettingsChange(sceneSettings);
 }
 
 function handleManualWiperInput({ phase, wipers }) {
   freezeWipers.handleManualInput({ phase, wipers });
+}
+
+function applyDebugSettings(settings) {
+  if (!settings?.wipers || !WIPER_IDS.every((id) => settings.wipers[id] !== undefined)) {
+    return false;
+  }
+
+  const wipers = normaliseWipers(settings.wipers);
+  const applied = model.applyWiperValues(wipers);
+
+  freezeWipers.setFrozen(true);
+  updateWiperDebug(wipers, { applied });
+  circuitScene.render();
+  webView.postSetWipers(wipers);
+  saveStoredSettings(circuitScene.getSettings());
+
+  return true;
+}
+
+function getWiperState(wipers) {
+  if (!wipers || typeof wipers !== "object") {
+    return null;
+  }
+
+  return wipers.state ?? wipers.State ?? null;
 }
 
 function updateWiperDebug(wipers, { applied = false, frozen = false } = {}) {

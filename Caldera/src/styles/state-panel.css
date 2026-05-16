@@ -42,13 +42,28 @@
   background: #48515c;
 }
 
-.state-panel__button[data-state-kind="red"][data-active="true"] {
+.state-panel__button:focus {
+  outline: none;
+}
+
+.state-panel__button:focus-visible {
+  outline: 2px solid rgb(255 255 255 / 55%);
+  outline-offset: 2px;
+}
+
+.state-panel__button--red-active,
+.state-panel__button--red-active:hover,
+.state-panel__button--red-active:focus,
+.state-panel__button--red-active:active {
   border-color: var(--control-active-red);
   color: #ffffff;
   background: var(--control-active-red);
 }
 
-.state-panel__button[data-state-kind="ir"][data-active="true"] {
+.state-panel__button--ir-active,
+.state-panel__button--ir-active:hover,
+.state-panel__button--ir-active:focus,
+.state-panel__button--ir-active:active {
   border-color: var(--control-active-blue);
   color: #ffffff;
   background: var(--control-active-blue);

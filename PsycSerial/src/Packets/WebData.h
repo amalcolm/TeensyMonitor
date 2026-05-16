@@ -59,6 +59,9 @@ namespace PsycSerial::Packets
 
     public ref class WiperValues sealed
     {
+    private:
+        bool _hasValues;
+
     public:
         [JsonPropertyName("top"   )] property int Top;
         [JsonPropertyName("bot"   )] property int Bot;
@@ -66,7 +69,9 @@ namespace PsycSerial::Packets
         [JsonPropertyName("offset")] property int Offset;
         [JsonPropertyName("gain"  )] property int Gain;
 
-        WiperValues() { Top = 0; Bot = 0; Mid = 0; Offset = 0; Gain = 0; }
+        [JsonPropertyName("state")] property int State;
+
+        WiperValues() { Top = 0; Bot = 0; Mid = 0; Offset = 0; Gain = 0; State = 0; _hasValues = false; }
 
         void CopyFrom(BlockPacket^ block) { if (block == nullptr || block->Count <= 0 || block->BlockData == nullptr) return;
 
@@ -77,6 +82,9 @@ namespace PsycSerial::Packets
             Mid    = data->Mid;
             Offset = data->Offset;
             Gain   = data->Gain;
+
+            State = static_cast<int>(data->State);
+            _hasValues = true;
         }
 
         void CopyFrom(WiperValues^ other) { if (other == nullptr) return;
@@ -86,15 +94,19 @@ namespace PsycSerial::Packets
             Mid    = other->Mid;
             Offset = other->Offset;
             Gain   = other->Gain;
+
+			State = other->State;
+            _hasValues = other->_hasValues;
         }
 
-        [JsonIgnore] property bool IsValid { bool get() { return Top != 0 || Bot != 0 || Mid != 0 || Offset != 0 || Gain != 0; } }
+        [JsonIgnore] property bool IsValid { bool get() { return _hasValues; } }
 
         virtual bool Equals(Object^ obj) override
         {
             WiperValues^ other = dynamic_cast<WiperValues^>(obj);  if (other == nullptr)     return false;
 
-            return Top == other->Top && Bot == other->Bot &&  Mid == other->Mid && Offset == other->Offset && Gain == other->Gain;
+            return Top == other->Top && Bot == other->Bot && Mid == other->Mid
+                && Offset == other->Offset && Gain == other->Gain && State == other->State;
         }
 
         virtual int GetHashCode() override
@@ -105,6 +117,7 @@ namespace PsycSerial::Packets
             hash = hash * 31 + Mid;
             hash = hash * 31 + Offset;
             hash = hash * 31 + Gain;
+            hash = hash * 31 + State;
             return hash;
         }
     };

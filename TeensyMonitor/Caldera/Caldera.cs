@@ -6,8 +6,9 @@ using TeensyMonitor.Plotter.Helpers;
 
 namespace TeensyMonitor.Caldera
 {
-    public sealed class Caldera : IDisposable
+    public class Caldera : IDisposable
     {
+        protected static TeensySerial SP => Program.serialPort ?? throw new InvalidOperationException("Serial port is not initialized.");
         public CalderaControl Control { get; }
         public CoreWebView2 WebView { get; }
         public bool IsRunning => !_disposed && _ready;
@@ -21,15 +22,26 @@ namespace TeensyMonitor.Caldera
 
             Program.Caldera = this;
             _flushInvoker = FlushPendingMessages;
+
+            SP.DataReceived += SP_DataReceived;
         }
 
+        private void SP_DataReceived(IPacket packet)
+        {
+            if (packet is not DebugPacket debugPacket) return;
+
+            PostStateChange((int)debugPacket.State, force: true);
+
+            debugPacket.Cleanup();
+        }
 
         [Flags]
         private enum PendingMessage
         {
             None     = 0,
             Wipers   = 1,
-            Voltages = 2
+            Voltages = 2,
+            State    = 4
         }
 
         private readonly object _messageLock = new();
@@ -48,6 +60,10 @@ namespace TeensyMonitor.Caldera
         private readonly VoltagesChangedMessage _lastVoltagesWritten = new();
         private readonly WipersChangedMessage   _lastWipersWritten   = new();
         private bool _forceNextWipersWrite;
+        private bool _forceNextStateWrite;
+        private int _pendingState;
+        private bool _hasLastStateWritten;
+        private int _lastStateWritten;
 
         public bool PostWipersChange(WipersChangedMessage wipers, bool force = false)
         {
@@ -90,6 +106,32 @@ namespace TeensyMonitor.Caldera
             return ScheduleFlush();
         }
 
+        public bool PostStateChange(int state, bool force = false)
+        {
+            if (!CanQueueMessages())
+                return false;
+
+            lock (_messageLock)
+            {
+                var alreadyPending = (_pendingMessages & PendingMessage.State) != 0;
+
+                if (!force)
+                {
+                    if (alreadyPending && state == _pendingState)
+                        return false;
+
+                    if (!alreadyPending && _hasLastStateWritten && state == _lastStateWritten)
+                        return false;
+                }
+
+                _pendingState = state;
+                _pendingMessages |= PendingMessage.State;
+                _forceNextStateWrite |= force;
+            }
+
+            return ScheduleFlush();
+        }
+
         private bool CanQueueMessages()
             => !_disposed && _ready && !Control.IsDisposed && Control.IsHandleCreated;
 
@@ -99,8 +141,7 @@ namespace TeensyMonitor.Caldera
 
             if (Interlocked.Exchange(ref _flushScheduled, 1) != 0) return true;
 
-//            try { Control.BeginInvoke(_flushInvoker); return true; }
-           try {  FlushPendingMessages(); return true; }
+            try { Control.BeginInvoke(_flushInvoker); return true; }
             catch (InvalidOperationException)
             {
                 Interlocked.Exchange(ref _flushScheduled, 0);
@@ -116,18 +157,26 @@ namespace TeensyMonitor.Caldera
 
             PendingMessage pendingMessages;
             bool forceWipersWrite;
+            bool forceStateWrite;
+            int stateToSend = 0;
             lock (_messageLock)
             {
                 pendingMessages = _pendingMessages;
                 _pendingMessages = PendingMessage.None;
                 forceWipersWrite = (pendingMessages & PendingMessage.Wipers) != 0 && _forceNextWipersWrite;
+                forceStateWrite  = (pendingMessages & PendingMessage.State ) != 0 && _forceNextStateWrite;
 
                 if ((pendingMessages & PendingMessage.Wipers  ) != 0)   _wipersToSend.CopyFrom(_pendingWipers  );
                 if ((pendingMessages & PendingMessage.Voltages) != 0) _voltagesToSend.CopyFrom(_pendingVoltages);
+                if ((pendingMessages & PendingMessage.State   ) != 0)     stateToSend = _pendingState;
 
                 if ((pendingMessages & PendingMessage.Wipers) != 0)
                     _forceNextWipersWrite = false;
+                if ((pendingMessages & PendingMessage.State) != 0)
+                    _forceNextStateWrite = false;
             }
+
+            if ((pendingMessages & PendingMessage.State  ) != 0)     SendStateMessage(stateToSend, forceStateWrite);
 
             if ((pendingMessages & PendingMessage.Wipers)   != 0)   SendWipersMessage(_wipersToSend, forceWipersWrite);
 
@@ -148,6 +197,17 @@ namespace TeensyMonitor.Caldera
 
             if (TryPostJson(CalderaJson.CreateVoltagesChanged(voltages.Voltages)))
                 _lastVoltagesWritten.CopyFrom(voltages);
+        }
+
+        private void SendStateMessage(int state, bool force = false)
+        {
+            if (!force && _hasLastStateWritten && state == _lastStateWritten) return;
+
+            if (TryPostJson(CalderaJson.CreateStateChanged(state)))
+            {
+                _lastStateWritten = state;
+                _hasLastStateWritten = true;
+            }
         }
 
         private bool TryPostJson(string json)
@@ -282,6 +342,8 @@ namespace TeensyMonitor.Caldera
             _disposed = true;
             _ready = false;
 
+            if (Program.serialPort != null)
+                Program.serialPort.DataReceived -= SP_DataReceived;
             WebView.WebMessageReceived  -= WebView_WebMessageReceived;
             WebView.NavigationCompleted -= WebView_NavigationCompleted;
 

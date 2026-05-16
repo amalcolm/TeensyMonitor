@@ -104,6 +104,22 @@ namespace PsycSerial
 				return telePkt;
 			}
 
+			case PacketKind::Debug:
+			{
+				DebugPacket^ debugPkt = DebugPacket::Rent();
+				debugPkt->TimeStamp = nativePacket.debug.timeStamp;
+				debugPkt->State     = static_cast<HeadState>(nativePacket.debug.state);
+				debugPkt->Count     = nativePacket.debug.count;
+				for (size_t i = 0; i < nativePacket.debug.count; ++i)
+				{
+					debugPkt->Data[i].StartTick = nativePacket.debug.data[i].startTick;
+					debugPkt->Data[i].Sample    = nativePacket.debug.data[i].sample;
+					debugPkt->Data[i].Reserved  = nativePacket.debug.data[i].reserved;
+					debugPkt->Data[i].EndTick   = nativePacket.debug.data[i].endTick;
+				}
+				return debugPkt;
+			}
+
 		default:
 			// Unknown packet type
 			return nullptr;

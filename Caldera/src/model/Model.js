@@ -1,6 +1,6 @@
 import { DigiPot, Slider, DIGIPOT_RESISTANCE_OHMS, getPoweredDigipotTerminalVoltages } from "./components/DigiPot.js";
 import { DifferentialAmp } from "./components/DifferentialAmp.js";
-import { GROUND_VOLTAGE, SUPPLY_VOLTAGE } from "./voltage.js";
+import { GROUND_VOLTAGE, SUPPLY_VOLTAGE, isValidSensorVoltage } from "./voltage.js";
 
 const THREE_POT_RAILS = Object.freeze({
   digipotResistanceOhms: DIGIPOT_RESISTANCE_OHMS,
@@ -151,7 +151,9 @@ export class Model {
     this.diffAmp.setOutputVoltage(null);
     this.evaluate();
 
-    this.sensor2Voltage = normaliseVoltage(this.diffAmp.expectedOutputVoltage);
+    this.sensor2Voltage = isValidSensorVoltage(this.diffAmp.expectedOutputVoltage)
+      ? normaliseVoltage(this.diffAmp.expectedOutputVoltage)
+      : null;
     this.diffAmp.setOutputVoltage(this.sensor2Voltage);
     this.evaluate();
 

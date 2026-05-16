@@ -1,4 +1,4 @@
-import { isKnownVoltage } from "../model/voltage.js";
+import { isKnownVoltage, isValidSensorVoltage } from "../model/voltage.js";
 
 const DEFAULT_PLUS_WIDTH = 0.082;
 const DEFAULT_MINUS_WIDTH = 0.056;
@@ -7,7 +7,7 @@ export class SensorErrorReadouts {
   constructor({
     minusWidth = DEFAULT_MINUS_WIDTH,
     plusWidth = DEFAULT_PLUS_WIDTH,
-    unknownText = "? V",
+    unknownText = "---",
   } = {}) {
     this.minusWidth = minusWidth;
     this.plusWidth = plusWidth;
@@ -29,19 +29,20 @@ export class SensorErrorReadouts {
     return [this.getX(baseX, value), y, z];
   }
 
-  setVoltage(id, voltage) {
+  setVoltage(id, voltage, { predictedVoltage } = {}) {
     const readout = this.readoutById.get(id);
     const baseX = this.baseXById.get(id);
+    const displayVoltage = getPrintableErrorVoltage(voltage, predictedVoltage);
 
     if (!readout) {
       return;
     }
 
     if (Number.isFinite(baseX)) {
-      readout.position.x = this.getX(baseX, voltage);
+      readout.position.x = this.getX(baseX, displayVoltage);
     }
 
-    readout.setDisplayVoltage(voltage);
+    readout.setDisplayVoltage(displayVoltage);
   }
 
   getX(baseX, value) {
@@ -61,4 +62,12 @@ export class SensorErrorReadouts {
 
     return `${value >= 0 ? "+" : ""}${value.toFixed(3)} V`;
   }
+}
+
+function getPrintableErrorVoltage(errorVoltage, predictedVoltage) {
+  if (predictedVoltage !== undefined && !isValidSensorVoltage(predictedVoltage)) {
+    return null;
+  }
+
+  return errorVoltage;
 }

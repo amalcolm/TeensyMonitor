@@ -247,6 +247,32 @@ namespace PsycSerial
         TelemetryPacket();
         static ConcurrentQueue<TelemetryPacket^>^ s_pool = gcnew ConcurrentQueue<TelemetryPacket^>();
 	};
+
+    public value struct CDebugData
+    {
+        uint32_t StartTick;
+		uint16_t Sample;
+        uint16_t Reserved;
+        uint32_t EndTick;
+	};
+
+    public ref class DebugPacket : IPacket, IDisposable
+    {
+    public:
+        static DebugPacket^ Rent();
+        virtual void Cleanup();
+        ~DebugPacket();
+        !DebugPacket();
+
+        void Reset();
+        virtual property HeadState State;
+        virtual property double    TimeStamp;
+        property int       Count;
+        property array<CDebugData>^ Data;
+    protected:
+        DebugPacket();
+        static ConcurrentQueue<DebugPacket^>^ s_pool = gcnew ConcurrentQueue<DebugPacket^>();
+    };
 }
 
 #pragma managed(pop)

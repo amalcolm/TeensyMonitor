@@ -13,9 +13,13 @@ namespace TeensyMonitor.Caldera
         private const string WipersMid = ",\"mid\":";
         private const string WipersOffset = ",\"offset\":";
         private const string WipersGain = ",\"gain\":";
+        private const string WipersState = ",\"state\":";
 
         private const string VoltagesPrefix = "{\"type\":\"voltagesChanged\",\"voltages\":{\"sensor1\":";
         private const string VoltagesSensor2 = ",\"sensor2\":";
+
+        private const string StateChangedPrefix = "{\"type\":\"stateChanged\",\"state\":";
+        private const string MessageEnd = "}";
 
         public static string CreateWipersChanged(WiperValues wipers)
         {
@@ -24,11 +28,12 @@ namespace TeensyMonitor.Caldera
                        + WipersMid.Length + GetIntLength(wipers.Mid)
                        + WipersOffset.Length + GetIntLength(wipers.Offset)
                        + WipersGain.Length + GetIntLength(wipers.Gain)
+                       + WipersState.Length + GetIntLength(wipers.State)
                        + ObjectEnd.Length;
 
             return string.Create(
                 length,
-                (wipers.Top, wipers.Bot, wipers.Mid, wipers.Offset, wipers.Gain),
+                (wipers.Top, wipers.Bot, wipers.Mid, wipers.Offset, wipers.Gain, wipers.State),
                 static (span, state) =>
                 {
                     Append(ref span, WipersPrefix);
@@ -41,6 +46,8 @@ namespace TeensyMonitor.Caldera
                     Append(ref span, state.Offset);
                     Append(ref span, WipersGain);
                     Append(ref span, state.Gain);
+                    Append(ref span, WipersState);
+                    Append(ref span, state.State);
                     Append(ref span, ObjectEnd);
                 });
         }
@@ -64,12 +71,26 @@ namespace TeensyMonitor.Caldera
                 });
         }
 
+        public static string CreateStateChanged(int state)
+        {
+            var length = StateChangedPrefix.Length + GetIntLength(state) + MessageEnd.Length;
+
+            return string.Create(
+                length,
+                state,
+                static (span, state) =>
+                {
+                    Append(ref span, StateChangedPrefix);
+                    Append(ref span, state);
+                    Append(ref span, MessageEnd);
+                });
+        }
+
         private static int GetIntLength(int value)
         {
-            if (value > 999) return 4;
-            if (value >  99) return 3;
-            if (value >   9) return 2;
-                             return 1;
+            Span<char> buffer = stackalloc char[16];
+            value.TryFormat(buffer, out var length, provider: CultureInfo.InvariantCulture);
+            return length;
         }
 
         private static int GetFloatLength(float value)

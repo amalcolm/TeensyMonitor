@@ -1,5 +1,6 @@
 #include "CUSB.h"
 #include "XCommands.h"
+#include "CHead.h"
 #include "HWforState.h"
 #include <algorithm>
 #include <cstring>
@@ -74,6 +75,8 @@ void CUSB::do_read() {
       case XCMD_SetState::ID:  { XCMD_SetState cmd; std::memcpy(&cmd, pRead, packetSize);
 
         LED.writeState(cmd.state);
+
+        USB.writeDebugState(cmd.state);
         break;
       }
 

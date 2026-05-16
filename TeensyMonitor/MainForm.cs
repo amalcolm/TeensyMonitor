@@ -70,7 +70,8 @@ namespace TeensyMonitor
             if (packet is      TextPacket textPacket ) AddTextPacket( textPacket);
             if (packet is TelemetryPacket telePacket ) AddTelePacket( telePacket);
 
-            packet.Cleanup();
+            if (packet is not DebugPacket _)
+                packet.Cleanup();
         }
 
         private void AddBlockPacket(BlockPacket blockPacket)

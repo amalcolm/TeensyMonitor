@@ -13,6 +13,7 @@ export class VoltageReadout extends Shape {
     super({ name: "VoltageReadout", position });
 
     this.displayVoltage = null;
+    this.hasDisplayVoltage = false;
     this.formatValue = formatValue;
     this.label = label;
     this.inputPort = this.addPort("input", [-0.48, 0], {
@@ -30,17 +31,34 @@ export class VoltageReadout extends Shape {
   }
 
   evaluateVoltage() {
-    this.readout.setText(this.formatReadout(this.displayVoltage ?? this.inputPort.voltage));
+    const voltage = this.hasDisplayVoltage ? this.displayVoltage : this.inputPort.voltage;
+
+    this.readout.setText(this.formatReadout(voltage));
   }
 
   setDisplayVoltage(voltage) {
-    const value = Number(voltage);
-
-    this.displayVoltage = Number.isFinite(value) ? value : null;
+    this.hasDisplayVoltage = true;
+    this.displayVoltage = getDisplayVoltageValue(voltage);
     this.readout.setText(this.formatReadout(this.displayVoltage));
+  }
+
+  clearDisplayVoltage() {
+    this.displayVoltage = null;
+    this.hasDisplayVoltage = false;
+    this.evaluateVoltage();
   }
 
   formatReadout(voltage) {
     return this.formatValue(voltage);
   }
+}
+
+function getDisplayVoltageValue(voltage) {
+  if (voltage === null || voltage === undefined || voltage === "") {
+    return null;
+  }
+
+  const value = Number(voltage);
+
+  return Number.isFinite(value) ? value : null;
 }

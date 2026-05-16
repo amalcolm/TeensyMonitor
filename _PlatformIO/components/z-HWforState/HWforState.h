@@ -5,6 +5,13 @@
 #include "XCommands.h"
 
 struct HWforState {
+  private:
+    enum class Phase { SEARCH = 0, NORMAL = 1, placeholder = 255} phase = Phase::placeholder;
+
+    static constexpr int HISTORY_SIZE =  4;
+    static constexpr int GAP_TOPBOT   = 12;
+    static inline    int MID_STEP     = 17;  // depends on GAP_TOPBOT - set in contructor
+
   public:
     StateType state;
     HWforState(StateType state);
@@ -56,13 +63,6 @@ struct HWforState {
     void _readSensor2();
     void _findSignal();
     void _fineTuning();
-
-    enum class Phase { SEARCH = 0, NORMAL = 1, placeholder = 255} phase = Phase::placeholder;
-
-
-    static constexpr int HISTORY_SIZE =  4;
-    static constexpr int GAP_TOPBOT   = 24;
-    static inline    int MID_STEP     = 17;  // depends on GAP_TOPBOT - set in contructor
 
     using Zone = CSensor::Zone;
 };

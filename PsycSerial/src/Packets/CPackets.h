@@ -87,6 +87,26 @@ struct CTelemetryPacket
     uint32_t key{};
 };
 
+struct CDebugData
+{
+    uint32_t startTick{};
+    uint16_t sample{};
+	uint16_t reserved{0xFFFF};
+    uint32_t endTick{};
+};
+
+struct CDebugPacket
+{
+	static constexpr size_t MAX_DEBUG_DATA = 4096;
+
+    static constexpr Frame frameStart = 0xED'01'FA'B4;  // 01/02 = Debug Packet
+    static constexpr Frame frameEnd   = 0xED'02'FA'B4;
+    double   timeStamp{};
+    uint32_t state{};
+    uint32_t count{};
+    CDebugData data[4096];
+};
+
 #pragma pack(pop)
 
 // Sizes & sanity checks (same endianness is assumed by design)
@@ -101,8 +121,9 @@ static_assert(offsetof(CBlockPacket, blockData) ==
 	sizeof(uint32_t) + sizeof(double) + sizeof(uint32_t),
     "Unexpected CBlockPacket header layout");
 
+
 // ----------------------------- Tagged result ---------------------------------
-enum class PacketKind : uint8_t { Unknown = 0, Data = 1, Block = 2, Telemetry = 3, Text = 4 };
+enum class PacketKind : uint8_t { Unknown = 0, Data = 1, Block = 2, Telemetry = 3, Text = 4, Debug = 5 };
 
 struct CDecodedPacket
 {
@@ -112,6 +133,7 @@ struct CDecodedPacket
         CBlockPacket     block;
         CTextPacket      text;
 		CTelemetryPacket telemetry;
+		CDebugPacket     debug;
     };
 
     CDecodedPacket() noexcept {} // POD; union members are zero-inited by caller when used

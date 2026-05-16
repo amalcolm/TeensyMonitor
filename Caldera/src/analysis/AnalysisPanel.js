@@ -2,6 +2,29 @@ import Plotly from "plotly.js-dist-min";
 import { AnalysisDataset } from "./AnalysisDataset.js";
 
 const EMPTY_AXIS_RANGE = [0, 3.3];
+const FIT_LINE_COLORS = Object.freeze([
+  "rgba(255, 255, 255, 0.10)",
+  "rgba(53, 194, 255, 0.10)",
+  "rgba(126, 231, 135, 0.10)",
+  "rgba(255, 207, 90, 0.10)",
+  "rgba(255, 123, 114, 0.10)",
+]);
+const ANALYSIS_CSV_HEADER = [
+  "source",
+  "name",
+  "slope",
+  "y-intercept",
+  "rmsV",
+  "samples",
+  "topWiper",
+  "botWiper",
+  "offsetWiper",
+  "gainWiper",
+  "ledState",
+  "leds",
+  "minMidWiper",
+  "maxMidWiper",
+].join(",");
 
 export class AnalysisPanel {
   constructor({
@@ -12,33 +35,33 @@ export class AnalysisPanel {
     this.root = root;
     this.badge = root?.querySelector("[data-analysis-badge]");
     this.chartRoot = root?.querySelector("[data-analysis-chart]");
+    this.copyAnalysisButton = root?.querySelector("[data-analysis-copy-analysis]");
     this.copyButton = root?.querySelector("[data-analysis-copy-csv]");
+    this.activeBreakdownPanel = null;
     this.gainBreakdown = root?.querySelector("[data-analysis-gain-breakdown]");
+    this.test1Breakdown = root?.querySelector("[data-analysis-test1-breakdown]");
     this.rmsMetric = root?.querySelector("[data-analysis-rms]");
     this.samplesMetric = root?.querySelector("[data-analysis-samples]");
     this.slopeMetric = root?.querySelector("[data-analysis-slope]");
     this.slopeRatioMetric = root?.querySelector("[data-analysis-slope-ratio]");
     this.resizeObserver = null;
 
+    this.copyAnalysisButton?.addEventListener("click", () => this.copyAnalysis());
     this.copyButton?.addEventListener("click", () => this.copyCsv());
     this.render();
   }
 
-  addSampleFromModel({ circuitScene, model, sensorVoltages, source }) {
-    const sample = this.dataset.addSampleFromModel({
-      circuitScene,
-      model,
-      sensorVoltages,
-      source,
-    });
+  addSampleFromModel(sampleContext) {
+    const sample = this.dataset.addSampleFromModel(sampleContext);
 
     this.render();
 
     return sample;
   }
 
-  clear() {
+  clear({ panel = null } = {}) {
     this.dataset.clear();
+    this.activeBreakdownPanel = panel;
     this.render();
   }
 
@@ -53,6 +76,29 @@ export class AnalysisPanel {
     }
   }
 
+  async copyAnalysis() {
+    const analysisCsv = this.getAnalysisCsv();
+    const rows = getAnalysisFitRows(
+      this.dataset.getSensorComparisonSamples().filter((sample) => sample.isPlottable),
+    );
+
+    try {
+      await copyText(analysisCsv);
+      this.setBadge(rows.length ? "analysis copied" : "analysis header copied");
+    } catch {
+      this.setBadge("copy failed");
+    }
+  }
+
+  getAnalysisCsv() {
+    return [
+      ANALYSIS_CSV_HEADER,
+      ...getAnalysisFitRows(
+        this.dataset.getSensorComparisonSamples().filter((sample) => sample.isPlottable),
+      ).map(formatAnalysisFitCsvRow),
+    ].join("\n");
+  }
+
   render() {
     const samples = this.dataset.getSensorComparisonSamples();
     const plottableSamples = samples.filter((sample) => sample.isPlottable);
@@ -60,11 +106,21 @@ export class AnalysisPanel {
       Number.isFinite(sample.sensorPredicted.sensor2)
     ));
     const fit = getLinearFit(plottableSamples);
-    const axisRanges = getAxisRanges({ fit, plottableSamples, predictedSamples });
+    const fitLines = getSweepFitLines(plottableSamples);
+    const axisRanges = getAxisRanges({ fitLines, plottableSamples, predictedSamples });
 
     this.updateMetrics({ fit, plottableSamples, samples });
-    this.renderGainBreakdown(getGainBreakdownRows(this.dataset, plottableSamples));
-    this.renderChart({ axisRanges, fit, plottableSamples, predictedSamples });
+    this.renderGainBreakdown(
+      this.activeBreakdownPanel === "gain"
+        ? getGainBreakdownRows(this.dataset, plottableSamples)
+        : null,
+    );
+    this.renderTest1Breakdown(
+      this.activeBreakdownPanel === "test1"
+        ? getTest1BreakdownRows(plottableSamples)
+        : null,
+    );
+    this.renderChart({ axisRanges, fitLines, plottableSamples, predictedSamples });
   }
 
   updateMetrics({ fit, plottableSamples, samples }) {
@@ -104,8 +160,16 @@ export class AnalysisPanel {
       return;
     }
 
+    if (!rows) {
+      this.gainBreakdown.hidden = true;
+      this.gainBreakdown.replaceChildren();
+      return;
+    }
+
+    this.gainBreakdown.hidden = false;
+
     const title = document.createElement("span");
-    title.className = "analysis-gain-breakdown__title";
+    title.className = "analysis-breakdown__title";
     title.textContent = "By gain";
 
     const grid = document.createElement("div");
@@ -141,12 +205,64 @@ export class AnalysisPanel {
     this.gainBreakdown.replaceChildren(title, grid);
   }
 
-  renderChart({ axisRanges, fit, plottableSamples, predictedSamples }) {
+  renderTest1Breakdown(rows) {
+    if (!this.test1Breakdown) {
+      return;
+    }
+
+    if (!rows) {
+      this.test1Breakdown.hidden = true;
+      this.test1Breakdown.replaceChildren();
+      return;
+    }
+
+    this.test1Breakdown.hidden = false;
+
+    const title = document.createElement("span");
+    title.className = "analysis-breakdown__title";
+    title.textContent = "Test1";
+
+    const grid = document.createElement("div");
+    grid.className = "analysis-test1-table";
+
+    ["LEDs", "slope", "RMS", "err", "n"].forEach((label) => {
+      const cell = document.createElement("span");
+      cell.className = "analysis-test1-table__head";
+      cell.textContent = label;
+      grid.append(cell);
+    });
+
+    if (rows.length) {
+      rows.forEach((row) => {
+        [
+          row.ledLabel,
+          formatRatio(row.slope),
+          formatMillivolts(row.rms),
+          formatMillivolts(row.meanResidual),
+          String(row.samples),
+        ].forEach((value) => {
+          const cell = document.createElement("span");
+          cell.textContent = value;
+          grid.append(cell);
+        });
+      });
+    } else {
+      const empty = document.createElement("span");
+      empty.className = "analysis-test1-table__empty";
+      empty.textContent = "-";
+      grid.append(empty);
+    }
+
+    this.test1Breakdown.replaceChildren(title, grid);
+  }
+
+  renderChart({ axisRanges, fitLines, plottableSamples, predictedSamples }) {
     if (!this.chartRoot) {
       return;
     }
 
-    Plotly.react(this.chartRoot, [
+    const predictionArrows = getPredictionArrowAnnotations(predictedSamples);
+    const traces = [
       {
         customdata: plottableSamples.map((sample) => [
           sample.wipers.top,
@@ -154,10 +270,14 @@ export class AnalysisPanel {
           sample.wipers.mid,
           sample.wipers.offset,
           sample.wipers.gain,
+          formatHoverVoltage(sample.sensorPredicted.sensor2),
+          formatHoverVoltage(sample.residuals.sensor2),
         ]),
         hovertemplate: [
           "Sensor1 %{x:.4f} V",
           "actual Sensor2 %{y:.4f} V",
+          "predicted Sensor2 %{customdata[5]}",
+          "residual %{customdata[6]}",
           "mid %{customdata[2]}",
           "offset %{customdata[3]}",
           "gain %{customdata[4]}",
@@ -171,8 +291,8 @@ export class AnalysisPanel {
             [1, "#ffcf5a"],
           ],
           line: { color: "rgba(255, 255, 255, 0.72)", width: 0.8 },
-          opacity: 0.92,
-          size: 10,
+          opacity: 0.86,
+          size: 3,
         },
         mode: "markers",
         name: "Sensor2 actual",
@@ -180,45 +300,18 @@ export class AnalysisPanel {
         x: plottableSamples.map((sample) => sample.sensorActual.sensor1),
         y: plottableSamples.map((sample) => sample.sensorActual.sensor2),
       },
-      {
+      ...fitLines.map((fitLine) => ({
         hoverinfo: "skip",
-        line: { color: "rgba(255, 255, 255, 0.48)", dash: "dot", width: 2 },
+        line: { color: fitLine.color, dash: "dot", width: 2 },
         mode: "lines",
-        name: "linear fit",
+        name: fitLine.name,
         type: "scatter",
-        x: fit.lineX,
-        y: fit.lineY,
-      },
-      {
-        customdata: predictedSamples.map((sample) => [
-          sample.wipers.top,
-          sample.wipers.bot,
-          sample.wipers.mid,
-          sample.wipers.offset,
-          sample.wipers.gain,
-        ]),
-        hovertemplate: [
-          "Sensor1 %{x:.4f} V",
-          "predicted Sensor2 %{y:.4f} V",
-          "mid %{customdata[2]}",
-          "offset %{customdata[3]}",
-          "gain %{customdata[4]}",
-          "<extra></extra>",
-        ].join("<br>"),
-        marker: {
-          color: "#ff7b72",
-          line: { color: "rgba(255, 255, 255, 0.52)", width: 0.8 },
-          opacity: 0.62,
-          size: 8,
-          symbol: "diamond-open",
-        },
-        mode: "markers",
-        name: "Sensor2 predicted",
-        type: "scatter",
-        x: predictedSamples.map((sample) => sample.sensorActual.sensor1),
-        y: predictedSamples.map((sample) => sample.sensorPredicted.sensor2),
-      },
-    ], getChartLayout(axisRanges), {
+        x: fitLine.lineX,
+        y: fitLine.lineY,
+      })),
+    ];
+
+    Plotly.react(this.chartRoot, traces, getChartLayout(axisRanges, predictionArrows), {
       displaylogo: false,
       responsive: true,
     });
@@ -230,7 +323,7 @@ export class AnalysisPanel {
   }
 }
 
-function getAxisRanges({ fit, plottableSamples, predictedSamples }) {
+function getAxisRanges({ fitLines, plottableSamples, predictedSamples }) {
   if (!plottableSamples.length) {
     return {
       x: EMPTY_AXIS_RANGE,
@@ -243,7 +336,7 @@ function getAxisRanges({ fit, plottableSamples, predictedSamples }) {
     y: getPaddedRange([
       ...plottableSamples.map((sample) => sample.sensorActual.sensor2),
       ...predictedSamples.map((sample) => sample.sensorPredicted.sensor2),
-      ...fit.lineY,
+      ...fitLines.flatMap((fitLine) => fitLine.lineY),
     ]),
   };
 }
@@ -305,8 +398,161 @@ function getLinearFit(samples) {
   };
 }
 
-function getChartLayout(axisRanges) {
+function getSweepFitLines(samples) {
+  return getSweepFitGroups(samples)
+    .map((group, index) => ({
+      ...getLinearFit(group.samples),
+      color: FIT_LINE_COLORS[index % FIT_LINE_COLORS.length],
+      name: group.name,
+    }))
+    .filter((fitLine) => fitLine.lineX.length && fitLine.lineY.length);
+}
+
+function getAnalysisFitRows(samples) {
+  return getSweepFitGroups(samples)
+    .map((group) => {
+      const fit = getLinearFit(group.samples);
+      const firstSample = group.samples[0];
+      const mids = group.samples
+        .map((sample) => Number(sample.wipers.mid))
+        .filter(Number.isFinite);
+
+      return {
+        bot: firstSample?.wipers.bot,
+        gain: firstSample?.wipers.gain,
+        intercept: fit.intercept,
+        ledLabel: firstSample?.ledLabel ?? "",
+        ledState: firstSample?.ledState,
+        maxMid: mids.length ? Math.max(...mids) : null,
+        minMid: mids.length ? Math.min(...mids) : null,
+        name: group.name,
+        offset: firstSample?.wipers.offset,
+        rms: fit.rms,
+        samples: group.samples.length,
+        slope: fit.slope,
+        source: firstSample?.source ?? "",
+        top: firstSample?.wipers.top,
+      };
+    })
+    .filter((row) => Number.isFinite(row.slope) && Number.isFinite(row.intercept));
+}
+
+function getSweepFitGroups(samples) {
+  const groupsByKey = new Map();
+
+  samples.forEach((sample) => {
+    const group = getSweepFitGroup(sample);
+
+    if (!group) {
+      return;
+    }
+
+    if (!groupsByKey.has(group.key)) {
+      groupsByKey.set(group.key, { ...group, samples: [] });
+    }
+
+    groupsByKey.get(group.key).samples.push(sample);
+  });
+
+  return Array.from(groupsByKey.values())
+    .filter((group) => group.samples.length >= 2);
+}
+
+function getSweepFitGroup(sample) {
+  const { wipers } = sample;
+
+  if (sample.source === "mid-sweep") {
+    return {
+      key: getSweepFitKey(["mid", wipers.top, wipers.bot, wipers.offset, wipers.gain]),
+      name: `mid fit offset ${formatWiper(wipers.offset)} gain ${formatWiper(wipers.gain)}`,
+    };
+  }
+
+  if (sample.source === "gain-mid-sweep") {
+    return {
+      key: getSweepFitKey([
+        "gain-mid",
+        wipers.top,
+        wipers.bot,
+        wipers.offset,
+        wipers.gain,
+      ]),
+      name: `gain ${formatWiper(wipers.gain)} fit`,
+    };
+  }
+
+  if (sample.source === "offset-sweep") {
+    return {
+      key: getSweepFitKey(["offset", wipers.top, wipers.bot, wipers.offset, wipers.gain]),
+      name: `offset ${formatWiper(wipers.offset)} fit`,
+    };
+  }
+
+  if (sample.source === "test1") {
+    return {
+      key: getSweepFitKey([
+        "test1",
+        wipers.top,
+        wipers.bot,
+        wipers.offset,
+        wipers.gain,
+        sample.ledLabel,
+      ]),
+      name: `Test1 ${sample.ledLabel ?? "off"} fit`,
+    };
+  }
+
+  return null;
+}
+
+function getSweepFitKey(parts) {
+  return parts.map((part) => String(part)).join("|");
+}
+
+function formatAnalysisFitCsvRow(row) {
+  return [
+    row.source,
+    row.name,
+    formatCsvNumber(row.slope, 12),
+    formatCsvNumber(row.intercept, 12),
+    formatCsvNumber(row.rms, 12),
+    row.samples,
+    formatCsvNumber(row.top, 0),
+    formatCsvNumber(row.bot, 0),
+    formatCsvNumber(row.offset, 0),
+    formatCsvNumber(row.gain, 0),
+    formatCsvNumber(row.ledState, 0),
+    row.ledLabel,
+    formatCsvNumber(row.minMid, 0),
+    formatCsvNumber(row.maxMid, 0),
+  ].map(csvCell).join(",");
+}
+
+function getPredictionArrowAnnotations(samples) {
+  return samples.map((sample) => ({
+    arrowcolor: "rgba(255, 123, 114, 0.72)",
+    arrowhead: 2,
+    arrowsize: 1,
+    arrowwidth: 1.2,
+    ax: sample.sensorActual.sensor1,
+    axref: "x",
+    ay: sample.sensorActual.sensor2,
+    ayref: "y",
+    captureevents: false,
+    opacity: 0.72,
+    showarrow: true,
+    standoff: 1,
+    text: "",
+    x: sample.sensorActual.sensor1,
+    xref: "x",
+    y: sample.sensorPredicted.sensor2,
+    yref: "y",
+  }));
+}
+
+function getChartLayout(axisRanges, annotations = []) {
   return {
+    annotations,
     autosize: true,
     legend: {
       font: { color: "#d7dde8", size: 12 },
@@ -353,6 +599,10 @@ function getGainBreakdownRows(dataset, samples) {
   const samplesByGain = new Map();
 
   samples.forEach((sample) => {
+    if (sample.source !== "gain-mid-sweep") {
+      return;
+    }
+
     const gain = Number(sample.wipers.gain);
 
     if (!Number.isFinite(gain)) {
@@ -379,6 +629,36 @@ function getGainBreakdownRows(dataset, samples) {
       slopeMultiplierRatio: getSlopeMultiplierRatio(dataset, fit, gainSamples),
     };
   }).sort((a, b) => a.gain - b.gain);
+}
+
+function getTest1BreakdownRows(samples) {
+  const samplesByLedLabel = new Map();
+
+  samples.forEach((sample) => {
+    if (sample.source !== "test1") {
+      return;
+    }
+
+    const ledLabel = sample.ledLabel || "off";
+
+    if (!samplesByLedLabel.has(ledLabel)) {
+      samplesByLedLabel.set(ledLabel, []);
+    }
+
+    samplesByLedLabel.get(ledLabel).push(sample);
+  });
+
+  return Array.from(samplesByLedLabel, ([ledLabel, ledSamples]) => {
+    const fit = getLinearFit(ledSamples);
+
+    return {
+      ledLabel,
+      meanResidual: getMean(ledSamples.map((sample) => sample.residuals.sensor2)),
+      rms: fit.rms,
+      samples: ledSamples.length,
+      slope: fit.slope,
+    };
+  });
 }
 
 function getMean(values) {
@@ -417,8 +697,36 @@ function formatGainWiper(value) {
   return Number.isFinite(value) ? String(value) : "-";
 }
 
+function formatHoverVoltage(value) {
+  return Number.isFinite(value) ? `${value.toFixed(4)} V` : "---";
+}
+
+function formatWiper(value) {
+  const wiper = Number(value);
+
+  return Number.isFinite(wiper) ? String(wiper) : "-";
+}
+
 function formatMultiplier(value) {
   return Number.isFinite(value) ? `x${value.toFixed(3)}` : "-";
+}
+
+function formatCsvNumber(value, fractionDigits = 9) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number.toFixed(fractionDigits) : "";
+}
+
+function csvCell(value) {
+  const text = value === null || value === undefined ? "" : String(value);
+
+  return /[",\n\r]/.test(text)
+    ? `"${text.replaceAll('"', '""')}"`
+    : text;
 }
 
 async function copyText(text) {

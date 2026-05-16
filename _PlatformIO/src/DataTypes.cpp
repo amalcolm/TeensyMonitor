@@ -135,3 +135,18 @@ void BlockType::debugSerial() {
   USB.printf("\n");
 }
 
+void DebugType::writeSerial(bool includeFrameMarkers) {
+  if (includeFrameMarkers) USB.write(FRAME_START);
+
+  USB.write(timestamp);
+  USB.write(state);
+  USB.write(count);
+  for (uint32_t i = 0; i < count && i < DEBUG_BLOCKSIZE; i++) {
+    DebugSampleType& item = data[i];
+    USB.write(item.startTick);
+    USB.write(item.sample);
+    USB.write(item.endTick);
+  }
+
+  if (includeFrameMarkers) USB.write(FRAME_END);
+}

@@ -1,8 +1,6 @@
 import { DifferentialAmpSensorModel } from "../helpers/DifferentialAmpSensorModel.js";
 import { getModelWipers } from "../helpers/Wipers.js";
-
-const VALID_SENSOR_MIN_V = 0.21;
-const VALID_SENSOR_MAX_V = 3.1;
+import { isValidSensorVoltage } from "../model/voltage.js";
 
 export class AnalysisDataset {
   constructor({
@@ -18,9 +16,13 @@ export class AnalysisDataset {
 
   addSampleFromModel({
     circuitScene,
+    ledLabel = null,
+    leds = null,
+    ledState = null,
     model,
     sensorVoltages = null,
     source = "manual",
+    test = null,
   }) {
     const wipers = getModelWipers(model);
     const sensor1Actual = getKnownVoltage(sensorVoltages?.sensor1)
@@ -29,19 +31,23 @@ export class AnalysisDataset {
       ?? null;
     const sensor2Actual = getKnownVoltage(sensorVoltages?.sensor2)
       ?? getKnownVoltage(model.sensor2Voltage);
-    const sensor2Predicted = this.sensorModel.sensor2FromSensor1(
+    const sensor2Predicted = getKnownVoltage(this.sensorModel.sensor2FromSensor1(
       sensor1Actual,
       wipers.gain,
       wipers.offset,
-    );
-    const sensor1Predicted = this.sensorModel.sensor1FromSensor2(
+    ));
+    const sensor1Predicted = getKnownVoltage(this.sensorModel.sensor1FromSensor2(
       sensor2Actual,
       wipers.gain,
       wipers.offset,
-    );
+    ));
     const sample = {
+      ledLabel,
+      leds: normaliseLedMap(leds),
+      ledState: getKnownState(ledState),
       source,
       timestamp: Date.now(),
+      test,
       wipers,
       sensorActual: {
         sensor1: sensor1Actual,
@@ -76,6 +82,9 @@ export class AnalysisDataset {
       ...this.samples.map((sample) => [
         new Date(sample.timestamp).toISOString(),
         sample.source,
+        sample.test ?? "",
+        formatCsvNumber(sample.ledState, 0),
+        sample.ledLabel ?? "",
         sample.wipers.top,
         sample.wipers.bot,
         sample.wipers.mid,
@@ -95,6 +104,9 @@ export class AnalysisDataset {
 const CSV_HEADER = [
   "timestamp",
   "source",
+  "test",
+  "ledState",
+  "leds",
   "topWiper",
   "botWiper",
   "midWiper",
@@ -109,15 +121,21 @@ const CSV_HEADER = [
 ].join(",");
 
 function getKnownVoltage(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
   const voltage = Number(value);
 
   return Number.isFinite(voltage) ? voltage : null;
 }
 
-function isValidSensorVoltage(value) {
-  return Number.isFinite(value)
-    && value >= VALID_SENSOR_MIN_V
-    && value <= VALID_SENSOR_MAX_V;
+function getKnownState(value) {
+  const state = Number(value);
+
+  return Number.isFinite(state) && state >= 0
+    ? Math.trunc(state) >>> 0
+    : null;
 }
 
 function subtractKnown(actual, predicted) {
@@ -126,8 +144,22 @@ function subtractKnown(actual, predicted) {
     : null;
 }
 
-function formatCsvNumber(value) {
+function normaliseLedMap(leds) {
+  if (!leds || typeof leds !== "object") {
+    return null;
+  }
+
+  return Object.fromEntries(
+    Object.entries(leds).map(([id, active]) => [id, active === true]),
+  );
+}
+
+function formatCsvNumber(value, fractionDigits = 9) {
+  if (value === null || value === undefined || value === "") {
+    return "";
+  }
+
   const number = Number(value);
 
-  return Number.isFinite(number) ? number.toFixed(9) : "";
+  return Number.isFinite(number) ? number.toFixed(fractionDigits) : "";
 }

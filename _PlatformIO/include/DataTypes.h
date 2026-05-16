@@ -68,4 +68,28 @@ struct BlockType {
 };
 
 
+struct DebugSampleType {
+  uint32_t startTick;
+  uint16_t sample;
+  uint16_t RESERVED;
+  uint32_t endTick;
+};
+
+struct DebugType {
+  static constexpr uint32_t DEBUG_BLOCKSIZE = 4096;
+  static constexpr uint32_t FRAME_START = 0xED01FAB4;
+  static constexpr uint32_t FRAME_END   = 0xED02FAB4;
+  double timestamp;
+  StateType state;
+
+  uint32_t count;
+  DebugSampleType data[DEBUG_BLOCKSIZE];
+
+  DebugType() : timestamp(0.0), state(UNSET), count(0) {}
+  DebugType(StateType s) : timestamp(0.0), state(s), count(0) {}
+
+  void clear() { timestamp = 0.0; state = UNSET; count = 0; }
+
+  void writeSerial(bool includeFrameMarkers = true);
+};
 

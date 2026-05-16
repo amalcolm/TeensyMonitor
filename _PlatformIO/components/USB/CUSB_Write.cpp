@@ -16,6 +16,9 @@ void CUSB::do_write() {
 
   // Always write (and clear) any buffered telemetry
   do_write_Telemetry();
+
+  do_write_Debug();
+
 }
 
 // Sends all buffered DataType items over USB
@@ -70,5 +73,34 @@ void CUSB::do_write_Telemetry() {
         
       CTelemetry::Return(*telemetry);
   }
+}
+
+
+void CUSB::do_write_Debug() {
+  if (m_debugOutputWaiting == false) return;
+
+  noInterrupts();
+  {
+    std::swap(m_pDebugToSend, m_pDebugToFill);
+  }
+  interrupts();
+
+  m_pDebugToFill->clear();
+  m_debugOutputWaiting = false;
+
+  if (m_handshakeComplete)
+    m_pDebugToSend->writeSerial();
+
+}
+
+
+// debug calls
+
+void CUSB::writeDebugState(StateType state) {
+  if (m_handshakeComplete == false) return; // only write debug state if handshake not complete
+
+  m_pDebugToFill->timestamp = Timer.getConnectTime();
+  m_pDebugToFill->state = state;
+  m_debugOutputWaiting = true;
 }
 

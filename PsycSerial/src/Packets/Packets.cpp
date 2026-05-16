@@ -1,4 +1,5 @@
 #include "Packets.h"
+#include "CPackets.h"
 #include "WebData.h"
 #include "../_Config.h"
 
@@ -195,5 +196,34 @@ namespace PsycSerial
         ID = 0;
         Value = 0.0f;
         Key = 0;
+	}
+
+
+
+    DebugPacket::DebugPacket()
+    {
+		Data = gcnew array<CDebugData>(CDebugPacket::MAX_DEBUG_DATA);
+        Reset();
+	}
+    DebugPacket^ DebugPacket::Rent()
+    {
+        DebugPacket^ p; if (s_pool->TryDequeue(p)) return p;
+        return gcnew DebugPacket();
+    }
+    
+    void DebugPacket::Cleanup()
+    {
+        Reset();
+        s_pool->Enqueue(this);
+	}
+
+    DebugPacket::~DebugPacket() { Cleanup(); GC::SuppressFinalize(this); }
+    DebugPacket::!DebugPacket() {}
+    void DebugPacket::Reset()
+    {
+        State = HeadState::None;
+        TimeStamp = 0.0;
+        Count = 0;
+        // Data array is reused, and no need to clean it.
 	}
 }

@@ -1,20 +1,19 @@
 import { getModelWipers, normaliseWipers } from "./Wipers.js";
 
-const MID_SWEEP_START = 16;
-const MID_SWEEP_END = 240;
-const MID_SWEEP_STEP = 8;
+export const MID_SWEEP_START = 16;
+export const MID_SWEEP_END = 240;
+export const MID_SWEEP_STEP = 8;
+const STACKED_SWEEP_STEP = 16;
 const SWEEP_SETTLE_MS = 100;
 const SWEEP_SAMPLE_INTERVAL_MS = 50;
-const SWEEP_FILTER_SAMPLE_COUNT = 10;
+const SWEEP_FILTER_SAMPLE_COUNT = 2;
 const SWEEP_FILTER_T = 1 / SWEEP_FILTER_SAMPLE_COUNT;
 const GAIN_SWEEP_WIPERS = Object.freeze([0, 1, 2, 4, 8, 16, 32]);
 
 export class Sweep {
   constructor({
     button,
-    canClear = null,
     circuitScene,
-    clearButton,
     freezeVoltages,
     freezeWipers,
     getHardwareWiperRevision = null,
@@ -29,9 +28,7 @@ export class Sweep {
     webView,
   }) {
     this.button = button;
-    this.canClear = canClear;
     this.circuitScene = circuitScene;
-    this.clearButton = clearButton;
     this.freezeVoltages = freezeVoltages;
     this.freezeWipers = freezeWipers;
     this.getHardwareWiperRevision = getHardwareWiperRevision;
@@ -50,7 +47,6 @@ export class Sweep {
     this.targetWipers = null;
     this.timer = null;
     this.wasVoltagesFrozen = false;
-    this.wasWipersFrozen = false;
     this.wiperAcknowledged = false;
 
     this.button?.addEventListener("click", () => {
@@ -61,14 +57,11 @@ export class Sweep {
       }
     });
 
-    this.clearButton?.addEventListener("click", () => this.clear());
-
     this.updateButton();
   }
 
   start() {
     this.onStart?.(this);
-    this.wasWipersFrozen = this.freezeWipers.frozen;
     this.wasVoltagesFrozen = this.freezeVoltages.frozen;
     this.freezeWipers.setFrozen(true);
 
@@ -111,10 +104,6 @@ export class Sweep {
     }
 
     if (wasRunning) {
-      if (!this.wasWipersFrozen) {
-        this.freezeWipers.setFrozen(false);
-      }
-
       if (this.wasVoltagesFrozen) {
         this.freezeVoltages.setFrozen(true);
       }
@@ -122,15 +111,6 @@ export class Sweep {
 
     this.updateStatus(status);
     this.updateButton();
-  }
-
-  clear() {
-    if (this.timer || this.canClear?.() === false) {
-      return;
-    }
-
-    this.onClear?.();
-    this.updateStatus("idle");
   }
 
   beginCurrentPoint() {
@@ -185,6 +165,7 @@ export class Sweep {
       model: this.model,
       sensorVoltages: this.filteredVoltages ? { ...this.filteredVoltages } : null,
       source: this.getSampleSource(),
+      ...this.getSampleContext(),
     });
   }
 
@@ -203,9 +184,13 @@ export class Sweep {
   }
 
   applyMidWiper(mid) {
+    this.applyWipers({ mid });
+  }
+
+  applyWipers(wiperOverrides) {
     const wipers = normaliseWipers({
       ...getModelWipers(this.model),
-      mid,
+      ...wiperOverrides,
     });
 
     this.targetWipers = wipers;
@@ -237,6 +222,16 @@ export class Sweep {
     return "mid-sweep";
   }
 
+  getSampleContext() {
+    return {
+      ledState: this.getHardwareLedState(),
+    };
+  }
+
+  getHardwareLedState() {
+    return getKnownState(this.getHardwareWipers?.()?.state);
+  }
+
   updateStatus(status) {
     this.status.textContent = status;
   }
@@ -251,6 +246,74 @@ export class Sweep {
   }
 }
 
+export class OffsetSweep extends Sweep {
+  constructor(options) {
+    super(options);
+    this.currentOffset = MID_SWEEP_START;
+    this.updateButton();
+  }
+
+  start() {
+    this.onStart?.(this);
+    this.wasVoltagesFrozen = this.freezeVoltages.frozen;
+    this.freezeWipers.setFrozen(true);
+
+    if (this.freezeVoltages.frozen) {
+      this.freezeVoltages.setFrozen(false);
+    }
+
+    this.onClear?.();
+    this.currentOffset = MID_SWEEP_START;
+    this.currentMid = MID_SWEEP_START;
+    this.beginCurrentPoint();
+  }
+
+  advanceSweep() {
+    if (this.currentMid < MID_SWEEP_END) {
+      this.currentMid = Math.min(this.currentMid + STACKED_SWEEP_STEP, MID_SWEEP_END);
+      this.beginCurrentPoint();
+      return;
+    }
+
+    if (this.currentOffset < MID_SWEEP_END) {
+      this.currentOffset = Math.min(this.currentOffset + STACKED_SWEEP_STEP, MID_SWEEP_END);
+      this.currentMid = MID_SWEEP_START;
+      this.beginCurrentPoint();
+      return;
+    }
+
+    this.stop("done");
+  }
+
+  applyCurrentWipers() {
+    this.applyOffsetMidWipers();
+  }
+
+  applyOffsetMidWipers() {
+    this.applyWipers({
+      mid: this.currentMid,
+      offset: this.currentOffset,
+    });
+  }
+
+  getSweepStatus() {
+    return `offset ${this.currentOffset} mid ${this.currentMid}`;
+  }
+
+  getSampleSource() {
+    return "offset-sweep";
+  }
+
+  updateButton() {
+    if (!this.button) {
+      return;
+    }
+
+    this.button.textContent = this.timer ? "Stop offset" : "Sweep offset";
+    this.button.dataset.running = String(Boolean(this.timer));
+  }
+}
+
 export class GainSweep extends Sweep {
   constructor(options) {
     super(options);
@@ -260,7 +323,6 @@ export class GainSweep extends Sweep {
 
   start() {
     this.onStart?.(this);
-    this.wasWipersFrozen = this.freezeWipers.frozen;
     this.wasVoltagesFrozen = this.freezeVoltages.frozen;
     this.freezeWipers.setFrozen(true);
 
@@ -276,7 +338,7 @@ export class GainSweep extends Sweep {
 
   advanceSweep() {
     if (this.currentMid < MID_SWEEP_END) {
-      this.currentMid = Math.min(this.currentMid + MID_SWEEP_STEP, MID_SWEEP_END);
+      this.currentMid = Math.min(this.currentMid + STACKED_SWEEP_STEP, MID_SWEEP_END);
       this.beginCurrentPoint();
       return;
     }
@@ -297,17 +359,11 @@ export class GainSweep extends Sweep {
 
   applyGainMidWipers() {
     const gain = GAIN_SWEEP_WIPERS[this.currentGainIndex];
-    const wipers = normaliseWipers({
-      ...getModelWipers(this.model),
+
+    this.applyWipers({
       gain,
       mid: this.currentMid,
     });
-
-    this.targetWipers = wipers;
-    this.model.applyWiperValues(wipers);
-    this.updateWiperDebug(wipers, { applied: true });
-    this.circuitScene.render();
-    this.webView.postSetWipers(wipers);
   }
 
   getSweepStatus() {
@@ -326,6 +382,124 @@ export class GainSweep extends Sweep {
     }
 
     this.button.textContent = this.timer ? "Stop gain" : "Sweep gain";
+    this.button.dataset.running = String(Boolean(this.timer));
+  }
+}
+
+export class Test1Sweep extends Sweep {
+  constructor({
+    ledsToTest = [],
+    setLedState = null,
+    testWipers,
+    ...options
+  }) {
+    super(options);
+    this.appliedLedKey = null;
+    this.currentLedCombinationIndex = 0;
+    this.currentTargetLedState = null;
+    this.ledsToTest = Array.from(ledsToTest ?? [], normaliseLedId);
+    this.ledCombinations = getLedCombinations(this.ledsToTest);
+    this.setLedState = setLedState;
+    this.testWipers = testWipers;
+    this.updateButton();
+  }
+
+  start() {
+    this.appliedLedKey = null;
+    this.currentLedCombinationIndex = 0;
+    super.start();
+  }
+
+  advanceSweep() {
+    if (this.currentMid < MID_SWEEP_END) {
+      this.currentMid = Math.min(this.currentMid + MID_SWEEP_STEP, MID_SWEEP_END);
+      this.beginCurrentPoint();
+      return;
+    }
+
+    if (this.currentLedCombinationIndex < this.ledCombinations.length - 1) {
+      this.currentLedCombinationIndex += 1;
+      this.currentMid = MID_SWEEP_START;
+      this.beginCurrentPoint();
+      return;
+    }
+
+    this.stop("done");
+  }
+
+  applyCurrentWipers() {
+    this.applyCurrentLedState();
+    this.applyWipers({
+      ...this.testWipers,
+      mid: this.currentMid,
+    });
+  }
+
+  applyCurrentLedState() {
+    const activeLeds = this.getCurrentLedCombination();
+    const ledKey = activeLeds.join("|");
+
+    if (ledKey === this.appliedLedKey) {
+      return;
+    }
+
+    this.currentTargetLedState = getKnownState(this.setLedState?.(activeLeds));
+    this.appliedLedKey = ledKey;
+  }
+
+  hasHardwareAppliedTargetWipers() {
+    if (!super.hasHardwareAppliedTargetWipers()) {
+      return false;
+    }
+
+    if (this.currentTargetLedState === null) {
+      return true;
+    }
+
+    return this.getHardwareLedState() === this.currentTargetLedState;
+  }
+
+  getCurrentLedCombination() {
+    return this.ledCombinations[this.currentLedCombinationIndex] ?? [];
+  }
+
+  getCurrentLedMap() {
+    const activeLeds = new Set(this.getCurrentLedCombination());
+
+    return Object.fromEntries(
+      this.ledsToTest.map((id) => [id, activeLeds.has(id)]),
+    );
+  }
+
+  getCurrentLedLabel() {
+    const activeLeds = this.getCurrentLedCombination();
+
+    return activeLeds.length ? activeLeds.join("+") : "off";
+  }
+
+  getSweepStatus() {
+    return `Test1 ${this.getCurrentLedLabel()} mid ${this.currentMid}`;
+  }
+
+  getSampleSource() {
+    return "test1";
+  }
+
+  getSampleContext() {
+    return {
+      ledLabel: this.getCurrentLedLabel(),
+      leds: this.getCurrentLedMap(),
+      ledState: this.getHardwareLedState() ?? this.currentTargetLedState,
+      test: "Test1",
+    };
+  }
+
+  updateButton() {
+    if (!this.button) {
+      return;
+    }
+
+    this.button.textContent = this.timer ? "Stop Test1" : "Test1";
     this.button.dataset.running = String(Boolean(this.timer));
   }
 }
@@ -362,7 +536,36 @@ function filterVoltage(oldValue, newValue) {
 }
 
 function getKnownVoltage(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
   const voltage = Number(value);
 
   return Number.isFinite(voltage) ? voltage : null;
+}
+
+function getKnownState(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const state = Number(value);
+
+  return Number.isFinite(state) && state >= 0
+    ? Math.trunc(state) >>> 0
+    : null;
+}
+
+function getLedCombinations(leds) {
+  const ledCount = leds.length;
+  const combinationCount = 2 ** ledCount;
+
+  return Array.from({ length: combinationCount }, (_, mask) => (
+    leds.filter((_, index) => Boolean(mask & (1 << index)))
+  ));
+}
+
+function normaliseLedId(id) {
+  return String(id ?? "").trim().toUpperCase();
 }

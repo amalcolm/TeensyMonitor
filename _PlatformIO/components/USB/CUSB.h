@@ -2,6 +2,8 @@
 #include "CSerialWrapper.h"
 #include "CrashReport.h"
 #include "CBuffer.h"
+#include "DataTypes.h"
+#include "CMasterTimer.h"
 #include <array>
 
 class CUSB : public CSerialWrapper {
@@ -18,9 +20,10 @@ class CUSB : public CSerialWrapper {
     std::array<uint8_t, READ_BUFFER_SIZE> m_readBuffer;  // temporary buffer for reading raw bytes from USB
     int m_numBuffered = 0;  // number of bytes currently buffered in m_readBuffer
 
+    volatile bool m_debugOutputWaiting = false;
 
   public:
-    CUSB() {};
+    CUSB() { m_pDebugToFill = &m_DebugA; m_pDebugToSend = &m_DebugB; };
 
     CUSB& begin()
     { 
@@ -56,6 +59,8 @@ class CUSB : public CSerialWrapper {
       }
     }
 
+    void writeDebugState(StateType state);
+
   private:
     void do_read();
    
@@ -64,6 +69,14 @@ class CUSB : public CSerialWrapper {
     void do_write_Block();
     void do_write_Text();
     void do_write_Telemetry();
+    void do_write_Debug();
+
+    DebugType           m_DebugA;
+    DebugType           m_DebugB;
+
+    DebugType* volatile m_pDebugToFill;
+    DebugType* volatile m_pDebugToSend;
+
     
 };
 

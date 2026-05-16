@@ -330,12 +330,20 @@ export class CircuitScene {
   }
 
   applyModelVoltageOverrides() {
-    const sensorModelErrorVoltages = this.sensorModel.getSensorErrorVoltages(this.model);
+    const sensorModelErrorReadings = this.sensorModel.getSensorErrorReadings(this.model);
 
     this.setReadoutVoltage("sensor1", this.model.sensor1Voltage);
     this.setReadoutVoltage("sensor2", this.model.sensor2Voltage);
-    this.sensorErrorReadouts.setVoltage("sensor1Error", sensorModelErrorVoltages.sensor1);
-    this.sensorErrorReadouts.setVoltage("sensor2Error", sensorModelErrorVoltages.sensor2);
+    this.sensorErrorReadouts.setVoltage(
+      "sensor1Error",
+      sensorModelErrorReadings.sensor1.errorVoltage,
+      { predictedVoltage: sensorModelErrorReadings.sensor1.predictedVoltage },
+    );
+    this.sensorErrorReadouts.setVoltage(
+      "sensor2Error",
+      sensorModelErrorReadings.sensor2.errorVoltage,
+      { predictedVoltage: sensorModelErrorReadings.sensor2.predictedVoltage },
+    );
     this.applyDifferentialAmpModelVoltages();
   }
 
