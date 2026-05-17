@@ -69,9 +69,7 @@ namespace PsycSerial::Packets
         [JsonPropertyName("offset")] property int Offset;
         [JsonPropertyName("gain"  )] property int Gain;
 
-        [JsonPropertyName("state")] property int State;
-
-        WiperValues() { Top = 0; Bot = 0; Mid = 0; Offset = 0; Gain = 0; State = 0; _hasValues = false; }
+        WiperValues() { Top = 0; Bot = 0; Mid = 0; Offset = 0; Gain = 0; _hasValues = false; }
 
         void CopyFrom(BlockPacket^ block) { if (block == nullptr || block->Count <= 0 || block->BlockData == nullptr) return;
 
@@ -83,7 +81,6 @@ namespace PsycSerial::Packets
             Offset = data->Offset;
             Gain   = data->Gain;
 
-            State = static_cast<int>(data->State);
             _hasValues = true;
         }
 
@@ -95,7 +92,6 @@ namespace PsycSerial::Packets
             Offset = other->Offset;
             Gain   = other->Gain;
 
-			State = other->State;
             _hasValues = other->_hasValues;
         }
 
@@ -106,7 +102,7 @@ namespace PsycSerial::Packets
             WiperValues^ other = dynamic_cast<WiperValues^>(obj);  if (other == nullptr)     return false;
 
             return Top == other->Top && Bot == other->Bot && Mid == other->Mid
-                && Offset == other->Offset && Gain == other->Gain && State == other->State;
+                && Offset == other->Offset && Gain == other->Gain;
         }
 
         virtual int GetHashCode() override
@@ -117,7 +113,6 @@ namespace PsycSerial::Packets
             hash = hash * 31 + Mid;
             hash = hash * 31 + Offset;
             hash = hash * 31 + Gain;
-            hash = hash * 31 + State;
             return hash;
         }
     };

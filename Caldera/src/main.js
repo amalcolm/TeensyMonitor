@@ -208,6 +208,7 @@ new DebugFlagsControl({
 new DebugSettingsControl({
   applySettings: applyDebugSettings,
   getSettings: () => ({
+    ledState: getDebugLedState(),
     wipers: getModelWipers(model),
   }),
   loadButton: debugLoadSettingsButton,
@@ -237,7 +238,6 @@ webView.on("setPhotodiodeVoltage", ({ value }) => {
 });
 
 webView.on("wipersChanged", ({ wipers }) => {
-  stateControl.applyHostState(getWiperState(wipers));
   liveWipers = {
     ...normaliseWipers(wipers),
     state: stateControl.getLastHostState(),
@@ -276,6 +276,8 @@ webView.postGetWipers();
 
 updateWiperDebug(null, { applied: false });
 
+webView.postReady();
+
 function readStoredSettings() {
   try {
     return JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY));
@@ -312,23 +314,42 @@ function applyDebugSettings(settings) {
   }
 
   const wipers = normaliseWipers(settings.wipers);
+  const ledState = normaliseDebugLedState(settings.ledState ?? settings.state);
+
+  if ((settings.ledState !== undefined || settings.state !== undefined) && ledState === null) {
+    return false;
+  }
+
   const applied = model.applyWiperValues(wipers);
 
   freezeWipers.setFrozen(true);
   updateWiperDebug(wipers, { applied });
   circuitScene.render();
   webView.postSetWipers(wipers);
+
+  if (ledState !== null) {
+    stateControl.sendHoldState(ledState);
+  }
+
   saveStoredSettings(circuitScene.getSettings());
 
   return true;
 }
 
-function getWiperState(wipers) {
-  if (!wipers || typeof wipers !== "object") {
+function getDebugLedState() {
+  return stateControl.getLastHostState() ?? stateControl.getState();
+}
+
+function normaliseDebugLedState(value) {
+  if (value === undefined || value === null) {
     return null;
   }
 
-  return wipers.state ?? wipers.State ?? null;
+  const state = Number(value);
+
+  return Number.isFinite(state) && state >= 0
+    ? Math.trunc(state) >>> 0
+    : null;
 }
 
 function updateWiperDebug(wipers, { applied = false, frozen = false } = {}) {

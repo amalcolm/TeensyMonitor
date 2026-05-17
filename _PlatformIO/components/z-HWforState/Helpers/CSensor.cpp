@@ -57,8 +57,9 @@ CSensor::Zone CSensor::_updateZone() {
 
 
 
-void CSensor::resetFilter() {
+double CSensor::resetFilter() {
   _lastV = static_cast<double>(read());
+  return _lastV;
 }
 
 

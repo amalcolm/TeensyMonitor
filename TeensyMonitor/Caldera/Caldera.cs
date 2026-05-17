@@ -21,194 +21,82 @@ namespace TeensyMonitor.Caldera
             WebView.NavigationCompleted += WebView_NavigationCompleted;
 
             Program.Caldera = this;
-            _flushInvoker = FlushPendingMessages;
+            _wipersPoster = CreateWipersPoster();
+            _voltagesPoster = CreateVoltagesPoster();
+            _statePoster = CreateStatePoster();
 
             SP.DataReceived += SP_DataReceived;
         }
 
+        private bool _needsRefresh = true;
+        private int _lastState = -1;
         private void SP_DataReceived(IPacket packet)
         {
-            if (packet is not DebugPacket debugPacket) return;
+            if (IsRunning == false) return;
 
-            PostStateChange((int)debugPacket.State, force: true);
-
-            debugPacket.Cleanup();
+            switch (packet)
+            {
+                case BlockPacket blockPacket:
+                    if (_needsRefresh)
+                    {
+                        _needsRefresh = false;
+                        if (_lastState < 0) _lastState = (int)blockPacket.State;
+                        PostStateChange(_lastState);
+                    }
+                    break;
+                case DebugPacket debugPacket:
+                    PostStateChange((int)debugPacket.State, force: true);
+                    break;
+            }
         }
-
-        [Flags]
-        private enum PendingMessage
-        {
-            None     = 0,
-            Wipers   = 1,
-            Voltages = 2,
-            State    = 4
-        }
-
-        private readonly object _messageLock = new();
-        private readonly MethodInvoker _flushInvoker;
 
         private bool _disposed;
         private bool _ready;
-        private int _flushScheduled;
-        private PendingMessage _pendingMessages;
-
-        private readonly WipersChangedMessage   _pendingWipers   = new();
-        private readonly VoltagesChangedMessage _pendingVoltages = new();
-        private readonly WipersChangedMessage   _wipersToSend    = new();
-        private readonly VoltagesChangedMessage _voltagesToSend  = new();
-
-        private readonly VoltagesChangedMessage _lastVoltagesWritten = new();
-        private readonly WipersChangedMessage   _lastWipersWritten   = new();
-        private bool _forceNextWipersWrite;
-        private bool _forceNextStateWrite;
-        private int _pendingState;
-        private bool _hasLastStateWritten;
-        private int _lastStateWritten;
+        private readonly BufferedPoster<WipersChangedMessage> _wipersPoster;
+        private readonly BufferedPoster<VoltagesChangedMessage> _voltagesPoster;
+        private readonly BufferedPoster<StateChangedMessage> _statePoster;
 
         public bool PostWipersChange(WipersChangedMessage wipers, bool force = false)
-        {
-            if (!CanQueueMessages() || (!force && !wipers.IsValid))
-                return false;
-
-            lock (_messageLock)
-            {
-                var alreadyPending = (_pendingMessages & PendingMessage.Wipers) != 0;
-                var current = alreadyPending ? _pendingWipers : _lastWipersWritten;
-
-                if (!force && wipers.Equals(current))
-                    return false;
-
-                _pendingWipers.CopyFrom(wipers);
-                _pendingMessages |= PendingMessage.Wipers;
-                _forceNextWipersWrite |= force;
-            }
-
-            return ScheduleFlush();
-        }
+            => _wipersPoster.Post(wipers, force);
 
         public bool PostVoltagesChange(VoltagesChangedMessage voltages)
-        {
-            if (!CanQueueMessages() || !voltages.IsValid)
-                return false;
-
-            lock (_messageLock)
-            {
-                var alreadyPending = (_pendingMessages & PendingMessage.Voltages) != 0;
-                var current = alreadyPending ? _pendingVoltages : _lastVoltagesWritten;
-
-                if (voltages.Equals(current))
-                    return false;
-
-                _pendingVoltages.CopyFrom(voltages);
-                _pendingMessages |= PendingMessage.Voltages;
-            }
-
-            return ScheduleFlush();
-        }
+            => _voltagesPoster.Post(voltages);
 
         public bool PostStateChange(int state, bool force = false)
-        {
-            if (!CanQueueMessages())
-                return false;
+            => _statePoster.Post(new StateChangedMessage(state), force);
 
-            lock (_messageLock)
-            {
-                var alreadyPending = (_pendingMessages & PendingMessage.State) != 0;
-
-                if (!force)
-                {
-                    if (alreadyPending && state == _pendingState)
-                        return false;
-
-                    if (!alreadyPending && _hasLastStateWritten && state == _lastStateWritten)
-                        return false;
-                }
-
-                _pendingState = state;
-                _pendingMessages |= PendingMessage.State;
-                _forceNextStateWrite |= force;
-            }
-
-            return ScheduleFlush();
-        }
-
-        private bool CanQueueMessages()
+        private bool CanPostMessages()
             => !_disposed && _ready && !Control.IsDisposed && Control.IsHandleCreated;
 
-        private bool ScheduleFlush()
-        {
-            if (!CanQueueMessages()) return false;
+        private BufferedPoster<WipersChangedMessage> CreateWipersPoster()
+            => new(
+                Control,
+                CanPostMessages,
+                () => new WipersChangedMessage(),
+                static (target, source) => target.CopyFrom(source),
+                static message => message.IsValid,
+                static message => CalderaJson.CreateWipersChanged(message.Wipers),
+                TryPostJson);
 
-            if (Interlocked.Exchange(ref _flushScheduled, 1) != 0) return true;
+        private BufferedPoster<VoltagesChangedMessage> CreateVoltagesPoster()
+            => new(
+                Control,
+                CanPostMessages,
+                () => new VoltagesChangedMessage(),
+                static (target, source) => target.CopyFrom(source),
+                static message => message.IsValid,
+                static message => CalderaJson.CreateVoltagesChanged(message.Voltages),
+                TryPostJson);
 
-            try { Control.BeginInvoke(_flushInvoker); return true; }
-            catch (InvalidOperationException)
-            {
-                Interlocked.Exchange(ref _flushScheduled, 0);
-                return false;
-            }
-        }
-
-        private void FlushPendingMessages()
-        {
-            Interlocked.Exchange(ref _flushScheduled, 0);
-
-            if (!CanQueueMessages()) return;
-
-            PendingMessage pendingMessages;
-            bool forceWipersWrite;
-            bool forceStateWrite;
-            int stateToSend = 0;
-            lock (_messageLock)
-            {
-                pendingMessages = _pendingMessages;
-                _pendingMessages = PendingMessage.None;
-                forceWipersWrite = (pendingMessages & PendingMessage.Wipers) != 0 && _forceNextWipersWrite;
-                forceStateWrite  = (pendingMessages & PendingMessage.State ) != 0 && _forceNextStateWrite;
-
-                if ((pendingMessages & PendingMessage.Wipers  ) != 0)   _wipersToSend.CopyFrom(_pendingWipers  );
-                if ((pendingMessages & PendingMessage.Voltages) != 0) _voltagesToSend.CopyFrom(_pendingVoltages);
-                if ((pendingMessages & PendingMessage.State   ) != 0)     stateToSend = _pendingState;
-
-                if ((pendingMessages & PendingMessage.Wipers) != 0)
-                    _forceNextWipersWrite = false;
-                if ((pendingMessages & PendingMessage.State) != 0)
-                    _forceNextStateWrite = false;
-            }
-
-            if ((pendingMessages & PendingMessage.State  ) != 0)     SendStateMessage(stateToSend, forceStateWrite);
-
-            if ((pendingMessages & PendingMessage.Wipers)   != 0)   SendWipersMessage(_wipersToSend, forceWipersWrite);
-
-            if ((pendingMessages & PendingMessage.Voltages) != 0) SendVoltagesMessage(_voltagesToSend);
-        }
-
-        private void SendWipersMessage(WipersChangedMessage wipers, bool force = false)
-        {
-            if (!force && wipers.Equals(_lastWipersWritten)) return;
-
-            if (TryPostJson(CalderaJson.CreateWipersChanged(wipers.Wipers)))
-                _lastWipersWritten.CopyFrom(wipers);
-        }
-
-        private void SendVoltagesMessage(VoltagesChangedMessage voltages)
-        {
-            if (voltages.Equals(_lastVoltagesWritten)) return;
-
-            if (TryPostJson(CalderaJson.CreateVoltagesChanged(voltages.Voltages)))
-                _lastVoltagesWritten.CopyFrom(voltages);
-        }
-
-        private void SendStateMessage(int state, bool force = false)
-        {
-            if (!force && _hasLastStateWritten && state == _lastStateWritten) return;
-
-            if (TryPostJson(CalderaJson.CreateStateChanged(state)))
-            {
-                _lastStateWritten = state;
-                _hasLastStateWritten = true;
-            }
-        }
+        private BufferedPoster<StateChangedMessage> CreateStatePoster()
+            => new(
+                Control,
+                CanPostMessages,
+                () => new StateChangedMessage(),
+                static (target, source) => target.CopyFrom(source),
+                static _ => true,
+                static message => CalderaJson.CreateStateChanged(message),
+                TryPostJson);
 
         private bool TryPostJson(string json)
         {
@@ -264,11 +152,22 @@ namespace TeensyMonitor.Caldera
 
             switch (typeElement.GetString())
             {
+                case "ready":
+                    _needsRefresh = true;
+                    if (_lastState >= 0)
+                    {
+                        PostStateChange(_lastState, force: true);
+                        _needsRefresh = false;
+                    }
+                    break;
                 case "getWipers":
                     Scheduler.RequestWipersRefresh();
                     break;
                 case "setWipers":
                     HandleSetWipersMessage(root);
+                    break;
+                case "getState":
+                    HandleGetSateMessage();
                     break;
                 case "setState":
                     HandleSetStateMessage(root);
@@ -306,7 +205,12 @@ namespace TeensyMonitor.Caldera
             Program.serialPort?.Write(xCMD);
         }
 
-        private static void HandleSetStateMessage(JsonElement root)
+        private void HandleGetSateMessage()
+        {
+            PostStateChange(_lastState < 0 ? unchecked((int)HeadState.UNSET) : _lastState);
+        }
+
+        private void HandleSetStateMessage(JsonElement root)
         {
             var message = root.Deserialize<SetStateMessage>();
             if (message == null) return;
@@ -318,6 +222,7 @@ namespace TeensyMonitor.Caldera
             };
 
             Program.serialPort?.Write(xCMD);
+            _lastState = (int)message.State;
         }
 
         private static void HandleSetDebugFlagsMessage(JsonElement root)
@@ -347,8 +252,9 @@ namespace TeensyMonitor.Caldera
             WebView.WebMessageReceived  -= WebView_WebMessageReceived;
             WebView.NavigationCompleted -= WebView_NavigationCompleted;
 
-            lock (_messageLock)
-                _pendingMessages = PendingMessage.None;
+            _wipersPoster.Clear();
+            _voltagesPoster.Clear();
+            _statePoster.Clear();
 
             if (ReferenceEquals(Program.Caldera, this))
                 Program.Caldera = null;

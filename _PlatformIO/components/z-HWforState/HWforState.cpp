@@ -18,18 +18,11 @@ HWforState::HWforState(StateType state) : state(state) {
  
 void HWforState::_update() {
 
+  auto& [_, holdWipers, wipersChanged, inZone] = flags;
+
   sensor1.resetFilter(); // does read and sets lastV;
 
-  if (flags.holdWipers) {
-    if (flags.wipersChanged) {
-      flags.wipersChanged = false;
-      sensor2.resetFilter();
-      flags.lastV = static_cast<double>(sensor2.lastValue());
-    }
-
-    _readSensor2();
-    return;
-  }
+  if (holdWipers) { if (wipersChanged) { wipersChanged = false; sensor2.resetFilter(); } _readSensor2(); return; }
 
   switch (phase) {
     case Phase::SEARCH: _findSignal(); break;
@@ -37,12 +30,11 @@ void HWforState::_update() {
     default: break;
   }
 
-  bool opAmpInZone = flags.inZone && _updateOpAmp();
+  bool opAmpInZone = inZone && _updateOpAmp();
 
-  if (flags.wipersChanged) {
-    flags.wipersChanged = false;
+  if (wipersChanged) {
+    wipersChanged = false;
     sensor2.resetFilter();
-    flags.lastV = static_cast<double>(sensor2.lastValue());
   }
 
   if (!opAmpInZone || sensor2.inZone == false)

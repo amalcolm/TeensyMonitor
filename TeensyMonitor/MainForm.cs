@@ -66,12 +66,12 @@ namespace TeensyMonitor
         {
             if (IsHandleCreated == false) return;
 
-            if (packet is     BlockPacket blockPacket) AddBlockPacket(blockPacket);
-            if (packet is      TextPacket textPacket ) AddTextPacket( textPacket);
-            if (packet is TelemetryPacket telePacket ) AddTelePacket( telePacket);
-
-            if (packet is not DebugPacket _)
-                packet.Cleanup();
+            switch (packet)
+            {
+                case BlockPacket    blockPacket: AddBlockPacket(blockPacket); break;
+                case TextPacket      textPacket:  AddTextPacket( textPacket); break;
+                case TelemetryPacket telePacket:  AddTelePacket( telePacket); break;
+            }
         }
 
         private void AddBlockPacket(BlockPacket blockPacket)

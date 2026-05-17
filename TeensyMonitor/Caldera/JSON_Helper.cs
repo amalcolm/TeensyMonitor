@@ -13,7 +13,6 @@ namespace TeensyMonitor.Caldera
         private const string WipersMid = ",\"mid\":";
         private const string WipersOffset = ",\"offset\":";
         private const string WipersGain = ",\"gain\":";
-        private const string WipersState = ",\"state\":";
 
         private const string VoltagesPrefix = "{\"type\":\"voltagesChanged\",\"voltages\":{\"sensor1\":";
         private const string VoltagesSensor2 = ",\"sensor2\":";
@@ -28,12 +27,11 @@ namespace TeensyMonitor.Caldera
                        + WipersMid.Length + GetIntLength(wipers.Mid)
                        + WipersOffset.Length + GetIntLength(wipers.Offset)
                        + WipersGain.Length + GetIntLength(wipers.Gain)
-                       + WipersState.Length + GetIntLength(wipers.State)
                        + ObjectEnd.Length;
 
             return string.Create(
                 length,
-                (wipers.Top, wipers.Bot, wipers.Mid, wipers.Offset, wipers.Gain, wipers.State),
+                (wipers.Top, wipers.Bot, wipers.Mid, wipers.Offset, wipers.Gain),
                 static (span, state) =>
                 {
                     Append(ref span, WipersPrefix);
@@ -46,8 +44,6 @@ namespace TeensyMonitor.Caldera
                     Append(ref span, state.Offset);
                     Append(ref span, WipersGain);
                     Append(ref span, state.Gain);
-                    Append(ref span, WipersState);
-                    Append(ref span, state.State);
                     Append(ref span, ObjectEnd);
                 });
         }
@@ -71,7 +67,10 @@ namespace TeensyMonitor.Caldera
                 });
         }
 
-        public static string CreateStateChanged(int state)
+        public static string CreateStateChanged(StateChangedMessage message)
+            => CreateStateChanged(message.State);
+
+        private static string CreateStateChanged(int state)
         {
             var length = StateChangedPrefix.Length + GetIntLength(state) + MessageEnd.Length;
 

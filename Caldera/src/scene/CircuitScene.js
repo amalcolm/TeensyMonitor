@@ -1,5 +1,6 @@
 import { DifferentialAmpSensorModel } from "../helpers/DifferentialAmpSensorModel.js";
 import { SensorErrorReadouts } from "../helpers/SensorErrorReadouts.js";
+import { TickSound } from "../helpers/TickSound.js";
 import { DifferentialAmp } from "./shapes/DifferentialAmp.js";
 import { TIA } from "./shapes/TIA.js";
 import { PhotoDiode } from "./shapes/PhotoDiode.js";
@@ -27,6 +28,7 @@ export class CircuitScene {
     this.photoDiode = null;
     this.sensorModel = new DifferentialAmpSensorModel();
     this.sensorErrorReadouts = new SensorErrorReadouts();
+    this.wiperTickSound = new TickSound();
     this.voltageReadoutById = new Map();
     this.wireById = new Map();
     this.wires = [];
@@ -129,6 +131,7 @@ export class CircuitScene {
     event.preventDefault();
     this.dragTarget = dragControl;
     this.dragOffsetY = this.dragTarget.getWiperDragOffset(worldPoint);
+    this.wiperTickSound.init();
     this.notifyManualWiperInput("start");
     this.renderer.setCursor("grabbing");
     window.addEventListener("mousemove", this.handleDragMove);
@@ -177,6 +180,7 @@ export class CircuitScene {
     );
 
     if (this.dragTarget.value !== previousValue) {
+      this.wiperTickSound.play();
       this.notifyManualWiperInput("change");
     }
 
@@ -198,6 +202,7 @@ export class CircuitScene {
     this.dragTarget.snapWiper({ emit: false });
 
     if (this.dragTarget.value !== previousValue) {
+      this.wiperTickSound.play();
       this.notifyManualWiperInput("change");
     }
 
@@ -240,6 +245,7 @@ export class CircuitScene {
     }
 
     this.notifyManualWiperInput("start");
+    this.wiperTickSound.play();
     this.notifyManualWiperInput("change");
     this.notifyManualWiperInput("end");
     this.render();

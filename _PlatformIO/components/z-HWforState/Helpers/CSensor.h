@@ -22,7 +22,7 @@ public:
 
   CRunningAverageMinMax<uint16_t>& getRunningAverage() { return _ra; }
 
-  void resetFilter();
+  double resetFilter();
   void filter(int numSamples, double t);
   float lastV() const { return static_cast<float>(_lastV); }
 

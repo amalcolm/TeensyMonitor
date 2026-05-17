@@ -31,6 +31,12 @@ export class WebView {
     return () => handlers.delete(handler);
   }
 
+  postReady() {
+    return this.postMessage({
+      type: "ready",
+    });
+  }
+
   postSettingsChange(settings) {
     if (!this.hostConfig.postSettingsChanges) {
       return false;

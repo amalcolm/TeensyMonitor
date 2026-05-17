@@ -22,8 +22,7 @@ struct HWforState {
       bool wipersChanged = true;
 
       bool inZone = false;
-      double lastV = 0.0;
-
+      
       void dbg();
     } flags;
 

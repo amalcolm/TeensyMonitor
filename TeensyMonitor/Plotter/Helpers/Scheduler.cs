@@ -99,8 +99,6 @@ namespace TeensyMonitor.Plotter.Helpers
 
         private static readonly WipersChangedMessage     lastWipersChangeSent   = new();
         private static readonly VoltagesChangedMessage lastVoltagesChangeSent   = new();
-        private static bool hasLastStateChangeSent;
-        private static int  lastStateChangeSent;
         private static int  forceNextWipersPost;
 
         private static readonly double PostIntervalMs = 50.0;
@@ -136,17 +134,6 @@ namespace TeensyMonitor.Plotter.Helpers
             
             WipersChangedMessage     wipersChange = activeChart.  LastWipersChange;
             VoltagesChangedMessage voltagesChange = activeChart.LastVoltagesChange;
-
-            if (wipersChange?.Wipers?.IsValid == true)
-            {
-                int stateChange = wipersChange.Wipers.State;
-                if (forceWipers || !hasLastStateChangeSent || stateChange != lastStateChangeSent)
-                    if (caldera.PostStateChange(stateChange, forceWipers))
-                    {
-                        lastStateChangeSent = stateChange;
-                        hasLastStateChangeSent = true;
-                    }
-            }
 
             if (wipersChange != null && (forceWipers || wipersChange.IsValid))
                 if (forceWipers || !wipersChange.Equals(lastWipersChangeSent))

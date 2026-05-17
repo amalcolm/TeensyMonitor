@@ -44,6 +44,9 @@ namespace PsycSerial
                 Debug::WriteLine(String::Format("DataEventRaiser::Raise Exception: {0}", ex->Message));
                 Debug::WriteLine(ex->StackTrace);
             }
+            finally {
+				m_packet->Cleanup(); // Ensure packet cleanup after event is raised, even if handler throws
+            }
                 
         }
     };
