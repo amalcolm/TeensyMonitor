@@ -22,9 +22,12 @@ void HWforState::_update() {
 
   if (flags.holdWipers) { _readSensor2(); return; }
 
+  if (sensor1.inZone == false) phase = Phase::SEARCH;
+
   switch (phase) {
-    case Phase::SEARCH: _findSignal(); break;
-    case Phase::NORMAL: _fineTuning(); break;
+    case Phase::SEARCH:   _findSignal(); break;
+    case Phase::FINETUNE: _fineTuning(); break;
+    case Phase::NORMAL:   break;
     default: break;
   }
 

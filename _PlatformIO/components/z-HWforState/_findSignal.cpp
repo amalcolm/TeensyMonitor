@@ -11,6 +11,8 @@ void HWforState::_findSignal()
   top.setLevel(CDigiPot::POT_MAX);
   bot.setLevel(CDigiPot::POT_MIN);
   mid.setLevel(midLevel);
+  offset.reset(152); // 1.65V 
+  gain.reset(32);
 
   delayMicroseconds(10);
 
@@ -96,7 +98,5 @@ void HWforState::_findSignal()
     sensor1.read();
   }
 
-  phase = Phase::NORMAL;
-  offset.reset(128);
-  gain.reset(0);
+  phase = Phase::FINETUNE;
 }

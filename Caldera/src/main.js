@@ -92,6 +92,17 @@ document.querySelector("#app").innerHTML = `
             </div>
           `).join("")}
         </div>
+        <label class="state-panel__auto-freeze">
+          <input
+            class="state-panel__auto-freeze-input"
+            type="checkbox"
+            aria-label="Auto freeze wipers when LED buttons change state"
+            data-state-freeze-wipers-on-change
+            ${storedSettings?.stateControl?.freezeWipersOnLedChange === false ? "" : "checked"}
+          />
+          <span class="state-panel__auto-freeze-box" aria-hidden="true"></span>
+          <span class="state-panel__auto-freeze-label">Auto freeze</span>
+        </label>
       </div>
       <div class="webview-freeze-controls">
         <button
@@ -160,6 +171,7 @@ const sceneRoot = document.querySelector("[data-scene]");
 const freezeWipersButton = document.querySelector("[data-webview-freeze-wipers]");
 const freezeVoltagesButton = document.querySelector("[data-webview-freeze-voltages]");
 const stateButtons = document.querySelectorAll("[data-state-toggle]");
+const stateFreezeWipersInput = document.querySelector("[data-state-freeze-wipers-on-change]");
 const debugFlagInputs = document.querySelectorAll("[data-debug-flag]");
 const debugFlagsStatus = document.querySelector("[data-debug-flags-status]");
 const debugLoadSettingsButton = document.querySelector("[data-debug-load-settings]");
@@ -198,6 +210,9 @@ const freezeVoltages = new FreezeVoltages({
 const stateControl = new StateControl({
   buttons: stateButtons,
   freezeWipers,
+  freezeWipersOnLedChangeInput: stateFreezeWipersInput,
+  initialFreezeWipersOnLedChange: storedSettings?.stateControl?.freezeWipersOnLedChange !== false,
+  onSettingsChange: () => saveStoredSettings(),
   webView,
 });
 new DebugFlagsControl({
@@ -293,6 +308,7 @@ function saveStoredSettings(settings = circuitScene.getSettings()) {
   const storedSettings = {
     ...sceneSettings,
     freezeWipers: freezeWipers.getSettings(),
+    stateControl: stateControl.getSettings(),
   };
 
   try {

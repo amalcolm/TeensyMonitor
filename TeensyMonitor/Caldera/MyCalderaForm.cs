@@ -20,8 +20,9 @@ namespace TeensyMonitor.Caldera
 
                 case "PSYC-ANDREW":
                     this.StartPosition = FormStartPosition.Manual;
-                    this.Location = new Point(4090, 100);
-                    this.WindowState = FormWindowState.Maximized;
+                    this.Location = new Point(2800, 0);
+                    this.Size = new Size(2560, 2160);
+                    this.WindowState = FormWindowState.Normal;
                     break;
             }
         }

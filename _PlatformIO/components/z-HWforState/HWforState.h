@@ -6,7 +6,7 @@
 
 struct HWforState {
   private:
-    enum class Phase { SEARCH = 0, NORMAL = 1, placeholder = 255} phase = Phase::placeholder;
+    enum class Phase { SEARCH = 0, FINETUNE = 1, NORMAL = 2, placeholder = 255} phase = Phase::placeholder;
 
     static constexpr int HISTORY_SIZE =  4;
     static constexpr int GAP_TOPBOT   = 12;

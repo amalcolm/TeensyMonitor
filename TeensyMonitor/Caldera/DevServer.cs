@@ -57,6 +57,16 @@ namespace TeensyMonitor.Caldera
                 "vite.js");
 
             if (!File.Exists(viteJs))
+                viteJs = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    "npm",
+                    "node_modules",
+                    "vite",
+                    "dist",
+                    "bin",
+                    "vite.js");
+
+            if (!File.Exists(viteJs))
                 throw new FileNotFoundException("Could not find Vite. Has npm install been run?", viteJs);
 
             var psi = new ProcessStartInfo

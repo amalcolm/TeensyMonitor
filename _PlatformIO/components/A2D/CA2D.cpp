@@ -96,7 +96,7 @@ bool CA2D::storeNewData() {
   if (CFG::ADS1299_USE_24BIT)
     readADS1299(data);
   else
-    setDebugData(data);
+    data.fillFromHardware(*HW, false);
   
   if (m_mode == ModeType::CONTINUOUS) data.stateTime = m_dataStateTime;
 
@@ -106,31 +106,6 @@ bool CA2D::storeNewData() {
 }
 
 
-
-void CA2D::setDebugData(DataType& data) {
-  static uint8_t sequenceNumber = 0;
- 
-  auto& hw = *getHWforState(data);
-  
-  uint32_t hi32 =
-    ((hw.mid.getLevel() & 0xFFu) << 24) |
-    ((hw.top.getLevel() & 0xFFu) << 16) |
-    ((hw.bot.getLevel() & 0xFFu) <<  8) |
-    ((++sequenceNumber)  & 0xFFu);
-
-uint32_t lo32 =
-    ((hw.offset.getLevel() & 0xFFu) << 24) |
-    ((hw.gain  .getLevel() & 0xFFu) << 16) |
-    0xFFFFu;
-
-  data.hardwareState = (uint64_t(hi32) << 32) | uint64_t(lo32);
-
-  data.sensorState = (hw.sensor1.lastValue() << 16) |
-                      hw.sensor2.lastValue();
-
-  data.sensor1 = hw.sensor1.lastV();
-  data.sensor2 = hw.sensor2.lastV();
-}
 
 
 uint8_t CA2D::getConfig1() const {

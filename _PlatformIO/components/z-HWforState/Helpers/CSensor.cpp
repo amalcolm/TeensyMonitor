@@ -41,7 +41,7 @@ uint16_t CSensor::read(int samplesToAverage) {  if (_pin < 0) return 0; // No se
 
 
 CSensor::Zone CSensor::_updateZone() {
- static constexpr int       DEADZONE = 64;
+ static constexpr int       DEADZONE = 128;
 
  static constexpr int  LOW_THRESHOLD =        DEADZONE;
  static constexpr int HIGH_THRESHOLD = 1023 - DEADZONE;

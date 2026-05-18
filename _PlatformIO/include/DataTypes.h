@@ -33,7 +33,7 @@ struct DataType {
   void debugSerial();
   inline void clear() { *this = DataType(); }
 
-  void fillFromHardware(struct HWforState& HW);
+  void fillFromHardware(struct HWforState& HW, bool setTimestamp = true);
 };
 
 struct BlockType {

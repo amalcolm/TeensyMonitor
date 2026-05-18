@@ -56,7 +56,6 @@ class CA2D {
     static void onSpiDmaComplete(EventResponderRef);
     static inline volatile bool s_dmaActive = false;        // true while DMA SPI in progress
     
-    void setDebugData(DataType& data);
     uint8_t getConfig1() const;
 
     volatile bool       m_dataReady = false;

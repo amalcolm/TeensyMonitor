@@ -46,12 +46,14 @@ void DataType::writeSerial(bool includeFrameMarkers) {
   if (includeFrameMarkers) USB.write(FRAME_END);
 }
 
-void DataType::fillFromHardware(struct HWforState& HW) {
+void DataType::fillFromHardware(struct HWforState& HW, bool setTimestamp) {
   static uint8_t seq = 0;
   state = HW.state;
 
-  timestamp = Timer.getConnectTime();
-  stateTime = Timer.getStateTime();
+  if (setTimestamp) {
+    timestamp = Timer.getConnectTime();
+    stateTime = Timer.getStateTime();
+  }
 
   hardwareState =
     (uint64_t(HW.mid   .getLevel() & 0xFFu) << 56) |
@@ -66,8 +68,10 @@ void DataType::fillFromHardware(struct HWforState& HW) {
     (uint32_t(HW.sensor1.lastValue()) << 16) |
      uint32_t(HW.sensor2.lastValue());
 
-  sensor1 = HW.sensor1.lastV();
-  sensor2 = HW.sensor2.lastV();
+  float sv1 = HW.sensor1.lastV(); if (sv1 < 0) sv1 = static_cast<float>(analogRead(HW.sensor1.getPin()));
+  float sv2 = HW.sensor2.lastV(); if (sv2 < 0) sv2 = static_cast<float>(analogRead(HW.sensor2.getPin()));   
+  sensor1 = sv1;
+  sensor2 = sv2;
 
   memset(&channels[0], 0, CHANNELS_BYTESIZE);
 }

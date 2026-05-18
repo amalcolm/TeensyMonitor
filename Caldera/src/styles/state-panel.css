@@ -37,6 +37,77 @@
   cursor: pointer;
 }
 
+.state-panel__auto-freeze {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 7px;
+  min-height: 30px;
+  border: 1px solid #444b55;
+  border-radius: 30px;
+  padding: 5px 10px 5px 8px;
+  color: rgb(255 255 255 / 62%);
+  background: #4b6252;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 16%);
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.state-panel__auto-freeze:hover {
+  color: rgb(255 255 255 / 78%);
+  background: #48515c;
+}
+
+.state-panel__auto-freeze-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.state-panel__auto-freeze-box {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
+  background: rgb(16 23 32 / 34%);
+}
+
+.state-panel__auto-freeze-box::after {
+  width: 8px;
+  height: 5px;
+  border-bottom: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  opacity: 0;
+  content: "";
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+.state-panel__auto-freeze-input:checked + .state-panel__auto-freeze-box {
+  border-color: var(--control-warning);
+  background: var(--control-warning);
+}
+
+.state-panel__auto-freeze-input:checked + .state-panel__auto-freeze-box::after {
+  opacity: 1;
+}
+
+.state-panel__auto-freeze-input:focus-visible + .state-panel__auto-freeze-box {
+  outline: 2px solid rgb(255 255 255 / 55%);
+  outline-offset: 2px;
+}
+
+.state-panel__auto-freeze-label {
+  font-weight: 700;
+}
+
 .state-panel__button:hover {
   color: rgb(255 255 255 / 68%);
   background: #48515c;

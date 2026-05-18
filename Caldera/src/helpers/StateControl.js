@@ -16,9 +16,19 @@ const RED_ACTIVE_CLASS = "state-panel__button--red-active";
 const IR_ACTIVE_CLASS = "state-panel__button--ir-active";
 
 export class StateControl {
-  constructor({ buttons, freezeWipers, webView }) {
+  constructor({
+    buttons,
+    freezeWipers,
+    freezeWipersOnLedChangeInput = null,
+    initialFreezeWipersOnLedChange = true,
+    onSettingsChange = null,
+    webView,
+  }) {
     this.buttons = Array.from(buttons ?? []);
     this.freezeWipers = freezeWipers;
+    this.freezeWipersOnLedChangeInput = freezeWipersOnLedChangeInput;
+    this.freezeWipersOnLedChange = initialFreezeWipersOnLedChange !== false;
+    this.onSettingsChange = onSettingsChange;
     this.webView = webView;
     this.activeById = new Map(this.buttons.map((button) => [button.dataset.stateToggle, false]));
     this.lastHostState = null;
@@ -30,13 +40,22 @@ export class StateControl {
       ));
     });
 
+    this.freezeWipersOnLedChangeInput?.addEventListener("change", () => {
+      this.freezeWipersOnLedChange = this.freezeWipersOnLedChangeInput.checked;
+      this.updateFreezeWipersOnLedChangeInput();
+      this.onSettingsChange?.();
+    });
+
     this.updateButtons();
+    this.updateFreezeWipersOnLedChangeInput();
   }
 
   handleManualToggle(id, event = null) {
     event?.preventDefault();
     event?.currentTarget?.blur?.();
-    this.sendHoldState(this.getToggledState(id));
+    this.sendHoldState(this.getToggledState(id), {
+      freezeWipers: this.freezeWipersOnLedChange,
+    });
   }
 
   applyHostState(state) {
@@ -77,12 +96,17 @@ export class StateControl {
     return this.sendHoldState(state);
   }
 
-  sendHoldState(state = this.getState()) {
+  sendHoldState(state = this.getState(), { freezeWipers = true } = {}) {
     const holdState = normaliseState(state) ?? 0;
+    const shouldFreezeWipers = freezeWipers === true;
+    const shouldHoldWipers = shouldFreezeWipers || this.freezeWipers.frozen;
 
-    this.freezeWipers.setFrozen(true);
+    if (shouldFreezeWipers) {
+      this.freezeWipers.setFrozen(true);
+    }
+
     const posted = this.webView.postSetState({
-      flags: COMMAND_FLAGS.HOLD_WIPERS,
+      flags: shouldHoldWipers ? COMMAND_FLAGS.HOLD_WIPERS : COMMAND_FLAGS.NONE,
       state: holdState,
     });
 
@@ -105,6 +129,12 @@ export class StateControl {
 
   getLastHostState() {
     return this.lastHostState;
+  }
+
+  getSettings() {
+    return {
+      freezeWipersOnLedChange: this.freezeWipersOnLedChange,
+    };
   }
 
   getToggledState(id) {
@@ -132,6 +162,14 @@ export class StateControl {
         isActive && button.dataset.stateKind === "ir",
       );
     });
+  }
+
+  updateFreezeWipersOnLedChangeInput() {
+    if (!this.freezeWipersOnLedChangeInput) {
+      return;
+    }
+
+    this.freezeWipersOnLedChangeInput.checked = this.freezeWipersOnLedChange;
   }
 }
 

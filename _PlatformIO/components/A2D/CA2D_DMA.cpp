@@ -3,6 +3,7 @@
 #include "CUSB.h"
 #include "CHead.h"
 #include "Helpers.h"
+#include "HWforState.h"
 
 // buffers for DMA SPI transfers - must be 32-byte aligned for cache management on Teensy 4.x
 alignas(32) uint8_t m_rxBuffer[32];
@@ -35,7 +36,7 @@ DataType CA2D::readADS1299(DataType &data) {
 
   SPI.transfer(m_txBuffer, m_rxBuffer, 27, s_spiEvent);
 
-  setDebugData(data);
+  data.fillFromHardware(*HW, false); 
 
   while (s_dmaActive) yield(); // wait for DMA complete (CS.A2D raised in callback)
 
