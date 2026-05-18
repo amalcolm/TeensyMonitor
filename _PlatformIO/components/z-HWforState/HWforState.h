@@ -38,6 +38,7 @@ struct HWforState {
     CSensor        sensor2{SP.Final};
     
     void begin(); // ensure hardware is configured
+
     // update hardware instances based on current sensor readings, and write to hardware if needed
     void update() { if (!Ready) return; else if (!flags.begun) begin();
 
@@ -58,7 +59,6 @@ struct HWforState {
 
   private:
     void _update(); 
-    bool _updateOpAmp();
     void _readSensor2();
     void _findSignal();
     void _fineTuning();

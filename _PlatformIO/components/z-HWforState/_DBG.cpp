@@ -16,12 +16,15 @@ bool setKnownConfig(int cfg);
 
 int count = 0;
 int offsets[3] = {-1, 0, +1};
-int baseValue = 0;
+uint8_t _staticBaseValue = 128;
+
 void HWforState::HWflags::dbg() {
 
   auto& [_, started, startTime, markTime, toggle] = getDBGflags(HW->state);
 
   if (startTime < 0.0) { if (HW->sensor2.inZone)  startTime = Timer.getConnectTime(); else return; }
+
+  uint8_t baseValue = CFG::hasDebugByte() ? CFG::getDebugByte() : _staticBaseValue;
 
   double now = Timer.getConnectTime() - startTime;
 
@@ -44,6 +47,33 @@ void HWforState::HWflags::dbg() {
 }
 
   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

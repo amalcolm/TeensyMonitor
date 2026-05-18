@@ -18,11 +18,9 @@ HWforState::HWforState(StateType state) : state(state) {
  
 void HWforState::_update() {
 
-  auto& [_, holdWipers, wipersChanged, inZone] = flags;
+  sensor1.resetFilter(); // does read and sets lastV=lastSensorValue;
 
-  sensor1.resetFilter(); // does read and sets lastV;
-
-  if (holdWipers) { if (wipersChanged) { wipersChanged = false; sensor2.resetFilter(); } _readSensor2(); return; }
+  if (flags.holdWipers) { _readSensor2(); return; }
 
   switch (phase) {
     case Phase::SEARCH: _findSignal(); break;
@@ -30,40 +28,10 @@ void HWforState::_update() {
     default: break;
   }
 
-  bool opAmpInZone = inZone && _updateOpAmp();
-
-  if (wipersChanged) {
-    wipersChanged = false;
-    sensor2.resetFilter();
-  }
-
-  if (!opAmpInZone || sensor2.inZone == false)
-    return;
-
 
   _readSensor2();
+  if (sensor2.inZone == false) return;
 
-}
-
-
-bool HWforState::_updateOpAmp() {
-  sensor2.read();
-
-  if (sensor2.inZone == false)
-    return false;
-
-  sensor2.read();
-
-  bool boostSignal = sensor2.lastValue() >= CSensor::MIDPOINT - GAIN_WINDOW_SIZE
-                  && sensor2.lastValue() <= CSensor::MIDPOINT + GAIN_WINDOW_SIZE;
-
-  if (sensor2.zone != Zone::inZone)
-    gain.offsetLevel(-1);
-  else
-  if (boostSignal)
-    gain.offsetLevel(+1);
-
-  return sensor2.inZone;
 }
 
 

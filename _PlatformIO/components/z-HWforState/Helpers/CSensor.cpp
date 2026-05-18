@@ -1,4 +1,5 @@
 #include "CSensor.h"
+#include "HWforState.h"
 #include <Arduino.h>
 
 CSensor::CSensor(int pin): _pin(pin) {}
@@ -68,16 +69,28 @@ void CSensor::filter(int numSamples, double t) {
   double tInv = 1.0 - t;
   int sensor = getPin();
 
+  if (HW->flags.wipersChanged) { _lastV = -1; HW->flags.wipersChanged = false; }
+  
+  read(); // update _lastValue and zone
+  if (inZone == false) {_lastV = -1; return; }
+   
+  uint16_t rawValue = _inverted ? 1023 - _lastValue : _lastValue;
 
+  if (numSamples <= 1) {
+    if (_lastV < 0)
+      _lastV = static_cast<double>(rawValue);
+    else
+      _lastV = t * static_cast<double>(rawValue) + tInv * _lastV;
+    
+    return;
+  }
 
-  double v = _lastV < 0 ? static_cast<double>(analogRead(sensor)) : _lastV; 
+  _lastV = _lastV < 0 ? static_cast<double>(_lastValue) : _lastV; 
 
-  for (int i = 0; i < numSamples; ++i)
-    v = t * static_cast<double>(analogRead(sensor)) + tInv * v;
+  for (int i = 1; i < numSamples; ++i)
+    _lastV = t * static_cast<double>(analogRead(sensor)) + tInv * _lastV;
 
-  _lastV = v;
-
-  uint16_t quantised = static_cast<uint16_t>(v);
+  uint16_t quantised = static_cast<uint16_t>(_lastV + 0.5); 
   _lastValue = _inverted ? 1023 - quantised : quantised;
 
   _updateZone();

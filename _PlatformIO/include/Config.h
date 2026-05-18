@@ -34,6 +34,8 @@ public:
 
     inline static uint32_t debugFlags = 0; // bitfield for various debug options, set via USB command
     inline static bool hasDebugFlag(uint32_t flag) { return (debugFlags & flag) != 0; }
+    inline static bool hasDebugByte() { return (debugFlags & 0x8000) != 0; }
+    inline static uint8_t getDebugByte() { return (debugFlags >> 16) & 0xFF; }
 
 };
 
