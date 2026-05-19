@@ -21,10 +21,12 @@ export class PoweredDigipot extends Shape {
     color = COMPONENT_BLUE,
     digipotResistance = DEFAULT_DIGIPOT_RESISTANCE,
     groundResistance = DEFAULT_RAIL_RESISTANCE,
+    groundSecondaryLabel = null,
     label = "",
     model = null,
     position = [0, 0, 0],
     supplyResistance = DEFAULT_RAIL_RESISTANCE,
+    supplySecondaryLabel = null,
     voltage = SUPPLY_VOLTAGE,
   } = {}) {
     super({ name: "PoweredDigipot", position });
@@ -50,12 +52,14 @@ export class PoweredDigipot extends Shape {
       color,
       resistance: supplyResistance,
       position: [RAIL_RESISTOR_X, SUPPLY_Y, 0],
+      secondaryLabel: supplySecondaryLabel,
     });
     this.groundResistor = this.makeRailResistor({
       color,
       labelPosition: "bottom",
       resistance: groundResistance,
       position: [RAIL_RESISTOR_X, GROUND_NODE_Y, 0],
+      secondaryLabel: groundSecondaryLabel,
     });
 
     const leftStandoffRoute = ({ end, start }) => {
@@ -106,7 +110,7 @@ export class PoweredDigipot extends Shape {
     this.digipot.evaluateVoltage();
   }
 
-  makeRailResistor({ color, labelPosition = "top", position, resistance }) {
+  makeRailResistor({ color, labelPosition = "top", position, resistance, secondaryLabel }) {
     if (!isPresentResistance(resistance)) {
       return null;
     }
@@ -116,6 +120,7 @@ export class PoweredDigipot extends Shape {
       inputSide: "right",
       labelPosition,
       position,
+      secondaryLabel,
       value: resistance,
     });
 

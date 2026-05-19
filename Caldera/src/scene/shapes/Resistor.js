@@ -1,4 +1,4 @@
-import { COMPONENT_BLUE, COMPONENT_STROKE_WIDTH, makeLine } from "../drawing.js";
+import { CALIBRATED_RED, COMPONENT_BLUE, COMPONENT_STROKE_WIDTH, makeLine } from "../drawing.js";
 import { isKnownVoltage } from "../voltage.js";
 import { Shape } from "./Shape.js";
 import { TextLabel } from "./TextLabel.js";
@@ -12,6 +12,8 @@ export class Resistor extends Shape {
     label = null,
     labelPosition = "bottom",
     position = [0, 0, 0],
+    secondaryLabel = null,
+    secondaryLabelColor = CALIBRATED_RED,
     value = 1000,
   } = {}) {
     super({ name: "Resistor", position });
@@ -57,6 +59,16 @@ export class Resistor extends Shape {
       width: 0.62,
     });
     this.add(this.valueLabel);
+
+    if (secondaryLabel) {
+      this.secondaryValueLabel = new TextLabel(secondaryLabel, {
+        color: secondaryLabelColor,
+        height: 0.16,
+        position: [0, this.labelPosition === "bottom" ? -0.39 : -0.2, 0],
+        width: 0.62,
+      });
+      this.add(this.secondaryValueLabel);
+    }
   }
 
   setResistance(value) {

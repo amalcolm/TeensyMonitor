@@ -2,6 +2,7 @@ import * as THREE from "three";
 
 export const INK = 0x1f2328;
 export const COMPONENT_BLUE = 0x123175;
+export const CALIBRATED_RED = 0xb4232a;
 export const COMPONENT_STROKE_WIDTH = 0.018;
 
 export function makeLine(points, { color = INK, width = 0 } = {}) {

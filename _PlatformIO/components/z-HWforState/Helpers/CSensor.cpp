@@ -65,24 +65,24 @@ double CSensor::resetFilter() {
 
 
 
-void CSensor::filter(int numSamples, double t) {
+float CSensor::filter(int numSamples, double t) {
   double tInv = 1.0 - t;
   int sensor = getPin();
 
   if (HW->flags.wipersChanged) { _lastV = -1; HW->flags.wipersChanged = false; }
   
   read(); // update _lastValue and zone
-  if (inZone == false) {_lastV = -1; return; }
+  if (inZone == false) {_lastV = -1; return -1; }
    
   uint16_t rawValue = _inverted ? 1023 - _lastValue : _lastValue;
 
   if (numSamples <= 1) {
     if (_lastV < 0)
-      _lastV = static_cast<double>(rawValue);
+      _lastV =     static_cast<double>(rawValue);
     else
       _lastV = t * static_cast<double>(rawValue) + tInv * _lastV;
     
-    return;
+    return static_cast<float>(_lastV);
   }
 
   _lastV = _lastV < 0 ? static_cast<double>(_lastValue) : _lastV; 
@@ -94,4 +94,5 @@ void CSensor::filter(int numSamples, double t) {
   _lastValue = _inverted ? 1023 - quantised : quantised;
 
   _updateZone();
+  return static_cast<float>(_lastV);
 }

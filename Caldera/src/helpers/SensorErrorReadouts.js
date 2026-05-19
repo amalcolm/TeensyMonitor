@@ -29,10 +29,18 @@ export class SensorErrorReadouts {
     return [this.getX(baseX, value), y, z];
   }
 
-  setVoltage(id, voltage, { predictedVoltage } = {}) {
+  setVoltage(id, voltage, {
+    measuredVoltage,
+    predictedVoltage,
+    sourceVoltage,
+  } = {}) {
     const readout = this.readoutById.get(id);
     const baseX = this.baseXById.get(id);
-    const displayVoltage = getPrintableErrorVoltage(voltage, predictedVoltage);
+    const displayVoltage = getPrintableErrorVoltage(voltage, {
+      measuredVoltage,
+      predictedVoltage,
+      sourceVoltage,
+    });
 
     if (!readout) {
       return;
@@ -64,10 +72,30 @@ export class SensorErrorReadouts {
   }
 }
 
-function getPrintableErrorVoltage(errorVoltage, predictedVoltage) {
-  if (predictedVoltage !== undefined && !isValidSensorVoltage(predictedVoltage)) {
+function getPrintableErrorVoltage(errorVoltage, {
+  measuredVoltage,
+  predictedVoltage,
+  sourceVoltage,
+} = {}) {
+  if (!isKnownVoltage(errorVoltage)) {
+    return null;
+  }
+
+  if (!isPrintableSensorVoltage(predictedVoltage)) {
+    return null;
+  }
+
+  if (!isPrintableSensorVoltage(measuredVoltage)) {
+    return null;
+  }
+
+  if (!isPrintableSensorVoltage(sourceVoltage)) {
     return null;
   }
 
   return errorVoltage;
+}
+
+function isPrintableSensorVoltage(voltage) {
+  return voltage === undefined || isValidSensorVoltage(voltage);
 }

@@ -25,20 +25,20 @@ void HWforState::_update() {
   if (sensor1.inZone == false) phase = Phase::SEARCH;
 
   switch (phase) {
-    case Phase::SEARCH:   _findSignal(); break;
-    case Phase::FINETUNE: _fineTuning(); break;
-    case Phase::NORMAL:   break;
+    case Phase::SEARCH :    _findSignal(); break;
+    case Phase::ZOOM   :    _zoomSignal(); break;
+    case Phase::MEASURE: _measureSignal(); break;
+    case Phase::FOLLOW :  _followSignal(); break;
     default: break;
   }
 
-
   _readSensor2();
-  if (sensor2.inZone == false) return;
-
+  
 }
 
 
-void HWforState::_readSensor2() {
+void HWforState::_readSensor2() {  if (Timer.sampleReady) return;
+  
   if (Timer.getStateTime() > 0.001) {
     sensor2.filter(SAMPLES_IN_LONGREAD, 0.002);
     Timer.sampleReady = true;
@@ -82,16 +82,16 @@ void HWforState::set() {
 
 
 void HWforState::setWipers(XCMD_SetWipers& cmd) {
-      bool holdRequested = hasFlag(cmd.header.flags, CommandFlags::HoldWipers);
+  bool holdRequested = hasFlag(cmd.header.flags, CommandFlags::HoldWipers);
 
-      if (!holdRequested && cmd.top == 0 && cmd.bot == 0) { // release hold
-        flags.holdWipers = false;
-        return;
-      }
+  if (!holdRequested && cmd.top == 0 && cmd.bot == 0) { // release hold
+    flags.holdWipers = false;
+    return;
+  }
 
-      top   .setLevel(cmd.top);
-      bot   .setLevel(cmd.bot);
-      mid   .setLevel(cmd.mid);
-      offset.setLevel(cmd.offset);
-      gain  .setLevel(cmd.gain);
-    }
+  top   .setLevel(cmd.top);
+  bot   .setLevel(cmd.bot);
+  mid   .setLevel(cmd.mid);
+  offset.setLevel(cmd.offset);
+  gain  .setLevel(cmd.gain);
+}

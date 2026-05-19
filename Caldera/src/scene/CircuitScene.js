@@ -1,6 +1,7 @@
 import { DifferentialAmpSensorModel } from "../helpers/DifferentialAmpSensorModel.js";
 import { SensorErrorReadouts } from "../helpers/SensorErrorReadouts.js";
 import { TickSound } from "../helpers/TickSound.js";
+import { CALIBRATED_RED } from "./drawing.js";
 import { DifferentialAmp } from "./shapes/DifferentialAmp.js";
 import { TIA } from "./shapes/TIA.js";
 import { PhotoDiode } from "./shapes/PhotoDiode.js";
@@ -337,18 +338,29 @@ export class CircuitScene {
 
   applyModelVoltageOverrides() {
     const sensorModelErrorReadings = this.sensorModel.getSensorErrorReadings(this.model);
+    const circuitMathErrorReadings = this.sensorModel.getCircuitMathErrorReadings(this.model);
 
     this.setReadoutVoltage("sensor1", this.model.sensor1Voltage);
     this.setReadoutVoltage("sensor2", this.model.sensor2Voltage);
     this.sensorErrorReadouts.setVoltage(
       "sensor1Error",
       sensorModelErrorReadings.sensor1.errorVoltage,
-      { predictedVoltage: sensorModelErrorReadings.sensor1.predictedVoltage },
+      sensorModelErrorReadings.sensor1,
     );
     this.sensorErrorReadouts.setVoltage(
       "sensor2Error",
       sensorModelErrorReadings.sensor2.errorVoltage,
-      { predictedVoltage: sensorModelErrorReadings.sensor2.predictedVoltage },
+      sensorModelErrorReadings.sensor2,
+    );
+    this.sensorErrorReadouts.setVoltage(
+      "sensor1CircuitError",
+      circuitMathErrorReadings.sensor1.errorVoltage,
+      circuitMathErrorReadings.sensor1,
+    );
+    this.sensorErrorReadouts.setVoltage(
+      "sensor2CircuitError",
+      circuitMathErrorReadings.sensor2.errorVoltage,
+      circuitMathErrorReadings.sensor2,
     );
     this.applyDifferentialAmpModelVoltages();
   }
@@ -434,16 +446,20 @@ export class CircuitScene {
     const tia = this.add(new TIA({ multiplier: 200, position: [-1.6, 0.605, 0] }));
 
     const offsetPot = this.add(new PoweredDigipot({
+      groundSecondaryLabel: "68K2",
       groundResistance: "79K6",
       label: "offset",
       model: this.model.offset,
       position: [0.5, -2.1, 0],
+      supplySecondaryLabel: "63K1",
       supplyResistance: "80K6",
     }));
     const differentialAmp = this.add(new DifferentialAmp({
-      feedbackResistance: "10.0K",
+      feedbackResistance: "100K",
+      fixedFeedbackSecondaryLabel: "1K81",
       multiplier: 1,
       position: [3.0, 0.0, 0],
+      sourceSecondaryLabel: "991R",
       sourceResistance: "1.0K",
     }));
     this.differentialAmp = differentialAmp;
@@ -456,18 +472,40 @@ export class CircuitScene {
       formatValue: this.sensorErrorReadouts.formatSignedVoltage,
       position: this.sensorErrorReadouts.getPosition(sensor1ErrorReadoutX, 0.3),
     }));
+    const sensor1CircuitErrorReadout = this.add(new VoltageReadout({
+      color: CALIBRATED_RED,
+      formatValue: this.sensorErrorReadouts.formatSignedVoltage,
+      position: this.sensorErrorReadouts.getPosition(sensor1ErrorReadoutX, 0.05),
+    }));
     const sensor2Readout = this.add(new VoltageReadout({ position: [5.2, 0.0, 0] }));
     const sensor2ErrorReadout = this.add(new VoltageReadout({
       formatValue: this.sensorErrorReadouts.formatSignedVoltage,
       position: this.sensorErrorReadouts.getPosition(sensor2ErrorReadoutX, -0.45),
     }));
+    const sensor2CircuitErrorReadout = this.add(new VoltageReadout({
+      color: CALIBRATED_RED,
+      formatValue: this.sensorErrorReadouts.formatSignedVoltage,
+      position: this.sensorErrorReadouts.getPosition(sensor2ErrorReadoutX, -0.7),
+    }));
     this.sensorErrorReadouts.register("sensor1Error", sensor1ErrorReadout, sensor1ErrorReadoutX);
     this.sensorErrorReadouts.register("sensor2Error", sensor2ErrorReadout, sensor2ErrorReadoutX);
+    this.sensorErrorReadouts.register(
+      "sensor1CircuitError",
+      sensor1CircuitErrorReadout,
+      sensor1ErrorReadoutX,
+    );
+    this.sensorErrorReadouts.register(
+      "sensor2CircuitError",
+      sensor2CircuitErrorReadout,
+      sensor2ErrorReadoutX,
+    );
     this.voltageReadoutById = new Map([
       ["sensor1", sensor1Readout],
       ["sensor1Error", sensor1ErrorReadout],
+      ["sensor1CircuitError", sensor1CircuitErrorReadout],
       ["sensor2", sensor2Readout],
       ["sensor2Error", sensor2ErrorReadout],
+      ["sensor2CircuitError", sensor2CircuitErrorReadout],
     ]);
 
     this.controlById = new Map([

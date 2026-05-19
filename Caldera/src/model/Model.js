@@ -1,21 +1,10 @@
-import { DigiPot, Slider, DIGIPOT_RESISTANCE_OHMS, getPoweredDigipotTerminalVoltages } from "./components/DigiPot.js";
+import { DigiPot, Slider, getPoweredDigipotTerminalVoltages } from "./components/DigiPot.js";
+import { Constants } from "./Constants.js";
 import { DifferentialAmp } from "./components/DifferentialAmp.js";
-import { GROUND_VOLTAGE, SUPPLY_VOLTAGE, isValidSensorVoltage } from "./voltage.js";
+import { isValidSensorVoltage } from "./voltage.js";
 
-const THREE_POT_RAILS = Object.freeze({
-  digipotResistanceOhms: DIGIPOT_RESISTANCE_OHMS,
-  groundResistanceOhms: 0,
-  groundVoltage: GROUND_VOLTAGE,
-  supplyResistanceOhms: 22000,
-  supplyVoltage: SUPPLY_VOLTAGE,
-});
-export const OFFSET_RAILS = Object.freeze({
-  digipotResistanceOhms: DIGIPOT_RESISTANCE_OHMS,
-  groundResistanceOhms: 79600,
-  groundVoltage: GROUND_VOLTAGE,
-  supplyResistanceOhms: 80600,
-  supplyVoltage: SUPPLY_VOLTAGE,
-});
+const THREE_POT_RAILS = Constants.THREE_POT_RAILS;
+export const OFFSET_RAILS = Constants.OFFSET_RAILS;
 
 export class Model {
   constructor({ onChange = null } = {}) {

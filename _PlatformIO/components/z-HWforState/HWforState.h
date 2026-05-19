@@ -6,11 +6,14 @@
 
 struct HWforState {
   private:
-    enum class Phase { SEARCH = 0, FINETUNE = 1, NORMAL = 2, placeholder = 255} phase = Phase::placeholder;
+    enum class Phase { SEARCH = 0, ZOOM = 1, MEASURE = 2, FOLLOW = 3, placeholder = 255} phase = Phase::placeholder;
 
-    static constexpr int HISTORY_SIZE =  4;
     static constexpr int GAP_TOPBOT   = 12;
     static inline    int MID_STEP     = 17;  // depends on GAP_TOPBOT - set in contructor
+
+    
+    static constexpr int16_t SENSOR1_TARGET = 460;
+    static constexpr int16_t SENSOR2_TARGET = 512;
 
   public:
     StateType state;
@@ -60,8 +63,15 @@ struct HWforState {
   private:
     void _update(); 
     void _readSensor2();
+
     void _findSignal();
-    void _fineTuning();
+    void _zoomSignal();
+    void _measureSignal();
+    void _followSignal();
+
+
+    int16_t readCheck(); // reads sensor2 and updates phase if signal lost
+    void adjustTopBot(); // adjust top and bot if mid is at risk of saturating
 
     using Zone = CSensor::Zone;
 };

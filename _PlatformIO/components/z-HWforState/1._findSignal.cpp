@@ -3,11 +3,11 @@
 #include "Hardware.h"
 #include "CUSB.h"
 
-const int midLevel = 512;
 
 void HWforState::_findSignal()
 {
   static constexpr int MAX_ITERATIONS = 400;
+    int midLevel = CDigiPot::POT_MIDPOINT;
   top.setLevel(CDigiPot::POT_MAX);
   bot.setLevel(CDigiPot::POT_MIN);
   mid.setLevel(midLevel);
@@ -20,7 +20,7 @@ void HWforState::_findSignal()
   int Wtop = 255, Wbot = 0;
 
   while (Wtop - Wbot > GAP_TOPBOT*2) {
-    if (sensor1.read() < midLevel) {
+    if (sensor1.read() < HWforState::SENSOR1_TARGET) {
       Wbot = wiper;
       wiper = (wiper + Wtop) / 2;
     } else {
@@ -35,12 +35,12 @@ void HWforState::_findSignal()
 
   bool signalFound = false;
 
-  int initialHILO = sensor1.read() < midLevel ? -1 : +1;
+  int initialHILO = sensor1.read() < HWforState::SENSOR1_TARGET ? -1 : +1;
   int HILO = 0;
 
   for (int i = 0; top.getLevel() - bot.getLevel() > GAP_TOPBOT && i < MAX_ITERATIONS; i++) {
 
-    HILO = (sensor1.read() < midLevel) ? -1 : +1;
+    HILO = (sensor1.read() < HWforState::SENSOR1_TARGET) ? -1 : +1;
 
     switch (signalFound)
     {
@@ -74,15 +74,15 @@ void HWforState::_findSignal()
     delayMicroseconds(5); // signalFound ? 500 : 50 );
   }
 
-  initialHILO = sensor1.read() < midLevel ? -1 : +1;
+  initialHILO = sensor1.read() < HWforState::SENSOR1_TARGET ? -1 : +1;
   double lastDelta = 0, delta = 0;
   
   for (int i = 0; i < MAX_ITERATIONS; i++) { 
     lastDelta = delta;
     sensor1.read();
     
-    delta = abs(sensor1.lastValue() - midLevel);
-    HILO = (sensor1.lastValue() < midLevel) ? -1 : +1;
+    delta = abs(sensor1.lastValue() - HWforState::SENSOR1_TARGET);
+    HILO = (sensor1.lastValue() < HWforState::SENSOR1_TARGET) ? -1 : +1;
 
     if (HILO != initialHILO)
       break;
@@ -98,5 +98,5 @@ void HWforState::_findSignal()
     sensor1.read();
   }
 
-  phase = Phase::FINETUNE;
+  phase = Phase::ZOOM;
 }

@@ -1,9 +1,11 @@
-export const GROUND_VOLTAGE = 0;
-export const SUPPLY_VOLTAGE = 3.3;
-export const MID_RAIL_VOLTAGE = (GROUND_VOLTAGE + SUPPLY_VOLTAGE) / 2;
-export const SENSOR_RAIL_MARGIN_V = 0.42;
-export const VALID_SENSOR_MIN_V = GROUND_VOLTAGE + SENSOR_RAIL_MARGIN_V;
-export const VALID_SENSOR_MAX_V = SUPPLY_VOLTAGE - SENSOR_RAIL_MARGIN_V;
+import { Constants } from "./Constants.js";
+
+export const GROUND_VOLTAGE = Constants.GROUND_VOLTAGE;
+export const SUPPLY_VOLTAGE = Constants.SUPPLY_VOLTAGE;
+export const MID_RAIL_VOLTAGE = Constants.MID_RAIL_VOLTAGE;
+export const SENSOR_RAIL_MARGIN_V = Constants.SENSOR_RAIL_MARGIN_V;
+export const VALID_SENSOR_MIN_V = Constants.VALID_SENSOR_MIN_V;
+export const VALID_SENSOR_MAX_V = Constants.VALID_SENSOR_MAX_V;
 
 export function clampVoltage(value, min = GROUND_VOLTAGE, max = SUPPLY_VOLTAGE) {
   if (!isKnownVoltage(value)) {

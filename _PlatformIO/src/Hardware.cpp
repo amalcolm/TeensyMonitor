@@ -39,7 +39,7 @@ CRunningAverage<double> _raUpdateDurations;
 static double    STATE_DURATION = 1.0 * CFG::STATE_DURATION_uS   * 0.000'001; // convert to seconds
 static double A2D_POLL_DURATION = 1.5 * CFG::A2D_READING_PERIOD_uS * 0.000'001; // convert to seconds
 
-bool Hardware::canUpdate() {
+bool Hardware::canUpdate() { if (Timer.sampleReady) return false;
 
   return (Timer.getStateTime() + A2D_POLL_DURATION < STATE_DURATION );
 }

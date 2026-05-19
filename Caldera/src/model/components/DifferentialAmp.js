@@ -1,8 +1,11 @@
+import { Constants } from "../Constants.js";
 import { isKnownVoltage } from "../voltage.js";
 
-export const DEFAULT_SOURCE_RESISTANCE_OHMS = 1000;
-export const DEFAULT_FIXED_FEEDBACK_RESISTANCE_OHMS = 1200;
-export const DEFAULT_VARIABLE_FEEDBACK_RESISTANCE_OHMS = 10000;
+export const DEFAULT_SOURCE_RESISTANCE_OHMS = Constants.DIFFERENTIAL_AMP.sourceResistanceOhms;
+export const DEFAULT_FIXED_FEEDBACK_RESISTANCE_OHMS =
+  Constants.DIFFERENTIAL_AMP.fixedFeedbackResistanceOhms;
+export const DEFAULT_VARIABLE_FEEDBACK_RESISTANCE_OHMS =
+  Constants.DIFFERENTIAL_AMP.variableFeedbackResistanceOhms;
 
 export class DifferentialAmp {
   constructor({
@@ -52,7 +55,7 @@ export class DifferentialAmp {
 
   getVariableResistance() {
     const wiper = this.gain?.wiper;
-    const max = this.gain?.max ?? 255;
+    const max = this.gain?.max ?? Constants.DIGIPOT_MAX;
 
     if (!Number.isFinite(wiper) || !Number.isFinite(max) || max <= 0) {
       return 0;

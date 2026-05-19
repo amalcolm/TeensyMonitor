@@ -1,12 +1,13 @@
 import { Digipot as DigiPotShape } from "../../scene/shapes/Digipot.js";
+import { Constants } from "../Constants.js";
 import { clampInt } from "../Utils.js";
 import { isKnownVoltage } from "../voltage.js";
 
-export const DIGIPOT_MIN = 0;
-export const DIGIPOT_MAX = 255;
-export const DIGIPOT_MIDPOINT = 128;
+export const DIGIPOT_MIN = Constants.DIGIPOT_MIN;
+export const DIGIPOT_MAX = Constants.DIGIPOT_MAX;
+export const DIGIPOT_MIDPOINT = Constants.DIGIPOT_MIDPOINT;
 
-export const DIGIPOT_RESISTANCE_OHMS = 5000;
+export const DIGIPOT_RESISTANCE_OHMS = Constants.DIGIPOT_RESISTANCE_OHMS;
 
 
 export class DigiPot {
