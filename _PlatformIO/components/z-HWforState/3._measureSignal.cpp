@@ -7,9 +7,8 @@ static const     double primeT = 1.0 - pow(0.05, 1.0 / primeSamples); // 95% set
 static const     double fineT  = 1.0 - pow(0.50, 1.0 / fineSamples);  // gentler tracking
 
 void HWforState::_measureSignal() {
-  static C32bitTimer measureTimer = C32bitTimer::From_S(1.1).setPeriodic(true); 
   readCheck(); if (phase != Phase::MEASURE) return; // check if signal is lost before attempting to measure
-return;
+
 //  if (measureTimer.waiting()) return;
 
   uint16_t v = sensor2.read();

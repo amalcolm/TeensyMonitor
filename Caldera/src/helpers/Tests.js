@@ -1,57 +1,176 @@
-import Constants from '../constants/Constants';
-import { isValidSensorVoltage } from './Voltages';
+import { WiperRangeCalibrator } from "./WiperRangeCalibrator.js";
+import {
+  VALID_SENSOR_MAX_V,
+  VALID_SENSOR_MIN_V,
+  isKnownVoltage,
+  isValidSensorVoltage,
+} from "../model/voltage.js";
+
+export const DEFAULT_SWEEP_POINT_COUNT = 29;
+export const MAX_BOUNDS_SAMPLE_SPREAD_V = 0.1;
 
 export default class Tests {
-    
-    static findMinMax(wiper, sensor) {
-
-        let min = Constants.DIGIPOT_MIN;
-        let max = Constants.DIGIPOT_MAX;
-        
-        min = Tests.findBoundary(wiper, sensor, min, max, "max");
-        max = Tests.findBoundary(wiper, sensor, min, max, "min");
-
-        return { min, max };
-    }
-
-    static findBoundary(wiper, sensor, min, max, type) {
-        let rangeMin = min, rangeMax = max;
-
-        let valid = false;
-
-        switch (type) {
-            case "min": wiper.setLevel(min); valid = isValidSensorVoltage(sensor.getVoltage()); if (valid) return min; break;
-            case "max": wiper.setLevel(max); valid = isValidSensorVoltage(sensor.getVoltage()); if (valid) return max; break;
-        }
-
-        while (rangeMax - rangeMin > 8) {
-            const mid = Math.floor((rangeMin + rangeMax) / 2);
-
-            wiper.setLevel(mid);
-            const v = sensor.getVoltage();;
-
-            valid = isValidSensorVoltage(v);
-            switch (type) {
-                case "min": if (valid) rangeMin = mid; break;
-                case "max": if (valid) rangeMax = mid; break;
-            }
-        }
-
-        return type === "min" ? rangeMin : rangeMax;
-    };
-};
-
-// here is the version for th _PlatformIO codef - working - please remove when done
-/*
-  while (Wtop - Wbot > GAP_TOPBOT*2) {
-    if (sensor1.read() < HWforState::SENSOR1_TARGET) {
-      Wbot = wiper;
-      wiper = (wiper + Wtop) / 2;
-    } else {
-      Wtop = wiper;
-      wiper = (wiper + Wbot) / 2;
-    }
-    mid.setLevel(wiper);
-    delayMicroseconds(10);
+  constructor({
+    end = 255,
+    pointCount = DEFAULT_SWEEP_POINT_COUNT,
+    start = 0,
+    wiperId = "mid",
+  } = {}) {
+    this.calibrator = new WiperRangeCalibrator({
+      end,
+      pointCount,
+      start,
+      wiperId,
+    });
   }
-*/
+
+  begin() {
+    return this.formatProbe(this.calibrator.begin());
+  }
+
+  record(reading) {
+    return this.formatResult(
+      this.calibrator.record(Tests.classifySensorVoltage(reading)),
+    );
+  }
+
+  getCurrentProbe() {
+    return this.formatProbe(this.calibrator.getCurrentProbe());
+  }
+
+  formatProbe(probe) {
+    if (!probe) {
+      return probe;
+    }
+
+    return {
+      ...probe,
+      status: getProbeStatus(this.calibrator.search?.phase),
+    };
+  }
+
+  formatResult(result) {
+    if (!result) {
+      return result;
+    }
+
+    const next = result.next ? this.formatProbe(result.next) : null;
+
+    return {
+      ...result,
+      max: result.upperBound ?? null,
+      min: result.lowerBound ?? null,
+      next,
+      status: result.failed
+        ? "range failed"
+        : getResultStatus(result, this.calibrator.search?.phase),
+    };
+  }
+
+  static classifySensorVoltage(reading) {
+    const voltage = getReadingVoltage(reading);
+
+    if (getReadingSpread(reading) > MAX_BOUNDS_SAMPLE_SPREAD_V) {
+      return getInvalidReadingSide(reading, voltage);
+    }
+
+    if (isValidSensorVoltage(voltage)) {
+      return "valid";
+    }
+
+    if (!isKnownVoltage(voltage)) {
+      return "invalid";
+    }
+
+    return voltage < VALID_SENSOR_MIN_V || voltage > VALID_SENSOR_MAX_V
+      ? getInvalidVoltageSide(voltage)
+      : "invalid";
+  }
+}
+
+function getProbeStatus(phase) {
+  switch (phase) {
+    case "lower-start":
+    case "lower-end":
+    case "upper-end":
+      return "checking bounds";
+
+    case "anchor-directed":
+    case "anchor-binary":
+      return "finding valid point";
+
+    case "lower-binary":
+      return "finding min";
+
+    case "upper-binary":
+      return "finding max";
+
+    default:
+      return "checking bounds";
+  }
+}
+
+function getResultStatus(result, phase) {
+  if (result.done) {
+    const min = result.lowerBound ?? null;
+    const max = result.upperBound ?? null;
+
+    return min === null || max === null ? "range done" : `range ${min}-${max}`;
+  }
+
+  return getProbeStatus(phase);
+}
+
+function getReadingVoltage(reading) {
+  if (reading && typeof reading === "object") {
+    return getKnownVoltage(reading.sensor2 ?? reading.voltage ?? reading.value ?? reading.sensor1);
+  }
+
+  return getKnownVoltage(reading);
+}
+
+function getReadingSpread(reading) {
+  if (!reading || typeof reading !== "object") {
+    return 0;
+  }
+
+  const min = getKnownVoltage(reading.min ?? reading.sensor2Min ?? reading.voltageMin);
+  const max = getKnownVoltage(reading.max ?? reading.sensor2Max ?? reading.voltageMax);
+
+  return Number.isFinite(min) && Number.isFinite(max)
+    ? Math.abs(max - min)
+    : 0;
+}
+
+function getInvalidReadingSide(reading, voltage) {
+  const min = getKnownVoltage(reading?.min ?? reading?.sensor2Min ?? reading?.voltageMin);
+  const max = getKnownVoltage(reading?.max ?? reading?.sensor2Max ?? reading?.voltageMax);
+
+  if (Number.isFinite(min) && min < VALID_SENSOR_MIN_V) {
+    return Number.isFinite(max) && max > VALID_SENSOR_MAX_V ? "invalid" : "low";
+  }
+
+  if (Number.isFinite(max) && max > VALID_SENSOR_MAX_V) {
+    return "high";
+  }
+
+  return isKnownVoltage(voltage) ? getInvalidVoltageSide(voltage) : "invalid";
+}
+
+function getInvalidVoltageSide(voltage) {
+  if (voltage < VALID_SENSOR_MIN_V) {
+    return "low";
+  }
+
+  if (voltage > VALID_SENSOR_MAX_V) {
+    return "high";
+  }
+
+  return "invalid";
+}
+
+function getKnownVoltage(value) {
+  const voltage = Number(value);
+
+  return Number.isFinite(voltage) ? voltage : null;
+}

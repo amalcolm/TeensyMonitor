@@ -26,6 +26,10 @@ export class Slider extends Shape {
     const wiperTopY = bodyTop + 0.08;
     const wiperShoulderY = bodyBottom - 0.06;
     const wiperTipY = bodyBottom - 0.26;
+    const stepArrowHalfWidth = 0.045;
+    const stepArrowHalfHeight = 0.07;
+    const stepArrowOffsetX = wiperHalfWidth + 0.105;
+    const stepArrowY = -0.03;
     this.bodyLeft = bodyLeft;
     this.bodyRight = bodyRight;
     this.formatValue = formatValue;
@@ -36,6 +40,10 @@ export class Slider extends Shape {
     this.wiperHalfWidth = wiperHalfWidth;
     this.wiperTopY = wiperTopY;
     this.wiperTipY = wiperTipY;
+    this.stepArrowHalfWidth = stepArrowHalfWidth;
+    this.stepArrowHalfHeight = stepArrowHalfHeight;
+    this.stepArrowOffsetX = stepArrowOffsetX;
+    this.stepArrowY = stepArrowY;
     this.wiperX = 0;
     this.value = 0;
 
@@ -60,6 +68,17 @@ export class Slider extends Shape {
       [-wiperHalfWidth, wiperShoulderY],
     ], { color });
     this.add(this.wiper);
+
+    this.wiper.add(makeFilledPolygon([
+      [-stepArrowOffsetX - stepArrowHalfWidth, stepArrowY],
+      [-stepArrowOffsetX + stepArrowHalfWidth, stepArrowY + stepArrowHalfHeight],
+      [-stepArrowOffsetX + stepArrowHalfWidth, stepArrowY - stepArrowHalfHeight],
+    ], { color }));
+    this.wiper.add(makeFilledPolygon([
+      [stepArrowOffsetX + stepArrowHalfWidth, stepArrowY],
+      [stepArrowOffsetX - stepArrowHalfWidth, stepArrowY - stepArrowHalfHeight],
+      [stepArrowOffsetX - stepArrowHalfWidth, stepArrowY + stepArrowHalfHeight],
+    ], { color }));
 
     if (label) {
       this.add(new TextLabel(label, {
@@ -121,6 +140,32 @@ export class Slider extends Shape {
     );
   }
 
+  getWiperStepDirectionAt(worldPoint) {
+    const localPoint = this.worldToLocal(worldPoint.clone());
+
+    if (this.containsStepArrowPoint(localPoint, this.stepArrowOffsetX)) {
+      return 1;
+    }
+
+    if (this.containsStepArrowPoint(localPoint, -this.stepArrowOffsetX)) {
+      return -1;
+    }
+
+    return 0;
+  }
+
+  containsStepArrowPoint(localPoint, centerOffsetX) {
+    const padding = 0.08;
+    const centerX = this.wiperX + centerOffsetX;
+
+    return (
+      localPoint.x >= centerX - this.stepArrowHalfWidth - padding
+      && localPoint.x <= centerX + this.stepArrowHalfWidth + padding
+      && localPoint.y >= this.stepArrowY - this.stepArrowHalfHeight - padding
+      && localPoint.y <= this.stepArrowY + this.stepArrowHalfHeight + padding
+    );
+  }
+
   getWiperDragOffset(worldPoint) {
     const localPoint = this.worldToLocal(worldPoint.clone());
     return this.wiperX - localPoint.x;
@@ -163,6 +208,10 @@ export class Slider extends Shape {
 
   snapWiper(options = {}) {
     this.setWiperValue(this.getValueForX(this.wiperX), options);
+  }
+
+  stepWiper(direction, options = {}) {
+    this.setWiperValue(this.value + (direction > 0 ? 1 : -1), options);
   }
 
   syncWiperFromModel() {

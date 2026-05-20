@@ -17,8 +17,8 @@ export class Digipot extends Shape {
     const bodyRight = 0.08;
     const bodyTop = 0.95;
     const bodyBottom = -0.95;
-    const topInputY = 0.62;
-    const bottomInputY = -0.62;
+    const topInputY = bodyTop;
+    const bottomInputY = bodyBottom;
     const wiperLeftX = bodyLeft - 0.06;
     const wiperShoulderX = bodyRight + 0.05;
     const wiperTipX = wiperShoulderX + 0.15;

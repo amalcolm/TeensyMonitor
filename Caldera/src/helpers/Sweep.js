@@ -1,12 +1,15 @@
+import Tests from "./Tests.js";
 import { getModelWipers, normaliseWipers } from "./Wipers.js";
 
 export const MID_SWEEP_START = 16;
 export const MID_SWEEP_END = 240;
 export const MID_SWEEP_STEP = 8;
 const STACKED_SWEEP_STEP = 16;
+const MID_SWEEP_POINT_COUNT = Math.floor((MID_SWEEP_END - MID_SWEEP_START) / MID_SWEEP_STEP) + 1;
+const STACKED_SWEEP_POINT_COUNT = Math.floor((MID_SWEEP_END - MID_SWEEP_START) / STACKED_SWEEP_STEP) + 1;
 const SWEEP_SETTLE_MS = 100;
 const SWEEP_SAMPLE_INTERVAL_MS = 50;
-const SWEEP_FILTER_SAMPLE_COUNT = 2;
+const SWEEP_FILTER_SAMPLE_COUNT = 10;
 const SWEEP_FILTER_T = 1 / SWEEP_FILTER_SAMPLE_COUNT;
 const GAIN_SWEEP_WIPERS = Object.freeze([0, 1, 2, 4, 8, 16, 32]);
 
@@ -24,6 +27,7 @@ export class Sweep {
     onSample = null,
     requireWiperAck = false,
     status,
+    sweepPointCount = MID_SWEEP_POINT_COUNT,
     updateWiperDebug,
     webView,
   }) {
@@ -39,11 +43,17 @@ export class Sweep {
     this.onSample = onSample;
     this.requireWiperAck = requireWiperAck;
     this.status = status;
+    this.sweepPointCount = sweepPointCount;
     this.updateWiperDebug = updateWiperDebug;
     this.webView = webView;
     this.currentMid = MID_SWEEP_START;
+    this.currentMidIndex = 0;
     this.filteredVoltages = null;
+    this.mode = "idle";
+    this.rangeTest = null;
+    this.sampleVoltageBounds = null;
     this.sampleCount = 0;
+    this.sweepPoints = [];
     this.targetWipers = null;
     this.timer = null;
     this.wasVoltagesFrozen = false;
@@ -70,8 +80,7 @@ export class Sweep {
     }
 
     this.onClear?.();
-    this.currentMid = MID_SWEEP_START;
-    this.beginCurrentPoint();
+    this.beginRangeTest();
   }
 
   runStep() {
@@ -91,6 +100,11 @@ export class Sweep {
       return;
     }
 
+    if (this.mode === "range-test") {
+      this.recordRangeTestSample();
+      return;
+    }
+
     this.addFilteredSample();
     this.advanceSweep();
   }
@@ -103,6 +117,9 @@ export class Sweep {
       this.timer = null;
     }
 
+    this.mode = "idle";
+    this.rangeTest = null;
+
     if (wasRunning) {
       if (this.wasVoltagesFrozen) {
         this.freezeVoltages.setFrozen(true);
@@ -113,13 +130,70 @@ export class Sweep {
     this.updateButton();
   }
 
+  beginRangeTest() {
+    this.rangeTest = new Tests({
+      pointCount: this.sweepPointCount,
+      wiperId: "mid",
+    });
+    this.sweepPoints = [];
+    this.currentMidIndex = 0;
+
+    this.beginRangeTestProbe(this.rangeTest.begin());
+  }
+
+  beginRangeTestProbe(probe) {
+    if (!probe || probe.value === null || probe.value === undefined) {
+      this.stop("range failed");
+      return;
+    }
+
+    this.mode = "range-test";
+    this.currentMid = probe.value;
+    this.beginCurrentPoint();
+  }
+
+  recordRangeTestSample() {
+    const result = this.rangeTest.record({
+      max: this.sampleVoltageBounds?.sensor2?.max,
+      min: this.sampleVoltageBounds?.sensor2?.min,
+      sensor2: this.filteredVoltages?.sensor2,
+    });
+
+    if (result.failed) {
+      this.stop(result.status || "range failed");
+      return;
+    }
+
+    if (!result.done) {
+      this.beginRangeTestProbe(result.next);
+      return;
+    }
+
+    this.beginSweepFromRange(result);
+  }
+
+  beginSweepFromRange(result) {
+    this.sweepPoints = Array.isArray(result.points) ? result.points : [];
+
+    if (!this.sweepPoints.length) {
+      this.stop("range failed");
+      return;
+    }
+
+    this.mode = "sweep";
+    this.rangeTest = null;
+    this.resetMidSweep();
+    this.beginCurrentPoint();
+  }
+
   beginCurrentPoint() {
     this.filteredVoltages = null;
+    this.sampleVoltageBounds = null;
     this.sampleCount = 0;
     this.targetWipers = null;
     this.wiperAcknowledged = !this.requireWiperAck;
     this.applyCurrentWipers();
-    this.updateStatus(this.getSweepStatus());
+    this.updateStatus(this.getPointStatus());
     this.scheduleStep(this.wiperAcknowledged ? SWEEP_SETTLE_MS : SWEEP_SAMPLE_INTERVAL_MS);
   }
 
@@ -131,22 +205,22 @@ export class Sweep {
   captureFilterSample() {
     if (!this.wiperAcknowledged) {
       if (!this.hasHardwareAppliedTargetWipers()) {
-        this.updateStatus(`${this.getSweepStatus()} waiting for wipers`);
+        this.updateStatus(`${this.getPointStatus()} waiting for wipers`);
         return false;
       }
 
       this.wiperAcknowledged = true;
-      this.updateStatus(`${this.getSweepStatus()} settling`);
+      this.updateStatus(`${this.getPointStatus()} settling`);
       return "settling";
     }
 
-    this.filteredVoltages = filterVoltages(
-      this.filteredVoltages,
-      this.readVoltages(),
-    );
+    const voltages = this.readVoltages();
+
+    this.sampleVoltageBounds = trackVoltageBounds(this.sampleVoltageBounds, voltages);
+    this.filteredVoltages = filterVoltages(this.filteredVoltages, voltages);
     this.sampleCount += 1;
     this.updateStatus(
-      `${this.getSweepStatus()} sample ${this.sampleCount}/${SWEEP_FILTER_SAMPLE_COUNT}`,
+      `${this.getPointStatus()} sample ${this.sampleCount}/${SWEEP_FILTER_SAMPLE_COUNT}`,
     );
     return true;
   }
@@ -170,13 +244,27 @@ export class Sweep {
   }
 
   advanceSweep() {
-    if (this.currentMid >= MID_SWEEP_END) {
+    if (!this.advanceMidSweep()) {
       this.stop("done");
       return;
     }
 
-    this.currentMid = Math.min(this.currentMid + MID_SWEEP_STEP, MID_SWEEP_END);
     this.beginCurrentPoint();
+  }
+
+  resetMidSweep() {
+    this.currentMidIndex = 0;
+    this.currentMid = this.sweepPoints[0] ?? MID_SWEEP_START;
+  }
+
+  advanceMidSweep() {
+    if (this.currentMidIndex >= this.sweepPoints.length - 1) {
+      return false;
+    }
+
+    this.currentMidIndex += 1;
+    this.currentMid = this.sweepPoints[this.currentMidIndex];
+    return true;
   }
 
   applyCurrentWipers() {
@@ -218,6 +306,21 @@ export class Sweep {
     return `mid ${this.currentMid}`;
   }
 
+  getPointStatus() {
+    if (this.mode === "range-test") {
+      return this.getRangeTestStatus();
+    }
+
+    return this.getSweepStatus();
+  }
+
+  getRangeTestStatus() {
+    const probe = this.rangeTest?.getCurrentProbe?.();
+    const probeStatus = probe?.status ? ` ${probe.status}` : "";
+
+    return `range${probeStatus} mid ${this.currentMid}`;
+  }
+
   getSampleSource() {
     return "mid-sweep";
   }
@@ -248,7 +351,10 @@ export class Sweep {
 
 export class OffsetSweep extends Sweep {
   constructor(options) {
-    super(options);
+    super({
+      sweepPointCount: STACKED_SWEEP_POINT_COUNT,
+      ...options,
+    });
     this.currentOffset = MID_SWEEP_START;
     this.updateButton();
   }
@@ -264,20 +370,18 @@ export class OffsetSweep extends Sweep {
 
     this.onClear?.();
     this.currentOffset = MID_SWEEP_START;
-    this.currentMid = MID_SWEEP_START;
-    this.beginCurrentPoint();
+    this.beginRangeTest();
   }
 
   advanceSweep() {
-    if (this.currentMid < MID_SWEEP_END) {
-      this.currentMid = Math.min(this.currentMid + STACKED_SWEEP_STEP, MID_SWEEP_END);
+    if (this.advanceMidSweep()) {
       this.beginCurrentPoint();
       return;
     }
 
     if (this.currentOffset < MID_SWEEP_END) {
       this.currentOffset = Math.min(this.currentOffset + STACKED_SWEEP_STEP, MID_SWEEP_END);
-      this.currentMid = MID_SWEEP_START;
+      this.resetMidSweep();
       this.beginCurrentPoint();
       return;
     }
@@ -316,7 +420,10 @@ export class OffsetSweep extends Sweep {
 
 export class GainSweep extends Sweep {
   constructor(options) {
-    super(options);
+    super({
+      sweepPointCount: STACKED_SWEEP_POINT_COUNT,
+      ...options,
+    });
     this.currentGainIndex = 0;
     this.updateButton();
   }
@@ -332,20 +439,18 @@ export class GainSweep extends Sweep {
 
     this.onClear?.();
     this.currentGainIndex = 0;
-    this.currentMid = MID_SWEEP_START;
-    this.beginCurrentPoint();
+    this.beginRangeTest();
   }
 
   advanceSweep() {
-    if (this.currentMid < MID_SWEEP_END) {
-      this.currentMid = Math.min(this.currentMid + STACKED_SWEEP_STEP, MID_SWEEP_END);
+    if (this.advanceMidSweep()) {
       this.beginCurrentPoint();
       return;
     }
 
     if (this.currentGainIndex < GAIN_SWEEP_WIPERS.length - 1) {
       this.currentGainIndex += 1;
-      this.currentMid = MID_SWEEP_START;
+      this.resetMidSweep();
       this.beginCurrentPoint();
       return;
     }
@@ -411,15 +516,14 @@ export class Test1Sweep extends Sweep {
   }
 
   advanceSweep() {
-    if (this.currentMid < MID_SWEEP_END) {
-      this.currentMid = Math.min(this.currentMid + MID_SWEEP_STEP, MID_SWEEP_END);
+    if (this.advanceMidSweep()) {
       this.beginCurrentPoint();
       return;
     }
 
     if (this.currentLedCombinationIndex < this.ledCombinations.length - 1) {
       this.currentLedCombinationIndex += 1;
-      this.currentMid = MID_SWEEP_START;
+      this.resetMidSweep();
       this.beginCurrentPoint();
       return;
     }
@@ -508,6 +612,33 @@ function filterVoltages(oldVoltages, newVoltages) {
   return {
     sensor1: filterVoltage(oldVoltages?.sensor1, newVoltages?.sensor1),
     sensor2: filterVoltage(oldVoltages?.sensor2, newVoltages?.sensor2),
+  };
+}
+
+function trackVoltageBounds(oldBounds, voltages) {
+  return {
+    sensor1: trackVoltageBound(oldBounds?.sensor1, voltages?.sensor1),
+    sensor2: trackVoltageBound(oldBounds?.sensor2, voltages?.sensor2),
+  };
+}
+
+function trackVoltageBound(oldBound, value) {
+  const voltage = getKnownVoltage(value);
+
+  if (!Number.isFinite(voltage)) {
+    return oldBound ?? null;
+  }
+
+  if (!oldBound) {
+    return {
+      max: voltage,
+      min: voltage,
+    };
+  }
+
+  return {
+    max: Math.max(oldBound.max, voltage),
+    min: Math.min(oldBound.min, voltage),
   };
 }
 

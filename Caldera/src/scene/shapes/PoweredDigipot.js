@@ -11,7 +11,9 @@ const RAIL_CENTER_X = -0.18;
 const RAIL_WITH_RESISTOR_SOURCE_X = 0.14;
 const RAIL_RESISTOR_X = -0.38;
 const SUPPLY_Y = 1.28;
-const GROUND_Y = -1.55;
+const GROUND_X = -0.88;
+const GROUND_Y = -1.4;
+const GROUND_WITH_RESISTOR_Y = -1.59;
 const GROUND_NODE_Y = -1.10;
 const DEFAULT_RAIL_RESISTANCE = "0";
 const DEFAULT_DIGIPOT_RESISTANCE = "5K";
@@ -45,7 +47,8 @@ export class PoweredDigipot extends Shape {
     });
     this.ground = new GroundSymbol({
       color,
-      position: [hasGroundResistor ? RAIL_WITH_RESISTOR_SOURCE_X : RAIL_CENTER_X, GROUND_Y, 0],
+      position: [hasGroundResistor ? RAIL_WITH_RESISTOR_SOURCE_X : GROUND_X,
+                 hasGroundResistor ? GROUND_WITH_RESISTOR_Y : GROUND_Y, 0],
     });
     this.digipot = new Digipot({ color, label, model });
     this.supplyResistor = this.makeRailResistor({
@@ -58,7 +61,7 @@ export class PoweredDigipot extends Shape {
       color,
       labelPosition: "bottom",
       resistance: groundResistance,
-      position: [RAIL_RESISTOR_X, GROUND_NODE_Y, 0],
+      position: [RAIL_RESISTOR_X,  GROUND_NODE_Y - 0.04, 0],
       secondaryLabel: groundSecondaryLabel,
     });
 

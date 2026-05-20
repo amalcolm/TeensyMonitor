@@ -74,29 +74,7 @@ void HWforState::_findSignal()
     delayMicroseconds(5); // signalFound ? 500 : 50 );
   }
 
-  initialHILO = sensor1.read() < HWforState::SENSOR1_TARGET ? -1 : +1;
-  double lastDelta = 0, delta = 0;
+  centreMid(sensor1); 
   
-  for (int i = 0; i < MAX_ITERATIONS; i++) { 
-    lastDelta = delta;
-    sensor1.read();
-    
-    delta = abs(sensor1.lastValue() - HWforState::SENSOR1_TARGET);
-    HILO = (sensor1.lastValue() < HWforState::SENSOR1_TARGET) ? -1 : +1;
-
-    if (HILO != initialHILO)
-      break;
-
-    mid.offsetLevel( -HILO );
-    delayMicroseconds(5);
-  }
-
-  if (delta < lastDelta)  // if we just crossed over the optimal point, step back
-  { 
-    mid.offsetLevel( +HILO );
-    delayMicroseconds(5);
-    sensor1.read();
-  }
-
   phase = Phase::ZOOM;
 }

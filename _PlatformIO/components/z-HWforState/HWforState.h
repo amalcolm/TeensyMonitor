@@ -4,6 +4,8 @@
 #include "Helpers/CSensor.h"
 #include "XCommands.h"
 
+inline static C32bitTimer measureTimer = C32bitTimer::From_S(1.1).setPeriodic(true); 
+
 struct HWforState {
   private:
     enum class Phase { SEARCH = 0, ZOOM = 1, MEASURE = 2, FOLLOW = 3, placeholder = 255} phase = Phase::placeholder;
@@ -12,8 +14,8 @@ struct HWforState {
     static inline    int MID_STEP     = 17;  // depends on GAP_TOPBOT - set in contructor
 
     
-    static constexpr int16_t SENSOR1_TARGET = 460;
-    static constexpr int16_t SENSOR2_TARGET = 512;
+    static constexpr int16_t SENSOR1_TARGET = 490;
+    static constexpr int16_t SENSOR2_TARGET = 1023 - SENSOR1_TARGET;
 
   public:
     StateType state;
@@ -72,6 +74,11 @@ struct HWforState {
 
     int16_t readCheck(); // reads sensor2 and updates phase if signal lost
     void adjustTopBot(); // adjust top and bot if mid is at risk of saturating
+
+    void centre(CSensor& sensor, CDigiPot& pot); // set pot to centre sensor
+
+    inline void centreMid   (CSensor& sensor) { centre(sensor, mid); }
+    inline void centreOffset(CSensor& sensor) { centre(sensor, offset); }
 
     using Zone = CSensor::Zone;
 };

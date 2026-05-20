@@ -25,6 +25,7 @@ public:
   double resetFilter();
   float filter(int numSamples, double t);
   float lastV() const { return static_cast<float>(_lastV); }
+  float lastVariance() const { return static_cast<float>(_lastVariance); }
 
 protected:
 
@@ -37,4 +38,5 @@ protected:
   CRunningAverageMinMax<uint16_t> _ra{1};
 
   double _lastV = -1.0; // for filtering
+  double _lastVariance = 0.0;
 };

@@ -70,7 +70,8 @@ float CSensor::filter(int numSamples, double t) {
   int sensor = getPin();
 
   if (HW->flags.wipersChanged) { _lastV = -1; HW->flags.wipersChanged = false; }
-  
+
+  _lastVariance = 0.0;
   read(); // update _lastValue and zone
   if (inZone == false) {_lastV = -1; return -1; }
    
@@ -86,9 +87,20 @@ float CSensor::filter(int numSamples, double t) {
   }
 
   _lastV = _lastV < 0 ? static_cast<double>(_lastValue) : _lastV; 
+  uint16_t maxV = _lastValue;
+  uint16_t minV = _lastValue;
 
-  for (int i = 1; i < numSamples; ++i)
-    _lastV = t * static_cast<double>(analogRead(sensor)) + tInv * _lastV;
+   for (int i = 1; i < numSamples; ++i) {
+    uint16_t sample = analogRead(sensor);
+
+    if (sample > maxV) maxV = sample;
+    else
+    if (sample < minV) minV = sample;
+
+    _lastV = t * static_cast<double>(sample) + tInv * _lastV;
+  }
+  
+  _lastVariance = static_cast<double>(maxV - minV);  // rough approximation 
 
   uint16_t quantised = static_cast<uint16_t>(_lastV + 0.5); 
   _lastValue = _inverted ? 1023 - quantised : quantised;
