@@ -23,7 +23,7 @@ export class FreezeWipers {
     this.updateButton();
   }
 
-  setFrozen(isFrozen, { notify = true, postCurrent = false } = {}) {
+  setFrozen(isFrozen, { notify = true, postCurrent = false, requestWipers = true } = {}) {
     if (this.frozen === isFrozen) {
       if (this.frozen && postCurrent) {
         this.postCurrentWipers();
@@ -44,7 +44,9 @@ export class FreezeWipers {
       }
     } else {
       this.lastManualWiperCommandKey = null;
-      this.webView.postGetWipers();
+      if (requestWipers) {
+        this.webView.postGetWipers();
+      }
     }
 
     this.updateButton();

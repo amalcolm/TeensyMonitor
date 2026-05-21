@@ -37,7 +37,12 @@
   cursor: pointer;
 }
 
-.state-panel__auto-freeze {
+.state-panel__options {
+  display: grid;
+  gap: 6px;
+}
+
+.state-panel__option {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -56,12 +61,12 @@
   user-select: none;
 }
 
-.state-panel__auto-freeze:hover {
+.state-panel__option:hover {
   color: rgb(255 255 255 / 78%);
   background: #48515c;
 }
 
-.state-panel__auto-freeze-input {
+.state-panel__option-input {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -69,7 +74,7 @@
   pointer-events: none;
 }
 
-.state-panel__auto-freeze-box {
+.state-panel__option-box {
   display: grid;
   place-items: center;
   flex: none;
@@ -80,7 +85,7 @@
   background: rgb(16 23 32 / 34%);
 }
 
-.state-panel__auto-freeze-box::after {
+.state-panel__option-box::after {
   width: 8px;
   height: 5px;
   border-bottom: 2px solid #ffffff;
@@ -90,21 +95,21 @@
   transform: rotate(-45deg) translate(1px, -1px);
 }
 
-.state-panel__auto-freeze-input:checked + .state-panel__auto-freeze-box {
+.state-panel__option-input:checked + .state-panel__option-box {
   border-color: var(--control-warning);
   background: var(--control-warning);
 }
 
-.state-panel__auto-freeze-input:checked + .state-panel__auto-freeze-box::after {
+.state-panel__option-input:checked + .state-panel__option-box::after {
   opacity: 1;
 }
 
-.state-panel__auto-freeze-input:focus-visible + .state-panel__auto-freeze-box {
+.state-panel__option-input:focus-visible + .state-panel__option-box {
   outline: 2px solid rgb(255 255 255 / 55%);
   outline-offset: 2px;
 }
 
-.state-panel__auto-freeze-label {
+.state-panel__option-label {
   font-weight: 700;
 }
 

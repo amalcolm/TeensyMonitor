@@ -48,6 +48,13 @@ namespace TeensyMonitor
                 }
             };
 
+            Caldera.Caldera.OnInit += (object? sender, EventArgs e) =>
+            {
+                if (sender is not Caldera.Caldera caldera) return;
+
+                caldera.TestStarted += (s, e) => dbg.Clear();
+            };
+
             if (SP == null) return;
 
             SP.DataReceived      += SP_DataReceived;
@@ -229,7 +236,6 @@ namespace TeensyMonitor
                     calderaForm = new MyCalderaForm() ;
                     calderaForm.FormClosed += (_, _) => this.Close();
                     calderaForm.Show();
-
                 }
 
                 firstLoad = false;

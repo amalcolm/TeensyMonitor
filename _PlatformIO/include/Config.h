@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 
+enum class CommandFlags : uint32_t;
 
 class CFG {
 public:
@@ -32,14 +33,14 @@ public:
     inline static           char HOST_VERSION[16]  = "[unknown]";
 
 
-    inline static uint32_t debugFlags = 0; // bitfield for various debug options, set via USB command
-    inline static bool hasDebugFlag(uint32_t flag) { return (debugFlags & flag) != 0; }
-    inline static bool hasDebugByte() { return (debugFlags & 0x8000) != 0; }
-    inline static uint8_t getDebugByte() { return (debugFlags >> 16) & 0xFF; }
+    inline static CommandFlags commandFlags{}; // bitfield for various command options, set in USB XCMD headers
+    inline static bool    hasCommandFlag(CommandFlags flag) { return (_u(commandFlags) &  _u(flag)) != 0; }
+    inline static bool    hasCommandByte(                 ) { return (_u(commandFlags) &  0x0100'0000) != 0; }
+    inline static uint8_t getCommandByte(                 ) { return (_u(commandFlags) >> 16) & 0xFF; }
+
+  private:
+    inline static uint32_t _u(CommandFlags flag) { return static_cast<uint32_t>(flag); } 
 
 };
 
-struct DebugFlags {
-    static constexpr uint32_t None = 0;
-    static constexpr uint32_t Update = 0x01; // done via HWforState::HWflags::dbg() in _DBG.cpp
-};
+

@@ -1,5 +1,6 @@
 #include "HWforState.h"
 
+
 void HWforState::adjustTopBot() {
  
   int WIPER_LOW  = CDigiPot::POT_MIDPOINT - MID_STEP;
@@ -30,7 +31,7 @@ int16_t HWforState::readCheck() {
     gain.setLevel(8);
     delayMicroseconds(10);
     sensor1.read();
-    phase = sensor1.inZone ? Phase::ZOOM : Phase::SEARCH;
+    phase = Phase::SEARCH;
   }
   return static_cast<int16_t>(s2);
 }

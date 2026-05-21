@@ -21,13 +21,17 @@ export class StateControl {
     freezeWipers,
     freezeWipersOnLedChangeInput = null,
     initialFreezeWipersOnLedChange = true,
+    initialSetSearchPhaseOnStateChange = false,
     onSettingsChange = null,
+    setSearchPhaseInput = null,
     webView,
   }) {
     this.buttons = Array.from(buttons ?? []);
     this.freezeWipers = freezeWipers;
     this.freezeWipersOnLedChangeInput = freezeWipersOnLedChangeInput;
     this.freezeWipersOnLedChange = initialFreezeWipersOnLedChange !== false;
+    this.setSearchPhaseInput = setSearchPhaseInput;
+    this.setSearchPhaseOnStateChange = initialSetSearchPhaseOnStateChange === true;
     this.onSettingsChange = onSettingsChange;
     this.webView = webView;
     this.activeById = new Map(this.buttons.map((button) => [button.dataset.stateToggle, false]));
@@ -46,8 +50,15 @@ export class StateControl {
       this.onSettingsChange?.();
     });
 
+    this.setSearchPhaseInput?.addEventListener("change", () => {
+      this.setSearchPhaseOnStateChange = this.setSearchPhaseInput.checked;
+      this.updateSetSearchPhaseInput();
+      this.onSettingsChange?.();
+    });
+
     this.updateButtons();
     this.updateFreezeWipersOnLedChangeInput();
+    this.updateSetSearchPhaseInput();
   }
 
   handleManualToggle(id, event = null) {
@@ -98,15 +109,25 @@ export class StateControl {
 
   sendHoldState(state = this.getState(), { freezeWipers = true } = {}) {
     const holdState = normaliseState(state) ?? 0;
-    const shouldFreezeWipers = freezeWipers === true;
-    const shouldHoldWipers = shouldFreezeWipers || this.freezeWipers.frozen;
+    const shouldSetSearchPhase = this.setSearchPhaseOnStateChange;
+    const shouldFreezeWipers = !shouldSetSearchPhase && freezeWipers === true;
+
+    if (shouldSetSearchPhase && this.freezeWipers.frozen) {
+      this.freezeWipers.setFrozen(false, { requestWipers: false });
+    }
 
     if (shouldFreezeWipers) {
       this.freezeWipers.setFrozen(true);
     }
 
+    const shouldHoldWipers = !shouldSetSearchPhase && this.freezeWipers.frozen;
+    const flags = (
+      (shouldHoldWipers ? COMMAND_FLAGS.HOLD_WIPERS : COMMAND_FLAGS.NONE)
+      | (shouldSetSearchPhase ? COMMAND_FLAGS.SET_SEARCH_PHASE : COMMAND_FLAGS.NONE)
+    );
+
     const posted = this.webView.postSetState({
-      flags: shouldHoldWipers ? COMMAND_FLAGS.HOLD_WIPERS : COMMAND_FLAGS.NONE,
+      cmdFlags: flags,
       state: holdState,
     });
 
@@ -134,6 +155,7 @@ export class StateControl {
   getSettings() {
     return {
       freezeWipersOnLedChange: this.freezeWipersOnLedChange,
+      setSearchPhaseOnStateChange: this.setSearchPhaseOnStateChange,
     };
   }
 
@@ -170,6 +192,14 @@ export class StateControl {
     }
 
     this.freezeWipersOnLedChangeInput.checked = this.freezeWipersOnLedChange;
+  }
+
+  updateSetSearchPhaseInput() {
+    if (!this.setSearchPhaseInput) {
+      return;
+    }
+
+    this.setSearchPhaseInput.checked = this.setSearchPhaseOnStateChange;
   }
 }
 

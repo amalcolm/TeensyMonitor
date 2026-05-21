@@ -48,11 +48,13 @@ export class WebView {
     });
   }
 
-  postSetWipers(wipers, { flags = COMMAND_FLAGS.HOLD_WIPERS } = {}) {
+  postSetWipers(wipers, {
+    cmdFlags = COMMAND_FLAGS.HOLD_WIPERS,
+  } = {}) {
     return this.postMessage({
       type: "setWipers",
       wipers,
-      flags,
+      cmdFlags: cmdFlags,
     });
   }
 
@@ -62,18 +64,23 @@ export class WebView {
     });
   }
 
-  postSetState({ flags = COMMAND_FLAGS.NONE, state }) {
+  postSetState({
+    cmdFlags = COMMAND_FLAGS.NONE,
+    state,
+  }) {
     return this.postMessage({
       type: "setState",
       state,
-      flags,
+      cmdFlags: cmdFlags,
     });
   }
 
-  postSetDebugFlags(debugFlags) {
+  postSetDebugFlags({
+    cmdFlags = COMMAND_FLAGS.NONE,
+  } = {}) {
     return this.postMessage({
       type: "setDebugFlags",
-      debugFlags,
+      cmdFlags: cmdFlags,
     });
   }
 

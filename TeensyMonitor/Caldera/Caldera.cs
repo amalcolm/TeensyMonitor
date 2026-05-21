@@ -12,6 +12,12 @@ namespace TeensyMonitor.Caldera
         public CalderaControl Control { get; }
         public CoreWebView2 WebView { get; }
         public bool IsRunning => !_disposed && _ready;
+
+        public static event EventHandler? OnInit;
+
+        public event EventHandler<SetDebugFlagsMessage>? TestStarted;
+
+
         public Caldera(CalderaControl control)
         {
             Control = control ?? throw new ArgumentNullException(nameof(control));
@@ -63,7 +69,7 @@ namespace TeensyMonitor.Caldera
             => _voltagesPoster.Post(voltages);
 
         public bool PostStateChange(int state, bool force = false)
-            => _statePoster.Post(new StateChangedMessage(state), force);
+            => _statePoster.Post(new StateChangedMessage((HeadState)state), force);
 
         private bool CanPostMessages()
             => !_disposed && _ready && !Control.IsDisposed && Control.IsHandleCreated;
@@ -92,7 +98,7 @@ namespace TeensyMonitor.Caldera
             => new(
                 Control,
                 CanPostMessages,
-                () => new StateChangedMessage(),
+                () => new StateChangedMessage(HeadState.UNSET),
                 static (target, source) => target.CopyFrom(source),
                 static _ => true,
                 static message => CalderaJson.CreateStateChanged(message),
@@ -118,6 +124,7 @@ namespace TeensyMonitor.Caldera
 
             WebView.Settings.IsWebMessageEnabled = true;
             _ready = true;
+            OnInit?.Invoke(this, EventArgs.Empty);
         }
 
         private void WebView_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
@@ -194,12 +201,12 @@ namespace TeensyMonitor.Caldera
             var wipers = message.Wipers;
             XCMD_SetWipers xCMD = new()
             {
-                top    = ClampWiper(wipers.Top),
-                bot    = ClampWiper(wipers.Bot),
-                mid    = ClampWiper(wipers.Mid),
-                offset = ClampWiper(wipers.Offset),
-                gain   = ClampWiper(wipers.Gain),
-                flags  = message.Flags
+                cmdFlags = message.CMDflags,
+                top      = ClampWiper(wipers.Top),
+                bot      = ClampWiper(wipers.Bot),
+                mid      = ClampWiper(wipers.Mid),
+                offset   = ClampWiper(wipers.Offset),
+                gain     = ClampWiper(wipers.Gain),
             };
 
             Program.serialPort?.Write(xCMD);
@@ -217,22 +224,25 @@ namespace TeensyMonitor.Caldera
 
             XCMD_SetState xCMD = new()
             {
-                state = (uint)message.State,
-                flags = message.Flags
+                cmdFlags = message.CMDflags,
+                state    = (uint)message.State,
             };
 
             Program.serialPort?.Write(xCMD);
             _lastState = (int)message.State;
         }
 
-        private static void HandleSetDebugFlagsMessage(JsonElement root)
+        private void HandleSetDebugFlagsMessage(JsonElement root)
         {
             var message = root.Deserialize<SetDebugFlagsMessage>();
             if (message == null) return;
 
+            if (message.HasTestFlag)
+                TestStarted?.Invoke(this, message);
+
             XCMD_SetDebugFlags xCMD = new()
             {
-                debugFlags = message.Flags
+                cmdFlags = message.CMDflags,
             };
 
             Program.serialPort?.Write(xCMD);

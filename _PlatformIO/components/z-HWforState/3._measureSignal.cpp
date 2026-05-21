@@ -23,10 +23,10 @@ void HWforState::_measureSignal() {
 
   for (int i = 1; i < primeSamples; i++) {
     delayMicroseconds(CFG::A2D_READING_PERIOD_uS);
-    sensor2.filter(1, primeT);
+    sensor2.filter(1);
   }
 
-  float vFinal = sensor2.filter(fineSamples, fineT);
+  float vFinal = sensor2.filter(fineSamples);
   A2D.storeNewData();
 
   mid.offsetLevel(-direction);

@@ -68,7 +68,7 @@ namespace TeensyMonitor.Caldera
         }
 
         public static string CreateStateChanged(StateChangedMessage message)
-            => CreateStateChanged(message.State);
+            => CreateStateChanged((int)message.State);
 
         private static string CreateStateChanged(int state)
         {

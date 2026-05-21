@@ -9,18 +9,16 @@ namespace PsycSerial::Packets
 	static const uint8_t XCMD_MAGIC[4] = { 0x58, 0x43, 0x00, 0xFF };
 
     [FlagsAttribute]
-    public enum class CommandFlags : System::UInt32
-    {
-        None       = 0,
-        HoldWipers = 0x01,
+
+    public enum class CommandFlags : uint32_t {
+        None = 0,
+        RunDebugUpdate = 0x01,
+        HoldWipers     = 0x02,
+        SetSearchPhase = 0x04,
+
+        RunTestMidOffset = 0x100,
     };
 
-    [FlagsAttribute]
-    public enum class DebugFlags : System::UInt32
-    {
-        None   = 0,
-        Update = 0x01,
-    };
 
     public interface class IXCommand
     {
@@ -34,7 +32,11 @@ namespace PsycSerial::Packets
         Byte magic1;
         Byte id;
         Byte magic3;
-        CommandFlags flags;
+        CommandFlags cmdFlags;
+
+        literal uint32_t CommandBytePresent = 0x0100'0000;
+        literal uint32_t CommandByteShift   = 16;
+
     };
 
 	[StructLayoutAttribute(LayoutKind::Sequential, Pack = 1)]
@@ -54,10 +56,10 @@ namespace PsycSerial::Packets
         Byte _reserved2;
         Byte _reserved3;
 
-        property CommandFlags flags
+        property CommandFlags cmdFlags
         {
-            CommandFlags get() { return header.flags; }
-            void set(CommandFlags value) { header.flags = value; }
+            CommandFlags get() { return header.cmdFlags; }
+            void set(CommandFlags value) { header.cmdFlags = value; }
         }
     };
 
@@ -69,10 +71,10 @@ namespace PsycSerial::Packets
 
         uint32_t state;
 
-        property CommandFlags flags
+        property CommandFlags cmdFlags
         {
-            CommandFlags get() { return header.flags; }
-            void set(CommandFlags value) { header.flags = value; }
+            CommandFlags get() { return header.cmdFlags; }
+            void set(CommandFlags value) { header.cmdFlags = value; }
         }
     };
 
@@ -82,12 +84,10 @@ namespace PsycSerial::Packets
         literal Byte ID = 0x03;        virtual property Byte CommandID { Byte get() { return ID; } }
         XCMD_Header header;
 
-        DebugFlags debugFlags;
-
-        property CommandFlags flags
+        property CommandFlags cmdFlags
         {
-            CommandFlags get() { return header.flags; }
-            void set(CommandFlags value) { header.flags = value; }
+            CommandFlags get() { return header.cmdFlags; }
+            void set(CommandFlags value) { header.cmdFlags = value; }
         }
     };
 }

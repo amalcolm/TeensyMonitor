@@ -7,10 +7,17 @@ import { FreezeWipers } from "./helpers/FreezeWipers.js";
 import { Model } from "./model/Model.js";
 import { STATE_LED_ROWS, StateControl } from "./helpers/StateControl.js";
 import { TEST_PANEL_HTML, TestPanel } from "./analysis/TestPanel.js";
+import { TickSound } from "./helpers/TickSound.js";
 import { WebView } from "./WebView.js";
 import { WIPER_IDS, getModelWipers, normaliseWipers } from "./helpers/Wipers.js";
 
+const BUTTON_TICK_FREQUENCY = 4096;
+const LED_BUTTON_OFF_TICK_FREQUENCY = 1024;
+const LED_BUTTON_ON_TICK_FREQUENCY = 2048;
 const SETTINGS_STORAGE_KEY = "caldera:circuit-settings:v1";
+const buttonTickSound = new TickSound({ frequency: BUTTON_TICK_FREQUENCY });
+const ledButtonOffTickSound = new TickSound({ frequency: LED_BUTTON_OFF_TICK_FREQUENCY });
+const ledButtonOnTickSound = new TickSound({ frequency: LED_BUTTON_ON_TICK_FREQUENCY });
 const model = new Model();
 const webView = new WebView(model);
 const storedSettings = readStoredSettings();
@@ -92,17 +99,30 @@ document.querySelector("#app").innerHTML = `
             </div>
           `).join("")}
         </div>
-        <label class="state-panel__auto-freeze">
-          <input
-            class="state-panel__auto-freeze-input"
-            type="checkbox"
-            aria-label="Auto freeze wipers when LED buttons change state"
-            data-state-freeze-wipers-on-change
-            ${storedSettings?.stateControl?.freezeWipersOnLedChange === false ? "" : "checked"}
-          />
-          <span class="state-panel__auto-freeze-box" aria-hidden="true"></span>
-          <span class="state-panel__auto-freeze-label">Auto freeze</span>
-        </label>
+        <div class="state-panel__options">
+          <label class="state-panel__option">
+            <input
+              class="state-panel__option-input"
+              type="checkbox"
+              aria-label="Auto freeze wipers when LED buttons change state"
+              data-state-freeze-wipers-on-change
+              ${storedSettings?.stateControl?.freezeWipersOnLedChange === false ? "" : "checked"}
+            />
+            <span class="state-panel__option-box" aria-hidden="true"></span>
+            <span class="state-panel__option-label">Auto freeze</span>
+          </label>
+          <label class="state-panel__option">
+            <input
+              class="state-panel__option-input"
+              type="checkbox"
+              aria-label="Set search phase when LED buttons change state"
+              data-state-set-search-phase
+              ${storedSettings?.stateControl?.setSearchPhaseOnStateChange === true ? "checked" : ""}
+            />
+            <span class="state-panel__option-box" aria-hidden="true"></span>
+            <span class="state-panel__option-label">Search phase</span>
+          </label>
+        </div>
       </div>
       <div class="webview-freeze-controls">
         <button
@@ -123,25 +143,42 @@ document.querySelector("#app").innerHTML = `
         </button>
       </div>
       <div class="debug-panel" data-debug-panel>
-        <div class="debug-panel__header">
-          <span>Debug flags</span>
-          <span data-debug-flags-status>0x00000000</span>
+        <div class="debug-panel__sections">
+          <section class="debug-panel__section debug-panel__section--flags">
+            <div class="debug-panel__header">
+              <span>Flags</span>
+              <span data-debug-flags-status>0x00000000</span>
+            </div>
+            <label class="debug-panel__option">
+              <input type="checkbox" data-debug-flag="update" />
+              <span>Update</span>
+            </label>
+          </section>
+          <section class="debug-panel__section debug-panel__section--tests">
+            <div class="debug-panel__header">
+              <span>Tests</span>
+              <span data-debug-tests-status>ready</span>
+            </div>
+            <div class="debug-panel__test-actions">
+              <button class="debug-panel__button" type="button" data-debug-test="midOffset">
+                Mid offset
+              </button>
+            </div>
+          </section>
         </div>
-        <label class="debug-panel__option">
-          <input type="checkbox" data-debug-flag="update" />
-          <span>Update</span>
-        </label>
-        <div class="debug-panel__actions">
-          <button class="debug-panel__button" type="button" data-debug-save-settings>
-            Save settings
-          </button>
-          <button class="debug-panel__button" type="button" data-debug-load-settings>
-            Load settings
-          </button>
-        </div>
-        <div class="debug-panel__status">
-          <span>settings</span>
-          <span data-debug-settings-status>empty</span>
+        <div class="debug-panel__footer">
+          <div class="debug-panel__actions">
+            <button class="debug-panel__button" type="button" data-debug-save-settings>
+              Save settings
+            </button>
+            <button class="debug-panel__button" type="button" data-debug-load-settings>
+              Load settings
+            </button>
+          </div>
+          <div class="debug-panel__status">
+            <span>settings</span>
+            <span data-debug-settings-status>empty</span>
+          </div>
         </div>
       </div>
       ${TEST_PANEL_HTML}
@@ -166,14 +203,19 @@ document.querySelector("#app").innerHTML = `
   </div>
 `;
 
+document.addEventListener("click", handleButtonTickSound, true);
+
 const analysisRoot = document.querySelector("[data-analysis-div]");
 const sceneRoot = document.querySelector("[data-scene]");
 const freezeWipersButton = document.querySelector("[data-webview-freeze-wipers]");
 const freezeVoltagesButton = document.querySelector("[data-webview-freeze-voltages]");
 const stateButtons = document.querySelectorAll("[data-state-toggle]");
 const stateFreezeWipersInput = document.querySelector("[data-state-freeze-wipers-on-change]");
+const stateSetSearchPhaseInput = document.querySelector("[data-state-set-search-phase]");
 const debugFlagInputs = document.querySelectorAll("[data-debug-flag]");
 const debugFlagsStatus = document.querySelector("[data-debug-flags-status]");
+const debugTestButtons = document.querySelectorAll("[data-debug-test]");
+const debugTestsStatus = document.querySelector("[data-debug-tests-status]");
 const debugLoadSettingsButton = document.querySelector("[data-debug-load-settings]");
 const debugSaveSettingsButton = document.querySelector("[data-debug-save-settings]");
 const debugSettingsStatus = document.querySelector("[data-debug-settings-status]");
@@ -212,12 +254,16 @@ const stateControl = new StateControl({
   freezeWipers,
   freezeWipersOnLedChangeInput: stateFreezeWipersInput,
   initialFreezeWipersOnLedChange: storedSettings?.stateControl?.freezeWipersOnLedChange !== false,
+  initialSetSearchPhaseOnStateChange: storedSettings?.stateControl?.setSearchPhaseOnStateChange === true,
   onSettingsChange: () => saveStoredSettings(),
+  setSearchPhaseInput: stateSetSearchPhaseInput,
   webView,
 });
 new DebugFlagsControl({
   inputs: debugFlagInputs,
   status: debugFlagsStatus,
+  testButtons: debugTestButtons,
+  testStatus: debugTestsStatus,
   webView,
 });
 new DebugSettingsControl({
@@ -299,6 +345,27 @@ function readStoredSettings() {
   } catch {
     return null;
   }
+}
+
+function handleButtonTickSound(event) {
+  const target = event.target instanceof Element
+    ? event.target
+    : event.target?.parentElement;
+  const button = target?.closest("button");
+
+  if (!button) {
+    return;
+  }
+
+  if (button.matches("[data-state-toggle]")) {
+    const isCurrentlyOn = button.dataset.active === "true"
+      || button.getAttribute("aria-pressed") === "true";
+
+    (isCurrentlyOn ? ledButtonOffTickSound : ledButtonOnTickSound).play();
+    return;
+  }
+
+  buttonTickSound.play();
 }
 
 function saveStoredSettings(settings = circuitScene.getSettings()) {

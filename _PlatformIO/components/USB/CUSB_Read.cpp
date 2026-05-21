@@ -81,8 +81,7 @@ void CUSB::do_read() {
       }
 
       case XCMD_SetDebugFlags::ID: { XCMD_SetDebugFlags cmd; std::memcpy(&cmd, pRead, packetSize);
-
-        CFG::debugFlags = cmd.debugFlags;
+        // not used currently, but must be present to handle command flags in headers
         break;
       }
 
@@ -91,9 +90,10 @@ void CUSB::do_read() {
         break;
     }
 
-    if (handledCommand && hasFlag(header.flags, CommandFlags::HoldWipers))
-      HW->flags.holdWipers = true;
-
+    if (handledCommand) {
+      XCommand* cmd = reinterpret_cast<XCommand*>(pRead);
+      cmd->honour();
+    }
     pRead += packetSize;
   }
 

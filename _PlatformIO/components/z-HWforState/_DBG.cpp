@@ -24,7 +24,7 @@ void HWforState::HWflags::dbg() {
 
   if (startTime < 0.0) { if (HW->sensor2.inZone)  startTime = Timer.getConnectTime(); else return; }
 
-  uint8_t baseValue = CFG::hasDebugByte() ? CFG::getDebugByte() : _staticBaseValue;
+  uint8_t baseValue = CFG::hasCommandByte() ? CFG::getCommandByte() : _staticBaseValue;
 
   double now = Timer.getConnectTime() - startTime;
 

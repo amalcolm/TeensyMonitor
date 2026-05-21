@@ -82,7 +82,7 @@ void HWforState::set() {
 
 
 void HWforState::setWipers(XCMD_SetWipers& cmd) {
-  bool holdRequested = hasFlag(cmd.header.flags, CommandFlags::HoldWipers);
+  bool holdRequested = cmd.hasFlag(CommandFlags::HoldWipers);
 
   if (!holdRequested && cmd.top == 0 && cmd.bot == 0) { // release hold
     flags.holdWipers = false;

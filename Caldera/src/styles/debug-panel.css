@@ -3,7 +3,11 @@
   z-index: 10;
   right: 12px;
   bottom: 12px;
-  width: min(240px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(320px, calc(100vw - 24px));
+  height: min(320px, calc(100vh - 24px));
   border: 1px solid var(--panel-border);
   border-radius: 6px;
   padding: 10px 12px;
@@ -11,6 +15,33 @@
   background: var(--panel-bg);
   box-shadow: var(--panel-shadow);
   font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  overflow: hidden;
+}
+
+.debug-panel__sections {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-height: 0;
+}
+
+.debug-panel__section {
+  min-height: 0;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 5px;
+  padding: 8px;
+  overflow: auto;
+}
+
+.debug-panel__section--flags {
+  background:
+    linear-gradient(180deg, rgb(143 199 255 / 8%), rgb(255 255 255 / 3%));
+}
+
+.debug-panel__section--tests {
+  background:
+    linear-gradient(180deg, rgb(196 91 95 / 10%), rgb(255 255 255 / 3%));
 }
 
 .debug-panel__header {
@@ -18,11 +49,12 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
   font-weight: 700;
 }
 
-.debug-panel__header [data-debug-flags-status] {
+.debug-panel__header [data-debug-flags-status],
+.debug-panel__header [data-debug-tests-status] {
   color: var(--panel-muted);
   font-weight: 600;
 }
@@ -41,14 +73,19 @@
   accent-color: var(--control-warning);
 }
 
+.debug-panel__test-actions {
+  display: grid;
+  gap: 6px;
+}
+
 .debug-panel__actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
-  margin-top: 8px;
 }
 
 .debug-panel__button {
+  width: 100%;
   min-height: 28px;
   border: 1px solid var(--control-border);
   border-radius: 5px;
@@ -63,6 +100,11 @@
 
 .debug-panel__button:hover {
   background: var(--control-bg-hover);
+}
+
+.debug-panel__footer {
+  flex: 0 0 auto;
+  margin-top: auto;
 }
 
 .debug-panel__status {

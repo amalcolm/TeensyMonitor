@@ -12,7 +12,7 @@ void HWforState::_findSignal()
   bot.setLevel(CDigiPot::POT_MIN);
   mid.setLevel(midLevel);
   offset.reset(152); // 1.65V 
-  gain.reset(32);
+  gain.reset(32);  // avoid low gain instability in sensor1 for values above 512
 
   delayMicroseconds(10);
 
@@ -77,4 +77,5 @@ void HWforState::_findSignal()
   centreMid(sensor1); 
   
   phase = Phase::ZOOM;
+  flags.zoomLevel = -1; // reset zoom level for next phase
 }

@@ -7,7 +7,7 @@ export const LEDsToTest = Object.freeze(["RED1", "IR2"]);
 export const TEST_PANEL_HTML = `
   <div class="test-panel" data-test-panel>
     <div class="test-panel__header">
-      <span>Tests</span>
+      <span>Analysis triggers</span>
       <span data-test-status>idle</span>
     </div>
     <div class="test-panel__groups">

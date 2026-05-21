@@ -12,6 +12,7 @@ namespace PsycSerial::Packets
     public interface class IWebMessage
     {
         [JsonPropertyName("type")] property String^ Type { String^ get(); }
+        [JsonPropertyName("cmdFlags")] property CommandFlags CMDflags { CommandFlags get(); }
     };
 
 
@@ -122,22 +123,25 @@ namespace PsycSerial::Packets
     {
     private:
         String^ _type;
+        CommandFlags _cmdFlags;
         VoltageValues^ _voltages;
-
+		
     public:
-        VoltagesChangedMessage() { _type = "voltagesChanged"; _voltages = gcnew VoltageValues(); }
+        VoltagesChangedMessage() { _type = "voltagesChanged"; _cmdFlags = CommandFlags::None; _voltages = gcnew VoltageValues(); }
 
         [JsonPropertyName("type"    )] virtual property String^        Type     { String^        get() { return _type;     } void set(String^        value) {     _type = value; } }
+        [JsonPropertyName("cmdFlags")] virtual property CommandFlags   CMDflags { CommandFlags   get() { return _cmdFlags; } };
         [JsonPropertyName("voltages")]         property VoltageValues^ Voltages { VoltageValues^ get() { return _voltages; } void set(VoltageValues^ value) { _voltages = value; } }
-
         void CopyFrom(BlockPacket^ block) { if (Voltages == nullptr) Voltages = gcnew VoltageValues();
         
             Voltages->CopyFrom(block); 
+			_cmdFlags = CommandFlags::None; 
         }
 
         void CopyFrom(VoltagesChangedMessage^ other) { if (other == nullptr) return; if (Voltages == nullptr) Voltages = gcnew VoltageValues();
 
             Voltages->CopyFrom(other->Voltages);
+            _cmdFlags = other->_cmdFlags;
         }
 
         [JsonIgnore] property bool IsValid { bool get() { return Voltages != nullptr && Voltages->IsValid; } }
@@ -161,20 +165,24 @@ namespace PsycSerial::Packets
     {
     private:
         String^ _type;
+        CommandFlags _cmdFlags;
         WiperValues^ _wipers;
 
     public:
-        WipersChangedMessage() { _type = "wipersChanged"; _wipers = gcnew WiperValues(); }
+        WipersChangedMessage() { _type = "wipersChanged"; _cmdFlags = CommandFlags::None; _wipers = gcnew WiperValues(); }
 
-        [JsonPropertyName("type"  )] virtual property String^      Type   { String^      get() { return _type;   } void set(String^      value) { _type   = value; } }
-        [JsonPropertyName("wipers")]         property WiperValues^ Wipers { WiperValues^ get() { return _wipers; } void set(WiperValues^ value) { _wipers = value; } }
+        [JsonPropertyName("type"    )] virtual property String^      Type     { String^      get() { return _type;     } void set(String^      value) { _type   = value; } }
+        [JsonPropertyName("cmdFlags")] virtual property CommandFlags CMDflags { CommandFlags get() { return _cmdFlags; } };
+        [JsonPropertyName("wipers"  )]         property WiperValues^ Wipers   { WiperValues^ get() { return _wipers;   } void set(WiperValues^ value) { _wipers = value; } }
 
         void CopyFrom(BlockPacket^ block) { if (Wipers == nullptr) Wipers = gcnew WiperValues();
             Wipers->CopyFrom(block);
+			_cmdFlags = CommandFlags::None;
         }
 
         void CopyFrom(WipersChangedMessage^ other) { if (other == nullptr) return; if (Wipers == nullptr) Wipers = gcnew WiperValues();
             Wipers->CopyFrom(other->Wipers);
+			_cmdFlags = other->_cmdFlags;
         }
 
         [JsonIgnore] property bool IsValid { bool get() { return Wipers != nullptr && Wipers->IsValid; } }
@@ -193,21 +201,58 @@ namespace PsycSerial::Packets
         }
     };
 
+    public ref class StateChangedMessage sealed : public IWebMessage
+    {
+    private:
+        String^ _type;
+        CommandFlags _cmdFlags;
+		HeadState _state;
+
+    public:
+        StateChangedMessage(HeadState state) { _type = "stateChanged"; _cmdFlags = CommandFlags::None; _state = state; }
+        [JsonPropertyName("type"    )] virtual property String^      Type     { String^      get() { return _type;     } void set(String^      value) { _type     = value; } }
+        [JsonPropertyName("cmdFlags")] virtual property CommandFlags CMDflags { CommandFlags get() { return _cmdFlags; } void set(CommandFlags value) { _cmdFlags = value; } };
+        [JsonPropertyName("state"   )]         property HeadState    State    { HeadState    get() { return _state;    } void set(HeadState    value) { _state    = value; } }
+
+        void CopyFrom(BlockPacket^ block) { if (block == nullptr || block->Count <= 0 || block->BlockData == nullptr) return;
+            DataPacket^ data = block->BlockData[block->Count - 1];                               if (data == nullptr) return;
+			State = static_cast<HeadState>(data->State);
+			_cmdFlags = CommandFlags::None;
+            }
+
+        void CopyFrom(StateChangedMessage^ other) { if (other == nullptr) return;
+            State = other->State;
+			_cmdFlags = other->_cmdFlags;
+        }
+
+		[JsonIgnore] property bool IsValid{ bool get() { return State != HeadState::UNSET; } }
+         
+        virtual bool Equals(Object^ obj) override { StateChangedMessage^ other = dynamic_cast<StateChangedMessage^>(obj); if (other == nullptr) return false;
+            return String::Equals(Type, other->Type) && State == other->State;
+        }
+        virtual int GetHashCode() override
+        {
+            int hash = 17;
+            hash = hash * 31 + (Type  == nullptr ? 0 :  Type->GetHashCode());
+            hash = hash * 31 + State.GetHashCode();
+            return hash;
+		}
+    };
+
 
     public ref class SetWipersMessage sealed : public IWebMessage
     {
     private:
         String^ _type;
+        CommandFlags _cmdFlags;
         WiperValues^ _wipers;
-        CommandFlags _flags;
 
     public:
-        SetWipersMessage() { _type = "setWipers"; _wipers = gcnew WiperValues(); _flags = CommandFlags::HoldWipers; }
-
-        [JsonPropertyName("type")] virtual property String^      Type   { String^      get() { return _type;   } void set(String^      value) {   _type = value; } }
-        [JsonPropertyName("wipers")]       property WiperValues^ Wipers { WiperValues^ get() { return _wipers; } void set(WiperValues^ value) { _wipers = value; } }
-        [JsonPropertyName("flags")]        property CommandFlags Flags  { CommandFlags get() { return _flags;  } void set(CommandFlags value) { _flags = value; } }
-    };
+        SetWipersMessage() { _type = "setWipers"; _cmdFlags = CommandFlags::HoldWipers; _wipers = gcnew WiperValues(); }
+        [JsonPropertyName("type"    )] virtual property String^      Type     { String^      get() { return _type;     } void set(String^      value) {   _type   = value; } }
+        [JsonPropertyName("cmdFlags")] virtual property CommandFlags CMDflags { CommandFlags get() { return _cmdFlags; } void set(CommandFlags value) { _cmdFlags = value; } };
+        [JsonPropertyName("wipers"  )]         property WiperValues^ Wipers   { WiperValues^ get() { return _wipers;   } void set(WiperValues^ value) { _wipers   = value; } }
+    }; 
 
 
     public ref class SetStateMessage sealed : public IWebMessage
@@ -215,13 +260,13 @@ namespace PsycSerial::Packets
     private:
         String^ _type;
         HeadState _state;
-		CommandFlags _flags;
+		CommandFlags _cmdFlags;
 
     public:
-        SetStateMessage() { _type = "setState"; _state = HeadState::UNSET; _flags = CommandFlags::None; }
-        [JsonPropertyName("type")]  virtual property String^      Type  { String^      get() { return _type;  } void set(String^      value) { _type  = value; } }
-        [JsonPropertyName("state")]         property HeadState    State { HeadState    get() { return _state; } void set(HeadState    value) { _state = value; } }
-	    [JsonPropertyName("flags")]         property CommandFlags Flags { CommandFlags get() { return _flags; } void set(CommandFlags value) { _flags = value; } }
+        SetStateMessage() { _type = "setState"; _state = HeadState::UNSET; _cmdFlags = CommandFlags::None; }
+        [JsonPropertyName("type"    )] virtual property String^      Type     { String^      get() { return _type;     } void set(String^      value) { _type     = value; } }
+        [JsonPropertyName("cmdFlags")] virtual property CommandFlags CMDflags { CommandFlags get() { return _cmdFlags; } void set(CommandFlags value) { _cmdFlags = value; } };
+        [JsonPropertyName("state"   )]         property HeadState    State    { HeadState    get() { return _state;    } void set(HeadState    value) { _state    = value; } }
 	};
 
 
@@ -229,11 +274,13 @@ namespace PsycSerial::Packets
 	{
     private:
         String^ _type;
-        DebugFlags _debugFlags;
+		CommandFlags _cmdFlags;
 
     public:
-        SetDebugFlagsMessage() { _type = "setDebugFlags"; _debugFlags = DebugFlags::None; }
-        [JsonPropertyName("type")]       virtual property String^    Type  { String^    get() { return _type;       } void set(String^    value) { _type       = value; } }
-        [JsonPropertyName("debugFlags")]         property DebugFlags Flags { DebugFlags get() { return _debugFlags; } void set(DebugFlags value) { _debugFlags = value; } }
+        SetDebugFlagsMessage() { _type = "setDebugFlags"; _cmdFlags = CommandFlags::None; }
+        [JsonPropertyName("type"      )] virtual property String^      Type     { String^      get() { return _type;       } void set(String^      value) { _type       = value; } }
+        [JsonPropertyName("cmdFlags"  )] virtual property CommandFlags CMDflags { CommandFlags get() { return _cmdFlags;   } void set(CommandFlags value) { _cmdFlags   = value; } };
+		
+        [JsonIgnore] property bool HasTestFlag { bool get() { return (static_cast<uint16_t>(_cmdFlags) & 0xFF00) != 0; } }
 	};
 }
