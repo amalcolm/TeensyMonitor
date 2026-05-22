@@ -86,6 +86,7 @@ namespace TeensyMonitor.MyGLTools.UserControls
             // 4. Define the _viewport based on the smoothed position.
             float viewLeft = _currentViewRight - Window;
             ViewPort = new RectangleF(viewLeft, -6, Window, 1030);
+            ApplyPlotTransform();
 
 
             // 5. Render each plot from the snapshot.

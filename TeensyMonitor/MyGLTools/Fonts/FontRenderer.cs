@@ -84,6 +84,28 @@ namespace TeensyMonitor.MyGLTools.Fonts
             Render();
         }
 
+        public void RenderText(TextBlock[] blocks, int count)
+        {
+            if (count <= 0) return;
+            if (count > blocks.Length) count = blocks.Length;
+
+            _currentVertexCount = 0;
+
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(TextureTarget.Texture2D, blocks[0].Font.TextureId);
+
+            for (int i = 0; i < count; i++)
+            {
+                var blockVerticesSpan = blocks[i].GetVertices(Scaling);
+                EnsureVertexCapacity(_currentVertexCount + blockVerticesSpan.Length);
+                blockVerticesSpan.CopyTo(_vertices.AsSpan(_currentVertexCount));
+                _currentVertexCount += blockVerticesSpan.Length;
+            }
+
+            BindVertices();
+            Render();
+        }
+
         public void RenderText(List<TextBlock> blocks)
         {
             _currentVertexCount = 0;

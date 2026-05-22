@@ -1,6 +1,6 @@
 ﻿namespace TeensyMonitor.MyGLTools.UserControls
 {
-    partial class MyChart : MyPlotter
+    partial class MyChart : MyPlotterWithAxes
     {
         /// <summary> 
         /// Required designer variable.

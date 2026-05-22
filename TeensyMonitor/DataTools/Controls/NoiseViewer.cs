@@ -5,7 +5,7 @@ using TeensyMonitor.MyGLTools.UserControls;
 
 namespace TeensyMonitor.DataTools.Controls
 {
-    public partial class NoiseViewer : MyPlotterBase
+    public partial class NoiseViewer : MyPlotterBaseWithAxes
     {
         private const int MAX_VERTICES = 4096;
 
@@ -20,26 +20,29 @@ namespace TeensyMonitor.DataTools.Controls
             BackColor = Color.MistyRose;
             Setup(initAction: Init, shutdownAction: Shutdown);
             SP.DataReceived += SP_DataReceived;
+
+            AxesOptions.DrawAxes = false;
+            AxesOptions.DrawGrid = false;
         }
 
 
-        static readonly float ticksToMS = 1.0f / 600_000_000f;
+        static readonly float ticksToSeconds = 1.0f / 600_000_000f;
         private void SP_DataReceived(IPacket packet)
         {
             if (IsRunning == false || packet is not DebugPacket dbg) return; if (dbg.Count <= 0) return;
 
             int max = Math.Min(dbg.Count, vertices.Length);
 
-            float minY = float.MaxValue, msxY = float.MinValue;
+            float minY = float.MaxValue, maxY = float.MinValue;
             for (int i = 0; i < max; i++)
             {
-                float x = dbg.Data[i].StartTick * ticksToMS;
+                float x = dbg.Data[i].StartTick * ticksToSeconds;
                 float y = dbg.Data[i].Sample;
 
                 if (float.IsFinite(y))
                 {
                     if (y < minY) minY = y;
-                    if (y > msxY) msxY = y;
+                    if (y > maxY) maxY = y;
                 }
 
                 vertices[i].Position.X = x;
@@ -49,10 +52,13 @@ namespace TeensyMonitor.DataTools.Controls
 
             float lastX = vertices[max - 1].Position.X;
 
+            if (!float.IsFinite(minY) || !float.IsFinite(maxY) || maxY <= minY || lastX <= 0.0f)
+                return;
+
             lock (_lock)
             {
                 _vertexBuffer.Set(ref vertices, vertexCount);
-                ViewPort = new RectangleF(0, minY, lastX, msxY - minY);
+                ViewPort = new RectangleF(0, minY, lastX, maxY - minY);
             }
         }
 
@@ -87,6 +93,7 @@ namespace TeensyMonitor.DataTools.Controls
         protected override void Shutdown()
         {
             _ready = false;
+            Program.serialPort!.DataReceived -= SP_DataReceived;
             _vertexBuffer.Dispose();
             base.Shutdown();
             _disposed = true;
@@ -96,6 +103,12 @@ namespace TeensyMonitor.DataTools.Controls
         {
             lock (_lock)
                 _vertexBuffer.DrawLineStrip();
+        }
+
+        protected override void DrawPlotOverlays()
+        {
+            lock (_lock)
+                base.DrawPlotOverlays();
         }
     }
 }

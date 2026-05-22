@@ -12,6 +12,7 @@ namespace TeensyMonitor.MyGLTools.UserControls
         // Shader programs
         protected int _plotShaderProgram ;
         private Matrix4 _plotTransform;
+        private int _plotTransformLocation = -1;
         public Matrix4 getPlotTransform() => _plotTransform;
 
         public int GetPlotShader() => _plotShaderProgram;
@@ -24,29 +25,41 @@ namespace TeensyMonitor.MyGLTools.UserControls
         protected override void Init()
         {
             _plotShaderProgram = ShaderManager.Get("plot");
+            _plotTransformLocation = GL.GetUniformLocation(_plotShaderProgram, "uTransform");
         }
 
         protected override void Render()
         {
             GL.UseProgram(_plotShaderProgram);
 
-            _plotTransform = Matrix4.CreateOrthographicOffCenter(ViewPort.Left, ViewPort.Right, ViewPort.Top, ViewPort.Bottom, -1.0f, 1.0f);
-            int transformLocation = GL.GetUniformLocation(_plotShaderProgram, "uTransform");
-            GL.UniformMatrix4(transformLocation, false, ref _plotTransform);
+            ApplyPlotTransform();
 
             DrawPlots();
+            DrawPlotOverlays();
+        }
+
+        protected void ApplyPlotTransform() => ApplyPlotTransform(ViewPort);
+
+        protected void ApplyPlotTransform(RectangleF viewPort)
+        {
+            _plotTransform = Matrix4.CreateOrthographicOffCenter(viewPort.Left, viewPort.Right, viewPort.Top, viewPort.Bottom, -1.0f, 1.0f);
+            GL.UniformMatrix4(_plotTransformLocation, false, ref _plotTransform);
         }
 
         protected abstract void DrawPlots();
+        protected virtual void DrawPlotOverlays() { }
 
-        public void SetMetrics(float min, float max, float range, float desiredRange)
+        public void SetMetrics(float min, float max, float range, float desiredRange, float viewMin, float viewMax)
         {
             _metrics ??= new PlotMetrics();
 
-            _metrics.MinY = min;
-            _metrics.MaxY = max;
-            _metrics.RangeY = range;
+            _metrics.MinY          = min;
+            _metrics.MaxY          = max;
+            _metrics.RangeY        = range;
             _metrics.DesiredRangeY = desiredRange;
+            _metrics.ViewMinY      = viewMin;
+            _metrics.ViewMaxY      = viewMax;
+            _metrics.HasViewRange  = true;
         }
 
 
@@ -56,9 +69,25 @@ namespace TeensyMonitor.MyGLTools.UserControls
             public float MaxY = 0.0f;
             public float RangeY = 0.0f;
             public float DesiredRangeY = 0.0f;
+            public float ViewMinY = 0.0f;
+            public float ViewMaxY = 0.0f;
+            public bool HasViewRange = false;
         }
 
         private PlotMetrics? _metrics = null;
         public PlotMetrics? GetMetrics() => _metrics;
+
+        protected RectangleF GetMetricsViewPort()
+        {
+            if (_metrics is { HasViewRange: true }
+                && float.IsFinite(_metrics.ViewMinY)
+                && float.IsFinite(_metrics.ViewMaxY)
+                && _metrics.ViewMaxY > _metrics.ViewMinY)
+            {
+                return new RectangleF(ViewPort.Left, _metrics.ViewMinY, ViewPort.Width, _metrics.ViewMaxY - _metrics.ViewMinY);
+            }
+
+            return ViewPort;
+        }
     }
 }

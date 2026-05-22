@@ -197,7 +197,7 @@ namespace TeensyMonitor.MyGLTools.Helpers
             var transform = Matrix4.CreateOrthographicOffCenter(_parentMinX, _parentMaxX, bottom, top, -1.0f, 1.0f);
             GL.UniformMatrix4(_transformLoc, false, ref transform);
 
-            _plotter.SetMetrics(minY, maxY, range, desiredHeight);
+            _plotter.SetMetrics(minY, maxY, range, desiredHeight, bottom, top);
         }
 
         /// <summary>

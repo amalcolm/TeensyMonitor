@@ -15,7 +15,7 @@ namespace TeensyMonitor.MyGLTools.UserControls
 {
 
     [ToolboxItem(true)]
-    public partial class MyChart : MyPlotter
+    public partial class MyChart : MyPlotterWithAxes
     {
         private const int WindowSize = 0x10000;
 
@@ -71,6 +71,7 @@ namespace TeensyMonitor.MyGLTools.UserControls
         public MyChart()
         {
             InitializeComponent();
+            AxesOptions.DrawAxes = false;
 
             if (SP == null) return;
             ActiveChart ??= this;
@@ -371,6 +372,8 @@ namespace TeensyMonitor.MyGLTools.UserControls
 
         protected override void DrawText()
         {
+            base.DrawText();
+
             if (font == null) return;
 
             _textBlocksToRender.Clear();
