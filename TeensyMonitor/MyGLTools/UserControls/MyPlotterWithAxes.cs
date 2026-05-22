@@ -25,8 +25,6 @@ namespace TeensyMonitor.MyGLTools.UserControls
         {
             base.DrawPlotOverlays();
 
-            if (AxesOptions.DrawAxes == false) return;
-
             RectangleF axesViewPort = GetAxesViewPort();
             ApplyPlotTransform(axesViewPort);
             _axes.RenderLines(axesViewPort, GLClientSize);
@@ -36,10 +34,36 @@ namespace TeensyMonitor.MyGLTools.UserControls
         {
             base.DrawText();
 
-            if (AxesOptions.DrawAxes)
-                _axes.RenderText(fontRenderer);
+
+            Color? oldColour = null;
+            if (TextColour != AxesOptions.LabelColor)
+            {
+                oldColour = TextColour;
+                TextColour = AxesOptions.LabelColor;
+            }
+            _axes.RenderText(fontRenderer);
+            if (oldColour.HasValue)
+                TextColour = oldColour.Value;
         }
 
         protected virtual RectangleF GetAxesViewPort() => GetMetricsViewPort();
+
+        protected override RectangleF GetPlotViewPort()
+            => PlotAxesRenderer.AddLabelPadding(ViewPort, GLClientSize, AxesOptions.LabelPadding);
+
+        protected RectangleF RemoveLabelPadding(RectangleF viewPort)
+            => PlotAxesRenderer.RemoveLabelPadding(viewPort, GLClientSize, AxesOptions.LabelPadding);
+
+        protected override bool BeginPlotClip()
+        {
+            if (AxesOptions.LabelPadding <= 0.0f) return false;
+
+            int x = Math.Clamp((int)MathF.Ceiling(AxesOptions.LabelPadding), 0, GLClientSize.Width);
+            int width = GLClientSize.Width - x;
+            if (width <= 0 || GLClientSize.Height <= 0) return false;
+
+            base.BeginPlotClip(new Rectangle(x, 0, width, GLClientSize.Height));
+            return true;
+        }
     }
 }

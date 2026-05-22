@@ -34,11 +34,16 @@ namespace TeensyMonitor.MyGLTools.UserControls
 
             ApplyPlotTransform();
 
-            DrawPlots();
+            bool isClipped = BeginPlotClip();
+            try { DrawPlots(); }
+            finally { if (isClipped) EndPlotClip(); }
+
             DrawPlotOverlays();
         }
 
-        protected void ApplyPlotTransform() => ApplyPlotTransform(ViewPort);
+        protected void ApplyPlotTransform() => ApplyPlotTransform(GetPlotViewPort());
+
+        protected virtual RectangleF GetPlotViewPort() => ViewPort;
 
         protected void ApplyPlotTransform(RectangleF viewPort)
         {
@@ -48,6 +53,19 @@ namespace TeensyMonitor.MyGLTools.UserControls
 
         protected abstract void DrawPlots();
         protected virtual void DrawPlotOverlays() { }
+
+        protected virtual bool BeginPlotClip() => false;
+
+        protected void BeginPlotClip(Rectangle clipRect)
+        {
+            GL.Scissor(clipRect.X, clipRect.Y, clipRect.Width, clipRect.Height);
+            GL.Enable(EnableCap.ScissorTest);
+        }
+
+        protected void EndPlotClip()
+        {
+            GL.Disable(EnableCap.ScissorTest);
+        }
 
         public void SetMetrics(float min, float max, float range, float desiredRange, float viewMin, float viewMax)
         {
@@ -79,15 +97,17 @@ namespace TeensyMonitor.MyGLTools.UserControls
 
         protected RectangleF GetMetricsViewPort()
         {
+            RectangleF viewPort = GetPlotViewPort();
+
             if (_metrics is { HasViewRange: true }
                 && float.IsFinite(_metrics.ViewMinY)
                 && float.IsFinite(_metrics.ViewMaxY)
                 && _metrics.ViewMaxY > _metrics.ViewMinY)
             {
-                return new RectangleF(ViewPort.Left, _metrics.ViewMinY, ViewPort.Width, _metrics.ViewMaxY - _metrics.ViewMinY);
+                return new RectangleF(viewPort.Left, _metrics.ViewMinY, viewPort.Width, _metrics.ViewMaxY - _metrics.ViewMinY);
             }
 
-            return ViewPort;
+            return viewPort;
         }
     }
 }

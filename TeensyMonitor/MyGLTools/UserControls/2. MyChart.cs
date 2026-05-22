@@ -71,7 +71,11 @@ namespace TeensyMonitor.MyGLTools.UserControls
         public MyChart()
         {
             InitializeComponent();
-            AxesOptions.DrawAxes = false;
+            AxesOptions.AxesVisible = false;
+//            AxesOptions.TicksVisible = false;
+//            AxesOptions.AxesLabelVisible = false;
+            AxesOptions.GridLines = PlotAxesRenderer.GridLineFlags.Vertical;
+            AxesOptions.LabelColor = Color.FromArgb(32, 32, 32, 32);
 
             if (SP == null) return;
             ActiveChart ??= this;

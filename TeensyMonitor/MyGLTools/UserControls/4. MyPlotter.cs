@@ -22,7 +22,7 @@ namespace TeensyMonitor.MyGLTools.UserControls
         protected override void Init()
         {
             base.Init();
-            if (MyGL != null)
+            if (MyGL != null && UseLegacyMouseWheelZoom)
                 MyGL.MouseWheel += MyGL_MouseWheel;
 
             if (SP == null) return;
@@ -85,7 +85,7 @@ namespace TeensyMonitor.MyGLTools.UserControls
 
             // 4. Define the _viewport based on the smoothed position.
             float viewLeft = _currentViewRight - Window;
-            ViewPort = new RectangleF(viewLeft, -6, Window, 1030);
+            ViewPort = PrepareViewPort(new RectangleF(viewLeft, -6, Window, 1030));
             ApplyPlotTransform();
 
 
@@ -118,6 +118,10 @@ namespace TeensyMonitor.MyGLTools.UserControls
 
         protected override void DrawText()
             => fontRenderer?.RenderText(Debug, 10, 10);
+
+        protected virtual bool UseLegacyMouseWheelZoom => true;
+
+        protected virtual RectangleF PrepareViewPort(RectangleF viewPort) => viewPort;
 
         private void MyGL_MouseWheel(object? sender, MouseEventArgs e)
         {

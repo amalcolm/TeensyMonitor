@@ -5,7 +5,7 @@ using TeensyMonitor.MyGLTools.UserControls;
 
 namespace TeensyMonitor.DataTools.Controls
 {
-    public partial class NoiseViewer : MyPlotterBaseWithAxes
+    public partial class NoiseViewer : MyInteractivePlotterBase
     {
         private const int MAX_VERTICES = 4096;
 
@@ -21,8 +21,9 @@ namespace TeensyMonitor.DataTools.Controls
             Setup(initAction: Init, shutdownAction: Shutdown);
             SP.DataReceived += SP_DataReceived;
 
-            AxesOptions.DrawAxes = false;
-            AxesOptions.DrawGrid = false;
+            AxesOptions.AxesVisible = false;
+            AxesOptions.GridVisible = false;
+            AxesOptions.LabelPadding = 70.0f;
         }
 
 
@@ -55,10 +56,18 @@ namespace TeensyMonitor.DataTools.Controls
             if (!float.IsFinite(minY) || !float.IsFinite(maxY) || maxY <= minY || lastX <= 0.0f)
                 return;
 
+            float height = maxY - minY;
+            if (height < Height)
+            {
+                float mid = (maxY + minY) * 0.5f;
+                minY = mid - Height * 0.5f;
+                maxY = mid + Height * 0.5f;
+            }
+
             lock (_lock)
             {
                 _vertexBuffer.Set(ref vertices, vertexCount);
-                ViewPort = new RectangleF(0, minY, lastX, maxY - minY);
+                SetAutomaticViewPort(new RectangleF(0.0f, minY, lastX, maxY - minY));
             }
         }
 
@@ -76,7 +85,7 @@ namespace TeensyMonitor.DataTools.Controls
 
             _vertexBuffer.Set(ref vertices, vertexCount);
 
-            ViewPort = new RectangleF(-0.5f, -0.5f, MAX_VERTICES-0.5f, 1000-0.5f);
+            SetAutomaticViewPort(new RectangleF(-0.5f, -0.5f, MAX_VERTICES-0.5f, 1000-0.5f));
             MyColour myColour = MyColour.Black;
 
             for (int i = 0; i < vertices.Length; i++)

@@ -230,6 +230,21 @@ namespace TeensyMonitor.MyGLTools.UserControls
             // Do not swap buffers here - let GLThread handle it
         }
 
+        private Color _textColour = Color.Black;
+        private bool renderingText = false;
+        public Color TextColour
+        {
+            get => _textColour;
+            set
+            {
+                _textColour = value;
+                if (renderingText)
+                {
+                    int colorLocation = GL.GetUniformLocation(_textShaderProgram, "uColor");
+                    GL.Uniform4(colorLocation, _textColour);
+                }
+            }
+        }
         private void RenderText()
         {
             if (!IsLoaded || IsDisposed) return;
@@ -248,9 +263,11 @@ namespace TeensyMonitor.MyGLTools.UserControls
             GL.Uniform1(textureLocation, 0);
 
             int colorLocation = GL.GetUniformLocation(_textShaderProgram, "uColor");
-            GL.Uniform4(colorLocation, Color.Black);
+            GL.Uniform4(colorLocation, TextColour);
 
+            renderingText = true;
             DrawText();
+            renderingText = false;
         }
 
         public void ClearGL()

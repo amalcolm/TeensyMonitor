@@ -9,11 +9,35 @@ namespace TeensyMonitor.MyGLTools.Helpers
         private const int MaxLabels = MaxXTicks + MaxYTicks;
         private const int VertexCapacity = 256;
         
+        [Flags]
+        public enum GridLineFlags
+        {
+            None       = 0,
+            Vertical   = 1,
+            Horizontal = 2,
+            All        = Vertical | Horizontal
+        }
+
         public class _Options
         {
-            public bool DrawAxes { get; set; } = true;
-            public bool DrawGrid { get; set; } = true;
-            public bool DrawTicks { get; set; } = true;
+            private bool _axesVisible = true;
+            private bool _gridVisible = true;
+            private bool _ticksVisible = true;
+            private bool _axesLabelVisible = true;
+            private float _labelPadding = 0.0f;
+            private Color _labelColor = Color.Black;
+            private GridLineFlags _gridLines = GridLineFlags.All;
+
+            public bool AxesVisible      { get => _axesVisible;      set { _axesVisible      = value; Changed = true; } }
+            public bool GridVisible      { get => _gridVisible;      set { _gridVisible      = value; Changed = true; } }
+            public bool TicksVisible     { get => _ticksVisible;     set { _ticksVisible     = value; Changed = true; } }
+            public bool AxesLabelVisible { get => _axesLabelVisible; set { _axesLabelVisible = value; Changed = true; } }
+            public float LabelPadding    { get => _labelPadding;     set { _labelPadding     = value; Changed = true; } }
+            public Color LabelColor      { get => _labelColor;       set { _labelColor       = value; Changed = true; } }
+            public GridLineFlags GridLines { get => _gridLines;      set { _gridLines        = value; Changed = true; } }
+
+            internal bool Changed { get; set; } = true;
+            internal void ClearChanged() => Changed = false;
         };
         public _Options Options { get; private set; } = new();
 
@@ -35,9 +59,6 @@ namespace TeensyMonitor.MyGLTools.Helpers
         private Size _lastClientSize = Size.Empty;
         private int _labelCount;
         private bool _ready;
-
-        public bool Visible { get; set; } = true;
-        public bool ShowGrid { get; set; } = true;
 
         public void Init(FontFile? font)
         {
@@ -66,7 +87,7 @@ namespace TeensyMonitor.MyGLTools.Helpers
 
         public void RenderLines(RectangleF viewPort, Size clientSize)
         {
-            if (!_ready || !Visible) return;
+            if (!_ready) return;
 
             if (!IsUsable(viewPort, clientSize))
             {
@@ -82,16 +103,17 @@ namespace TeensyMonitor.MyGLTools.Helpers
 
         public void RenderText(FontRenderer fontRenderer)
         {
-            if (!_ready || !Visible || _labelCount == 0) return;
+            if (!_ready || Options.AxesLabelVisible == false || _labelCount == 0) return;
 
             fontRenderer.RenderText(_labels, _labelCount);
         }
 
         private bool NeedsRebuild(RectangleF viewPort, Size clientSize)
         {
-            const float epsilon = 0.000001f;
-
+            if (Options.Changed) return true;
             if (!_lastClientSize.Equals(clientSize)) return true;
+
+            const float epsilon = 0.000001f;
 
             return Math.Abs(_lastViewPort.X      - viewPort.X     ) > epsilon
                 || Math.Abs(_lastViewPort.Y      - viewPort.Y     ) > epsilon
@@ -117,19 +139,22 @@ namespace TeensyMonitor.MyGLTools.Helpers
 
             int vertexCount = 0;
 
-            AddLine(ref vertexCount, xMin, yMin, xMax, yMin, AxisColour);
-            AddLine(ref vertexCount, xMin, yMin, xMin, yMax, AxisColour);
+            if (Options.AxesVisible)
+            {
+                AddLine(ref vertexCount, xMin, yMin, xMax, yMin, AxisColour);
+                AddLine(ref vertexCount, xMin, yMin, xMin, yMax, AxisColour);
+            }
 
             BuildXTicks(ref vertexCount, xMin, xMax, yMin, yMax, yTickWorld, clientSize);
             BuildYTicks(ref vertexCount, xMin, xMax, yMin, yMax, xTickWorld, clientSize);
 
             _lineBuffer.Set(ref _vertices, vertexCount);
+
+            Options.ClearChanged();
         }
 
         private void BuildXTicks(ref int vertexCount, float xMin, float xMax, float yMin, float yMax, float tickWorld, Size clientSize)
         {
-            if (Options.DrawTicks == false) return;
-
             float step = NiceStep(xMax - xMin, 8);
             if (!float.IsFinite(step) || step <= 0.0f) return;
 
@@ -138,21 +163,27 @@ namespace TeensyMonitor.MyGLTools.Helpers
 
             for (float x = first; x <= xMax && tickCount < MaxXTicks; x += step)
             {
-                if (ShowGrid) AddLine(ref vertexCount, x, yMin, x, yMax, GridColour);
-                AddLine(ref vertexCount, x, yMin, x, yMin + tickWorld, TickColour);
+                if (DrawGridLine(GridLineFlags.Vertical))
+                    AddLine(ref vertexCount, x, yMin, x, yMax, GridColour);
 
-                TextBlock label = _xLabels[tickCount++];
-                label.X = WorldToScreenX(x, xMin, xMax, clientSize.Width) + 14.0f;
-                label.Y = 4.0f;
-                label.SetValue(x, XFormat);
-                _labels[_labelCount++] = label;
+                if (Options.TicksVisible)
+                    AddLine(ref vertexCount, x, yMin, x, yMin + tickWorld, TickColour);
+
+                if (Options.AxesLabelVisible)
+                {
+                    TextBlock label = _xLabels[tickCount];
+                    label.X = WorldToScreenX(x, xMin, xMax, clientSize.Width) + 14.0f;
+                    label.Y = 4.0f;
+                    label.SetValue(x, XFormat);
+                    _labels[_labelCount++] = label;
+                }
+
+                tickCount++;
             }
         }
 
         private void BuildYTicks(ref int vertexCount, float xMin, float xMax, float yMin, float yMax, float tickWorld, Size clientSize)
         {
-            if (Options.DrawTicks == false) return;
-
             float step = NiceStep(yMax - yMin, 6);
             if (!float.IsFinite(step) || step <= 0.0f) return;
 
@@ -161,16 +192,27 @@ namespace TeensyMonitor.MyGLTools.Helpers
 
             for (float y = first; y <= yMax && tickCount < MaxYTicks; y += step)
             {
-                if (ShowGrid) AddLine(ref vertexCount, xMin, y, xMax, y, GridColour);
-                AddLine(ref vertexCount, xMin, y, xMin + tickWorld, y, TickColour);
+                if (DrawGridLine(GridLineFlags.Horizontal))
+                    AddLine(ref vertexCount, xMin, y, xMax, y, GridColour);
 
-                TextBlock label = _yLabels[tickCount++];
-                label.X = 58.0f;
-                label.Y = WorldToScreenY(y, yMin, yMax, clientSize.Height) - 8.0f;
-                label.SetValue(y, YFormat);
-                _labels[_labelCount++] = label;
+                if (Options.TicksVisible)
+                    AddLine(ref vertexCount, xMin, y, xMin + tickWorld, y, TickColour);
+
+                if (Options.AxesLabelVisible)
+                {
+                    TextBlock label = _yLabels[tickCount];
+                    label.X = 58.0f;
+                    label.Y = WorldToScreenY(y, yMin, yMax, clientSize.Height) - 8.0f;
+                    label.SetValue(y, YFormat);
+                    _labels[_labelCount++] = label;
+                }
+
+                tickCount++;
             }
         }
+
+        private bool DrawGridLine(GridLineFlags flag)
+            => Options.GridVisible && (Options.GridLines & flag) != 0;
 
         private void AddLine(ref int count, float x1, float y1, float x2, float y2, MyColour colour)
         {
@@ -206,6 +248,36 @@ namespace TeensyMonitor.MyGLTools.Helpers
             && float.IsFinite(viewPort.Bottom)
             && viewPort.Width > 0.0f
             && viewPort.Height > 0.0f;
+
+        public static RectangleF AddLabelPadding(RectangleF viewPort, Size clientSize, float padding)
+        {
+            if (padding <= 0.0f || clientSize.Width <= 1 || viewPort.Width <= 0.0f)
+                return viewPort;
+
+            float usableWidth = clientSize.Width - padding;
+            if (usableWidth <= 1.0f)
+                return viewPort;
+
+            float width = viewPort.Width * clientSize.Width / usableWidth;
+            float left = viewPort.Right - width;
+
+            return new RectangleF(left, viewPort.Top, width, viewPort.Height);
+        }
+
+        public static RectangleF RemoveLabelPadding(RectangleF viewPort, Size clientSize, float padding)
+        {
+            if (padding <= 0.0f || clientSize.Width <= 1 || viewPort.Width <= 0.0f)
+                return viewPort;
+
+            float usableWidth = clientSize.Width - padding;
+            if (usableWidth <= 1.0f)
+                return viewPort;
+
+            float width = viewPort.Width * usableWidth / clientSize.Width;
+            float left = viewPort.Right - width;
+
+            return new RectangleF(left, viewPort.Top, width, viewPort.Height);
+        }
 
         private static float WorldToScreenX(float x, float xMin, float xMax, int width)
             => (x - xMin) * width / (xMax - xMin);
