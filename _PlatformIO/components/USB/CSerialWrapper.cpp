@@ -41,6 +41,7 @@ CSerialWrapper::ModeType CSerialWrapper::setMode(CSerialWrapper::ModeType mode) 
   return m_Mode;
 }
 
+void CSerialWrapper::write(int      number) { put((uint8_t*)&number, sizeof(number)); }
 void CSerialWrapper::write(uint8_t  byte  ) { put(&byte,             sizeof(byte  )); }
 void CSerialWrapper::write(uint16_t data  ) { put((uint8_t*)&data  , sizeof(data  )); }
 void CSerialWrapper::write(uint32_t data  ) { put((uint8_t*)&data  , sizeof(data  )); }

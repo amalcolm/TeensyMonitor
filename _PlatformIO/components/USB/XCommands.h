@@ -9,7 +9,8 @@ enum class CommandFlags : uint32_t {
   HoldWipers     = 0x02,
   SetSearchPhase = 0x04,
 
-  RunTestMidOffset = 0x100,
+  RunTestMidOffset  = 0x100,
+  RunGetNoiseSample = 0x200,
 };
 
 struct XCMD_Header

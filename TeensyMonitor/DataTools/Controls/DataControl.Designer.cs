@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            chart = new TeensyMonitor.Plotter.UserControls.MyChart();
+            chart = new TeensyMonitor.MyGLTools.UserControls.MyChart();
             SuspendLayout();
             // 
             // chart
@@ -66,6 +66,6 @@
 
         #endregion
 
-        private Plotter.UserControls.MyChart chart;
+        private MyGLTools.UserControls.MyChart chart;
     }
 }

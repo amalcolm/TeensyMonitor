@@ -65,6 +65,7 @@ struct HWforState {
 
     // tests
     void testMidOffset();
+    void testGetNoiseSample();
 
 
   private:

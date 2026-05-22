@@ -6,7 +6,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
-using TeensyMonitor.Plotter.Fonts;
+using TeensyMonitor.MyGLTools.Fonts;
 
 namespace TeensyMonitor
 {

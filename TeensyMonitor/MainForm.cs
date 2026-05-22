@@ -4,8 +4,8 @@ namespace TeensyMonitor
 {
     using PsycSerial;
     using TeensyMonitor.Caldera;
-    using TeensyMonitor.Plotter.Helpers;
-    using TeensyMonitor.Plotter.UserControls;
+    using TeensyMonitor.MyGLTools.Helpers;
+    using TeensyMonitor.MyGLTools.UserControls;
 
 
     public partial class MainForm : Form

@@ -2,7 +2,7 @@
 using PsycSerial;
 using PsycSerial.Packets;
 using System.Text.Json;
-using TeensyMonitor.Plotter.Helpers;
+using TeensyMonitor.MyGLTools.Helpers;
 
 namespace TeensyMonitor.Caldera
 {
@@ -51,7 +51,8 @@ namespace TeensyMonitor.Caldera
                     }
                     break;
                 case DebugPacket debugPacket:
-                    PostStateChange((int)debugPacket.State, force: true);
+                    if (_lastState < 0 || (int)debugPacket.State != _lastState)
+                      PostStateChange((int)debugPacket.State, force: true);
                     break;
             }
         }
@@ -69,7 +70,10 @@ namespace TeensyMonitor.Caldera
             => _voltagesPoster.Post(voltages);
 
         public bool PostStateChange(int state, bool force = false)
-            => _statePoster.Post(new StateChangedMessage((HeadState)state), force);
+        {
+            _lastState = state;
+            return _statePoster.Post(new StateChangedMessage((HeadState)state), force);
+        }
 
         private bool CanPostMessages()
             => !_disposed && _ready && !Control.IsDisposed && Control.IsHandleCreated;
@@ -229,7 +233,6 @@ namespace TeensyMonitor.Caldera
             };
 
             Program.serialPort?.Write(xCMD);
-            _lastState = (int)message.State;
         }
 
         private void HandleSetDebugFlagsMessage(JsonElement root)

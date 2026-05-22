@@ -4,4 +4,5 @@ export const COMMAND_FLAGS = Object.freeze({
   HOLD_WIPERS: 0x02,
   SET_SEARCH_PHASE: 0x04,
   RUN_TEST_MID_OFFSET: 0x100,
+  RUN_GET_NOISE_SAMPLE: 0x200,
 });

@@ -1,7 +1,7 @@
 ﻿using System.Text;
-using TeensyMonitor.Plotter.UserControls;
+using TeensyMonitor.MyGLTools.UserControls;
 
-namespace TeensyMonitor.Plotter.Helpers
+namespace TeensyMonitor.MyGLTools.Helpers
 {
     // Streaming step-discontinuity fixer (4-point gate: P1-P2 vs P3-P4).
     // Uses: (1) slope similarity (dimensionless) and (2) Δy(mid) size check (y-units).

@@ -1,7 +1,7 @@
 ﻿
 using PsycSerial;
 using TeensyMonitor.Caldera;
-using TeensyMonitor.Plotter.Helpers;
+using TeensyMonitor.MyGLTools.Helpers;
 
 namespace TeensyMonitor.DataTools.Controls
 {

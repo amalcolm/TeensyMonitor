@@ -1,4 +1,4 @@
-﻿namespace TeensyMonitor.Plotter.UserControls
+﻿namespace TeensyMonitor.MyGLTools.UserControls
 {
     partial class DataForm
     {

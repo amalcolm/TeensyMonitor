@@ -3,7 +3,7 @@ namespace TeensyMonitor
 {
     using PsycSerial;
     using System.Diagnostics;
-    using TeensyMonitor.Plotter.UserControls;
+    using TeensyMonitor.MyGLTools.UserControls;
 
     public partial class MainForm : Form
     {

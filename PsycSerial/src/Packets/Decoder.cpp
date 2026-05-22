@@ -114,7 +114,6 @@ namespace PsycSerial
 				{
 					debugPkt->Data[i].StartTick = nativePacket.debug.data[i].startTick;
 					debugPkt->Data[i].Sample    = nativePacket.debug.data[i].sample;
-					debugPkt->Data[i].Reserved  = nativePacket.debug.data[i].reserved;
 					debugPkt->Data[i].EndTick   = nativePacket.debug.data[i].endTick;
 				}
 				return debugPkt;

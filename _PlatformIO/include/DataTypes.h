@@ -68,10 +68,9 @@ struct BlockType {
 };
 
 
-struct DebugSampleType {
+struct TimedSample {
   uint32_t startTick;
-  uint16_t sample;
-  uint16_t RESERVED;
+  int      sample;
   uint32_t endTick;
 };
 
@@ -83,7 +82,7 @@ struct DebugType {
   StateType state;
 
   uint32_t count;
-  DebugSampleType data[DEBUG_BLOCKSIZE];
+  TimedSample data[DEBUG_BLOCKSIZE];
 
   DebugType() : timestamp(0.0), state(UNSET), count(0) {}
   DebugType(StateType s) : timestamp(0.0), state(s), count(0) {}

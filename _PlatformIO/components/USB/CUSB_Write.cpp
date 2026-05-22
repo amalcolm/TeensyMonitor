@@ -1,6 +1,7 @@
 #include "CUSB.h"
 #include "CA2D.h"
 #include "Setup.h"
+#include "CHead.h"
 #include "CTelemetry.h"
 
 
@@ -76,6 +77,12 @@ void CUSB::do_write_Telemetry() {
 }
 
 
+DebugType* CUSB::getDebugBuffer() { if (m_debugOutputWaiting) return nullptr;
+  m_pDebugToFill->state = Head.getState();
+  m_pDebugToFill->timestamp = Timer.getConnectTime();
+  return m_pDebugToFill;
+}
+
 void CUSB::do_write_Debug() {
   if (m_debugOutputWaiting == false) return;
 
@@ -101,6 +108,7 @@ void CUSB::writeDebugState(StateType state) {
 
   m_pDebugToFill->timestamp = Timer.getConnectTime();
   m_pDebugToFill->state = state;
+  m_pDebugToFill->count = 0; // ensure no sample data is sent
   m_debugOutputWaiting = true;
 }
 

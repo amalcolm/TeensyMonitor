@@ -251,8 +251,7 @@ namespace PsycSerial
     public value struct CDebugData
     {
         uint32_t StartTick;
-		uint16_t Sample;
-        uint16_t Reserved;
+		int32_t Sample;
         uint32_t EndTick;
 	};
 

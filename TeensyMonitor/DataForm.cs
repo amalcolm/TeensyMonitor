@@ -1,8 +1,8 @@
 ﻿using PsycSerial;
 using TeensyMonitor.DataTools;
-using TeensyMonitor.Plotter.Helpers;
+using TeensyMonitor.MyGLTools.Helpers;
 
-namespace TeensyMonitor.Plotter.UserControls
+namespace TeensyMonitor.MyGLTools.UserControls
 {
     public partial class DataForm : Form
     {

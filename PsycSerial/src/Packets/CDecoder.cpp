@@ -70,6 +70,7 @@ namespace
     template <typename T>
            FrameParseResult read      (const uint8_t* payload, T       & out) noexcept;
 
+    inline FrameParseResult readI32   (const uint8_t* payload, int32_t & out) noexcept;
     inline FrameParseResult readU8    (const uint8_t* payload, uint8_t & out) noexcept;
     inline FrameParseResult readU16   (const uint8_t* payload, uint16_t& out) noexcept;
     inline FrameParseResult readU32   (const uint8_t* payload, uint32_t& out) noexcept;
@@ -298,6 +299,7 @@ namespace
         return FrameParseResult::ValidPacket;
     }
 
+    inline FrameParseResult readI32   (const uint8_t* payload, int32_t & out) noexcept { return read(payload, out); }
     inline FrameParseResult readU8    (const uint8_t* payload, uint8_t & out) noexcept { return read(payload, out); }
     inline FrameParseResult readU16   (const uint8_t* payload, uint16_t& out) noexcept { return read(payload, out); }
     inline FrameParseResult readU32   (const uint8_t* payload, uint32_t& out) noexcept { return read(payload, out); }
@@ -528,7 +530,8 @@ namespace
             CDebugData& dd = dp.data[i];
 
             readU32(payload + offset, dd.startTick); offset += sizeof(uint32_t);
-            readU16(payload + offset, dd.sample    ); offset += sizeof(uint16_t);
+            readI32(payload + offset, dd.sample    ); offset += sizeof(int32_t);
+			// ignore reserved field, not transmitted
             readU32(payload + offset, dd.endTick   ); offset += sizeof(uint32_t);
         }
         consumed = need;

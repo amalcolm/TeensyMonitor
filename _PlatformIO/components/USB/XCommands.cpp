@@ -24,6 +24,9 @@ void XCommand::honour() {
 
   if (this->hasFlag(CommandFlags::RunTestMidOffset))
     HW->testMidOffset();
+
+  if (this->hasFlag(CommandFlags::RunGetNoiseSample))
+    HW->testGetNoiseSample();
 }
 
 

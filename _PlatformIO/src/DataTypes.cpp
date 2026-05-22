@@ -146,7 +146,7 @@ void DebugType::writeSerial(bool includeFrameMarkers) {
   USB.write(state);
   USB.write(count);
   for (uint32_t i = 0; i < count && i < DEBUG_BLOCKSIZE; i++) {
-    DebugSampleType& item = data[i];
+    TimedSample& item = data[i];
     USB.write(item.startTick);
     USB.write(item.sample);
     USB.write(item.endTick);

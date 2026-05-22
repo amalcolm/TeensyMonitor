@@ -90,8 +90,7 @@ struct CTelemetryPacket
 struct CDebugData
 {
     uint32_t startTick{};
-    uint16_t sample{};
-	uint16_t reserved{0xFFFF};
+    int32_t  sample{};
     uint32_t endTick{};
 };
 
@@ -104,7 +103,7 @@ struct CDebugPacket
     double   timeStamp{};
     uint32_t state{};
     uint32_t count{};
-    CDebugData data[4096];
+    CDebugData data[MAX_DEBUG_DATA]{};
 };
 
 #pragma pack(pop)

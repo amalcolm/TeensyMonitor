@@ -34,6 +34,10 @@ class CUSB : public CSerialWrapper {
     inline void buffer(DataType    data     ) { m_dataBuffer.write(data); }
     inline void buffer(BlockType*  block    ) { m_pBlock = block; }
     inline void buffer(CTelemetry* telemetry) { m_telemetryBuffer.write(telemetry); }
+    inline void buffer(DebugType*  debug    ) { if (debug != m_pDebugToFill) *m_pDebugToFill = *debug; m_debugOutputWaiting = true; }
+
+    DebugType*  getDebugBuffer();
+  
     
     void update() { 
 

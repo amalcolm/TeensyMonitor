@@ -30,14 +30,15 @@
         {
             cbPorts = new ComboBox();
             labPorts = new Label();
-            chart0 = new TeensyMonitor.Plotter.UserControls.MyChart();
+            chart0 = new TeensyMonitor.MyGLTools.UserControls.MyChart();
             tlpCharts = new TableLayoutPanel();
             butDBG = new Button();
             pHeader = new Panel();
             pDebugPane = new Panel();
-            dbg = new TeensyMonitor.Plotter.UserControls.MyDebugPane();
+            dbg = new TeensyMonitor.MyGLTools.UserControls.MyDebugPane();
             pTelemetryPane = new Panel();
-            TelemetryPane = new TeensyMonitor.Plotter.UserControls.MyTelemetryPane();
+            TelemetryPane = new TeensyMonitor.MyGLTools.UserControls.MyTelemetryPane();
+            noiseViewer = new TeensyMonitor.DataTools.Controls.NoiseViewer();
             tlpCharts.SuspendLayout();
             pHeader.SuspendLayout();
             pDebugPane.SuspendLayout();
@@ -74,7 +75,7 @@
             chart0.Location = new Point(3, 3);
             chart0.Name = "chart0";
             chart0.Padding = new Padding(4);
-            chart0.Size = new Size(1054, 1264);
+            chart0.Size = new Size(1054, 948);
             chart0.TabIndex = 6;
             chart0.Yscale = 1F;
             // 
@@ -90,7 +91,7 @@
             tlpCharts.RowCount = 1;
             tlpCharts.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             tlpCharts.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            tlpCharts.Size = new Size(1060, 1270);
+            tlpCharts.Size = new Size(1060, 954);
             tlpCharts.TabIndex = 8;
             // 
             // butDBG
@@ -128,7 +129,6 @@
             // dbg
             // 
             dbg.AutoClear = true;
-            dbg.BackColor = Color.AliceBlue;
             dbg.BorderStyle = BorderStyle.FixedSingle;
             dbg.Dock = DockStyle.Fill;
             dbg.Location = new Point(4, 4);
@@ -149,7 +149,6 @@
             // TelemetryPane
             // 
             TelemetryPane.AutoClear = true;
-            TelemetryPane.BackColor = Color.PapayaWhip;
             TelemetryPane.BorderStyle = BorderStyle.FixedSingle;
             TelemetryPane.Dock = DockStyle.Fill;
             TelemetryPane.Location = new Point(3, 3);
@@ -158,12 +157,23 @@
             TelemetryPane.Size = new Size(329, 1264);
             TelemetryPane.TabIndex = 8;
             // 
+            // noiseViewer
+            // 
+            noiseViewer.AutoClear = true;
+            noiseViewer.BorderStyle = BorderStyle.FixedSingle;
+            noiseViewer.Dock = DockStyle.Bottom;
+            noiseViewer.Location = new Point(0, 996);
+            noiseViewer.Name = "noiseViewer";
+            noiseViewer.Size = new Size(1060, 316);
+            noiseViewer.TabIndex = 13;
+            // 
             // MainForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1395, 1620);
             Controls.Add(tlpCharts);
+            Controls.Add(noiseViewer);
             Controls.Add(pTelemetryPane);
             Controls.Add(pDebugPane);
             Controls.Add(pHeader);
@@ -182,13 +192,14 @@
         #endregion
         private ComboBox cbPorts;
         private Label labPorts;
-        private Plotter.UserControls.MyChart chart0;
+        private MyGLTools.UserControls.MyChart chart0;
         private TableLayoutPanel tlpCharts;
         private Button butDBG;
         private Panel pHeader;
         private Panel pDebugPane;
-        private Plotter.UserControls.MyDebugPane dbg;
+        private MyGLTools.UserControls.MyDebugPane dbg;
         private Panel pTelemetryPane;
-        private Plotter.UserControls.MyTelemetryPane TelemetryPane;
+        private MyGLTools.UserControls.MyTelemetryPane TelemetryPane;
+        private DataTools.Controls.NoiseViewer noiseViewer;
     }
 }

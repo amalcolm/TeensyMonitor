@@ -16,7 +16,8 @@ namespace PsycSerial::Packets
         HoldWipers     = 0x02,
         SetSearchPhase = 0x04,
 
-        RunTestMidOffset = 0x100,
+        RunTestMidOffset  = 0x100,
+		RunGetNoiseSample = 0x200,
     };
 
 

@@ -1,7 +1,7 @@
 ﻿using PsycSerial;
 using PsycSerial.Math;
-using TeensyMonitor.Plotter.Helpers;
-using TeensyMonitor.Plotter.UserControls;
+using TeensyMonitor.MyGLTools.Helpers;
+using TeensyMonitor.MyGLTools.UserControls;
 
 namespace TeensyMonitor.DataTools
 {

@@ -1,5 +1,5 @@
 using PsycSerial;
-using TeensyMonitor.Plotter.Helpers;
+using TeensyMonitor.MyGLTools.Helpers;
 
 namespace TeensyMonitor
 {

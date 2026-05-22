@@ -163,6 +163,9 @@ document.querySelector("#app").innerHTML = `
               <button class="debug-panel__button" type="button" data-debug-test="midOffset">
                 Mid offset
               </button>
+              <button class="debug-panel__button" type="button" data-debug-test="getNoiseSample">
+                Get Noise Sample
+              </button>
             </div>
           </section>
         </div>

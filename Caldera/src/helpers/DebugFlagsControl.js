@@ -11,6 +11,7 @@ const DEBUG_FLAG_BY_ID = Object.freeze({
 
 const DEBUG_TEST_COMMAND_FLAG_BY_ID = Object.freeze({
   midOffset: COMMAND_FLAGS.RUN_TEST_MID_OFFSET,
+  getNoiseSample: COMMAND_FLAGS.RUN_GET_NOISE_SAMPLE,
 });
 
 export class DebugFlagsControl {
