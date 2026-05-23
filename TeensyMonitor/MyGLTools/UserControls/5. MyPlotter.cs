@@ -104,12 +104,12 @@ namespace TeensyMonitor.MyGLTools.UserControls
             switch (state)
             {
                 case ConnectionState.Connected:
-                    // Handle connection established
-                    break;
                 case ConnectionState.Disconnected:
                     lock (PlotsLock)
                     {
                         Plots.Clear();
+                        _plotsSnapshot = [];
+                        _plotsDirty = true;
                     }
                     break;
             }

@@ -22,10 +22,10 @@ void XCommand::honour() {
 
 
 
-  if (this->hasFlag(CommandFlags::RunTestMidOffset))
+  if (this->hasFlag(CommandFlags::Test_MidOffset))
     HW->testMidOffset();
 
-  if (this->hasFlag(CommandFlags::RunGetNoiseSample))
+  if (this->hasFlag(CommandFlags::Test_NoiseSample))
     HW->testGetNoiseSample();
 }
 

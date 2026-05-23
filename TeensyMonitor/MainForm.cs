@@ -5,8 +5,6 @@ namespace TeensyMonitor
     using PsycSerial;
     using TeensyMonitor.Caldera;
     using TeensyMonitor.MyGLTools.Helpers;
-    using TeensyMonitor.MyGLTools.UserControls;
-
 
     public partial class MainForm : Form
     {
@@ -55,13 +53,15 @@ namespace TeensyMonitor
                 caldera.TestStarted += (s, e) => dbg.Clear();
             };
 
+            multiChart.ChartCountChanged += MultiChart_ChartCountChanged;
+
             if (SP == null) return;
 
             SP.DataReceived      += SP_DataReceived;
             SP.ConnectionChanged += SP_ConnectionChanged;
             SP.ErrorOccurred     += SP_ErrorOccurred;
 
-            Init_Clear();
+            multiChart.Clear();
         }
 
         private readonly Timer monitorTimer = new() { Interval = 1000, Enabled = false };
@@ -85,16 +85,8 @@ namespace TeensyMonitor
         {
             if (blockPacket.Count == 0) return;
 
-            if (State != FormState.Running) { Init_Packet(blockPacket); return; }
-
-            if (Charts.TryGetValue(blockPacket.State, out MyChart? chart) && chart != null)
-            {
-                chart.SP_DataReceived(blockPacket);
-
-//                tallForm?.Process(blockPacket);
-            }
-            else
-                AddChart(blockPacket);
+            multiChart.AddBlockPacket(blockPacket);
+//            tallForm?.Process(blockPacket);
         }
 
 
@@ -104,7 +96,7 @@ namespace TeensyMonitor
             var parsedValues = parsedPool.Rent();
             if (MyTextParser.Parse(textPacket.Text, parsedValues))
             {
-                chart0.AddData(parsedValues);
+                multiChart.AddData(parsedValues);
                 parsedPool.Return(parsedValues);
             }
             else
@@ -167,11 +159,15 @@ namespace TeensyMonitor
                     if (firstLoad == false)
                         dbg.Clear();
                     dbg.Log(str);
-                    State = FormState.Initialising;
+                    multiChart.Clear();
+                    break;
+
+                case ConnectionState.HandshakeSuccessful:
+                    multiChart.BeginInitialising();
                     break;
 
                 case ConnectionState.Disconnected:
-                    State = FormState.None;
+                    multiChart.Clear();
 
                     if (SocketWatcher.ReceivedDisconnect)
                     {
@@ -255,13 +251,20 @@ namespace TeensyMonitor
         int index = -1;
         private void butDBG_Click(object sender, EventArgs e)
         {
-            for (int i = 0; i < Charts.Count; i++)
+            foreach (var chart in multiChart.GetCharts())
             {
-                var chart = Charts.ElementAt(i).Value;
-
                 dbg.Log(chart.getDebugOutput(index));
             }
             butDBG.Text = $"DBG {index++}";
+        }
+
+        private void MultiChart_ChartCountChanged(object? sender, int count)
+        {
+            if (count <= 4) return;
+
+            WindowState = FormWindowState.Normal;
+            Location = Point.Empty;
+            WindowState = FormWindowState.Maximized;
         }
 
 

@@ -30,8 +30,7 @@
         {
             cbPorts = new ComboBox();
             labPorts = new Label();
-            chart0 = new TeensyMonitor.MyGLTools.UserControls.MyChart();
-            tlpCharts = new TableLayoutPanel();
+            multiChart = new TeensyMonitor.MyGLTools.UserControls.MyMultichart();
             butDBG = new Button();
             pHeader = new Panel();
             pDebugPane = new Panel();
@@ -39,7 +38,6 @@
             pTelemetryPane = new Panel();
             TelemetryPane = new TeensyMonitor.MyGLTools.UserControls.MyTelemetryPane();
             noiseViewer = new TeensyMonitor.DataTools.Controls.NoiseViewer();
-            tlpCharts.SuspendLayout();
             pHeader.SuspendLayout();
             pDebugPane.SuspendLayout();
             pTelemetryPane.SuspendLayout();
@@ -64,35 +62,13 @@
             labPorts.TabIndex = 4;
             labPorts.Text = "COM Port:";
             // 
-            // chart0
-            // 
-            chart0.AutoClear = true;
-            chart0.BackColor = Color.Cornsilk;
-            chart0.BorderStyle = BorderStyle.FixedSingle;
-            chart0.Dock = DockStyle.Fill;
-            chart0.EnableLabels = true;
-            chart0.EnablePlots = true;
-            chart0.Location = new Point(3, 3);
-            chart0.Name = "chart0";
-            chart0.Padding = new Padding(4);
-            chart0.Size = new Size(1054, 948);
-            chart0.TabIndex = 6;
-            chart0.Yscale = 1F;
-            // 
-            // tlpCharts
-            // 
-            tlpCharts.ColumnCount = 1;
-            tlpCharts.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            tlpCharts.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-            tlpCharts.Controls.Add(chart0, 0, 0);
-            tlpCharts.Dock = DockStyle.Fill;
-            tlpCharts.Location = new Point(0, 42);
-            tlpCharts.Name = "tlpCharts";
-            tlpCharts.RowCount = 1;
-            tlpCharts.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            tlpCharts.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            tlpCharts.Size = new Size(1060, 954);
-            tlpCharts.TabIndex = 8;
+            // multiChart
+            //
+            multiChart.Dock = DockStyle.Fill;
+            multiChart.Location = new Point(0, 42);
+            multiChart.Name = "multiChart";
+            multiChart.Size = new Size(1060, 954);
+            multiChart.TabIndex = 8;
             // 
             // butDBG
             // 
@@ -172,7 +148,7 @@
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1395, 1620);
-            Controls.Add(tlpCharts);
+            Controls.Add(multiChart);
             Controls.Add(noiseViewer);
             Controls.Add(pTelemetryPane);
             Controls.Add(pDebugPane);
@@ -181,7 +157,6 @@
             StartPosition = FormStartPosition.CenterScreen;
             Text = "fNIRS Prototype Data Monitor";
             Shown += Form1_Shown;
-            tlpCharts.ResumeLayout(false);
             pHeader.ResumeLayout(false);
             pHeader.PerformLayout();
             pDebugPane.ResumeLayout(false);
@@ -192,8 +167,7 @@
         #endregion
         private ComboBox cbPorts;
         private Label labPorts;
-        private MyGLTools.UserControls.MyChart chart0;
-        private TableLayoutPanel tlpCharts;
+        private MyGLTools.UserControls.MyMultichart multiChart;
         private Button butDBG;
         private Panel pHeader;
         private Panel pDebugPane;

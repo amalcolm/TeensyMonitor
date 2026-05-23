@@ -368,6 +368,21 @@ namespace TeensyMonitor.MyGLTools.Helpers
             }
         }
 
+        /// <summary>
+        /// Draws the buffer using GL_TRIANGLES.
+        /// </summary>
+        public void DrawTriangles()
+        {
+            if (_vertexCount < 3) return;
+            lock (_lock)
+            {
+                Upload();
+                GL.BindVertexArray(_vao);
+                GL.DrawArrays(PrimitiveType.Triangles, 0, _vertexCount);
+                GL.BindVertexArray(0);
+            }
+        }
+
         public void Dispose()
         {
             if (_disposed) return;

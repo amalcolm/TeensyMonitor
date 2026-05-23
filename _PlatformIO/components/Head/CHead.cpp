@@ -67,13 +67,6 @@ void CHead::clear() {
 
 
 
-std::vector<StateType>& CHead::getSequence() {  return m_sequence;}
-
-void CHead::setSequence( std::vector<StateType> data ) { 
-  if (data.size() == 0) ERROR("CHead::setSequence: empty sequence"); 
-  m_sequence = std::move(data);
-}
-
 void CHead::setSequence(std::initializer_list<SequenceItem> items) {
   size_t total = 0;
   for (const auto& it : items)
@@ -89,4 +82,7 @@ void CHead::setSequence(std::initializer_list<SequenceItem> items) {
       m_sequence.push_back(it.single);
     else if (it.data && it.size) 
       m_sequence.insert(m_sequence.end(), it.data, it.data + it.size);
+
+  if (m_sequence.size() == 1)
+    snprintf(CFG::DEBUG_MODE, sizeof(CFG::DEBUG_MODE), "SINGLE_STATE");
 }

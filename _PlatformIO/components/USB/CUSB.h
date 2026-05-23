@@ -4,6 +4,7 @@
 #include "CBuffer.h"
 #include "DataTypes.h"
 #include "CMasterTimer.h"
+#include "CTelemetry.h"
 #include <array>
 
 class CUSB : public CSerialWrapper {
@@ -37,14 +38,21 @@ class CUSB : public CSerialWrapper {
     inline void buffer(DebugType*  debug    ) { if (debug != m_pDebugToFill) *m_pDebugToFill = *debug; m_debugOutputWaiting = true; }
 
     DebugType*  getDebugBuffer();
-  
+    
+    CTeleTimer TT_USBWrite{TeleGroup::USB, 0x0001};
+    CTeleTimer TT_USBRead {TeleGroup::USB, 0x0002};
     
     void update() { 
+      if (m_skipFlag) { m_skipFlag = false; return; }
 
       CSerialWrapper::update();
 
-      do_read();
-      do_write();
+      TT_USBRead.start();
+      doRead();
+      TT_USBRead.stop();
+      TT_USBWrite.start();
+      doWrite();
+      TT_USBWrite.stop();
 
     };
 
@@ -64,16 +72,17 @@ class CUSB : public CSerialWrapper {
     }
 
     void writeDebugState(StateType state);
+    void skipNextBlock() { m_skipFlag = true; }
+    void doWriteDebug();
 
   private:
-    void do_read();
+    void doRead();
    
-    void do_write();
-    void do_write_Data();
-    void do_write_Block();
-    void do_write_Text();
-    void do_write_Telemetry();
-    void do_write_Debug();
+    void doWrite();
+    void doWriteData();
+    void doWriteBlock();
+    void doWriteText();
+    void doWriteTelemetry();
 
     DebugType           m_DebugA;
     DebugType           m_DebugB;
@@ -81,6 +90,7 @@ class CUSB : public CSerialWrapper {
     DebugType* volatile m_pDebugToFill;
     DebugType* volatile m_pDebugToSend;
 
+    volatile bool m_skipFlag = false; 
     
 };
 

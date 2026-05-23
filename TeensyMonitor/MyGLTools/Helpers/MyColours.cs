@@ -64,6 +64,9 @@ namespace TeensyMonitor.MyGLTools.Helpers
                 FieldEnum.Sensor1        => BaseColours[6],
                 FieldEnum.Sensor2        => BaseColours[7],
                 FieldEnum.Timestamp      => BaseColours[8],
+
+                FieldEnum.rawSensor1     => BaseColours[6], // Reuse sensor colours for raw values
+                FieldEnum.rawSensor2     => BaseColours[7],
                 _                        => Color.Magenta
             };
         }

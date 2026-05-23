@@ -9,9 +9,6 @@
 void setup() {
   activityLED.set();
 
-  Hardware::begin();
-
-  
   Head.setSequence( {
 //  Head.RED8, Head.IR8             // States defined in CHead.h, also includes ALL_ON / ALL_OFF
 //  zTest.FullTest,                 // Can use predefined sequences from ZTests.h
@@ -19,6 +16,8 @@ void setup() {
     
     Head.ALL_OFF,
 });
+
+  Hardware::begin();
 
   activityLED.clear();
 }

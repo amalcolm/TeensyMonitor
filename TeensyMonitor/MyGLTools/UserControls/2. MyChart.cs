@@ -18,11 +18,13 @@ namespace TeensyMonitor.MyGLTools.UserControls
     public partial class MyChart : MyPlotterWithAxes
     {
         private const int WindowSize = 0x10000;
+        private const uint SingleStateKey = 0;
 
         public static MyChart? ActiveChart { get; set; } = null;
 
         public bool EnablePlots  { get; set; } = true;
         public bool EnableLabels { get; set; } = true;
+
 
 
         private readonly ConcurrentDictionary<uint, double> _latestValues = [];
@@ -51,19 +53,20 @@ namespace TeensyMonitor.MyGLTools.UserControls
         static readonly string[] dataFieldsToPlot = [
 //            "Top"   , "Bot" , "Mid",
 //            "Offset", "Gain",
-              "Sensor1",
-              "Sensor2",
+              "RawSensor1",
+              "RawSensor2",
             ];
 
         static readonly string[] dataFieldsForLabels = [
               "Top"   , "Bot" , "Mid",
               "Offset", "Gain",
-              "Sensor1", "RawSensor1",
-              "Sensor2", "RawSensor2"
+              "RawSensor1",
+              "RawSensor2"
             ];
 
         private readonly float _labelLineSpacing = 35f;
         private readonly float _labelTopMargin   = 20f;
+        private uint _lastSingleStateLabelState = uint.MaxValue;
 
         public WipersChangedMessage   LastWipersChange   { get; private set; } = new();
         public VoltagesChangedMessage LastVoltagesChange { get; private set; } = new();
@@ -71,10 +74,7 @@ namespace TeensyMonitor.MyGLTools.UserControls
         public MyChart()
         {
             InitializeComponent();
-            AxesOptions.AxesVisible = false;
-//            AxesOptions.TicksVisible = false;
-//            AxesOptions.AxesLabelVisible = false;
-            AxesOptions.GridLines = PlotAxesRenderer.GridLineFlags.Vertical;
+            AxesOptions.GridSettings = PlotAxesRenderer.GridFlags.VerticalLines | PlotAxesRenderer.GridFlags.XaxisLabels;
             AxesOptions.LabelColor = Color.FromArgb(32, 32, 32, 32);
 
             if (SP == null) return;
@@ -140,9 +140,11 @@ namespace TeensyMonitor.MyGLTools.UserControls
             if (packet is not BlockPacket blockPacket) return;
             if (blockPacket.Count == 0) return;
 
-            uint state = (uint)blockPacket.State;
+            bool singleStateMode = Config.DEBUG_MODE == "SINGLE_STATE";
+            uint labelState = (uint)blockPacket.State;
+            uint state = singleStateMode ? SingleStateKey : labelState;
 
-            if (EnableLabels)
+            if (EnablePlots)
                 lock (PlotsLock)
                 {
                     if (Plots.ContainsKey(state) == false)
@@ -170,15 +172,20 @@ namespace TeensyMonitor.MyGLTools.UserControls
 
             if (EnableLabels == false || font == null) return;  // packet received before GL is initialized
 
-            if (_blocks.ContainsKey(state) == false)
+            bool updateLabels = _blocks.ContainsKey(state) == false
+                             || (singleStateMode && _lastSingleStateLabelState != labelState);
+
+            if (updateLabels)
             {
                 string description = blockPacket.State.Description();
 
-                CreateTextBlocksForLabel(state, description + " A2D %", "0.0%");
+                CreateOrUpdateTextBlocksForLabel(state, description + " A2D %", "0.0%");
 
                 foreach (var info in dataSelectorsForLabels)
-                    CreateTextBlocksForLabel(state | info.AdditionalMask, description + " " + info.Name, "F2");
+                    CreateOrUpdateTextBlocksForLabel(state | info.AdditionalMask, description + " " + info.Name, "F2");
 
+                if (singleStateMode)
+                    _lastSingleStateLabelState = labelState;
             }
 
 
@@ -371,6 +378,20 @@ namespace TeensyMonitor.MyGLTools.UserControls
             _pendingStates.TryRemove(state, out _);
         }
 
+        private void CreateOrUpdateTextBlocksForLabel(uint state, string label, string valueFormat = "F2")
+        {
+            lock (_lock)
+            {
+                if (_blocks.TryGetValue(state, out var tuple))
+                {
+                    tuple.Item1.SetValue($": {label}");
+                    return;
+                }
+
+                CreateTextBlocksForLabel(state, label, valueFormat);
+            }
+        }
+
 
         uint[] _keyCache = [];
 
@@ -386,7 +407,7 @@ namespace TeensyMonitor.MyGLTools.UserControls
             {
                 int index = 1;
 
-                if (_keyCache.Length < _latestValues.Count)
+                if (_keyCache.Length != _latestValues.Count)
                     _keyCache = [.. _latestValues.Keys];
 
                 for (int i = 0; i < _latestValues.Count; i++)
@@ -437,13 +458,15 @@ namespace TeensyMonitor.MyGLTools.UserControls
         {
             base.SP_ConnectionChanged(state);
 
-            if (state == ConnectionState.Disconnected)
+            if (state == ConnectionState.Connected || state == ConnectionState.Disconnected)
                 lock (_lock)
                 {
                     _blocks.Clear();
                     _latestValues.Clear();
                     _pendingStates.Clear();
+                    _keyCache = [];
                     _numLabels = 0;
+                    _lastSingleStateLabelState = uint.MaxValue;
                     MyColour.Reset();
                 }
         }

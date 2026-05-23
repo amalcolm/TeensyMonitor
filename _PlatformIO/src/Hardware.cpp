@@ -7,6 +7,7 @@
 #include "CHead.h"
 #include "CTimer.h"
 #include "CTelemetry.h"
+#include "HWforState.h"
 
 void Hardware::begin() {
     SPI .begin();  // initialise SPI
@@ -32,38 +33,52 @@ void Hardware::begin() {
     Timer.restart();
 }
 
-CTeleCounter TC_Update{TeleGroup::HARDWARE, 1};
-CTelePeriod  TP_Update{TeleGroup::HARDWARE, 2};
-CRunningAverage<double> _raUpdateDurations;
 
-static double    STATE_DURATION = 1.0 * CFG::STATE_DURATION_uS   * 0.000'001; // convert to seconds
+static double    STATE_DURATION = 1.0 * CFG::STATE_DURATION_uS     * 0.000'001; // convert to seconds
 static double A2D_POLL_DURATION = 1.5 * CFG::A2D_READING_PERIOD_uS * 0.000'001; // convert to seconds
 
-bool Hardware::canUpdate() { if (Timer.sampleReady) return false;
 
-  return (Timer.getStateTime() + A2D_POLL_DURATION < STATE_DURATION );
+bool Hardware::canUpdate() {
+  bool doUpdate = true;
+  doUpdate &= (Timer.sampleReady == false); 
+  doUpdate &= (Timer.getStateTime() + A2D_POLL_DURATION < STATE_DURATION);
+
+  if (doUpdate == false) // we are droppng out of the outer while loop,
+    firstCallInCycle = true;  //  so set first for next cycle
+  
+  return doUpdate;
+}
+
+bool Hardware::debugLayerOverride() {
+  static CTeleCounter TC_Update{TeleGroup::HARDWARE, 1};
+  static CTelePeriod  TP_Update{TeleGroup::HARDWARE, 2};
+
+  static C32bitTimer sampleTimer = C32bitTimer::From_S(0.1).setPeriodic(true); 
+
+  TP_Update.measure();
+  TC_Update.increment();
+
+   if (firstCallInCycle && sampleTimer.passed()) {
+    HW->testGetNoiseSample();
+    Timer.sampleReady = true;
+    USB.doWriteDebug();
+    USB.skipNextBlock(); // avoid sending empty block 
+    return true;
+  }
+  firstCallInCycle = false;
+ return false;
 }
 
 void Hardware::update() {
 
-  TP_Update.measure();
-  TC_Update.increment();
+  if ((debugLayerOverride())) return;
 
   if (A2D.poll() == false) { yield(); return; }
 
   if (Timer.sampleReady) return;
 
-  double stateTime = Timer.getStateTime();
-
-  if (stateTime + A2D_POLL_DURATION < STATE_DURATION) {
-
-    double updateStart = Timer.getStateTime();
-        HW->update();  // update digital pots based on current state
-    double updateEnd = Timer.getStateTime();
-
-    _raUpdateDurations.add(updateEnd - updateStart);
-
-  }
+  if (Timer.getStateTime() + A2D_POLL_DURATION < STATE_DURATION)
+    HW->update();  // update digital pots based on current state
 
 
 }

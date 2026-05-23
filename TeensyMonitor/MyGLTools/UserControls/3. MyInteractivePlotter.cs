@@ -51,9 +51,15 @@ namespace TeensyMonitor.MyGLTools.UserControls
         float IPlotInteractionHost.MinInteractionXRange => MinInteractionXRange;
         float IPlotInteractionHost.MaxInteractionXRange => MaxInteractionXRange;
 
+        protected bool requestHold = false;
         void IPlotInteractionHost.BeginInteraction()
         {
+            requestHold = true;
             _hasInteractionXRange = true;
+        }
+        void IPlotInteractionHost.EndInteraction()
+        {
+            requestHold = false;
         }
 
         void IPlotInteractionHost.SetInteractionX(float left, float width)
@@ -115,9 +121,15 @@ namespace TeensyMonitor.MyGLTools.UserControls
         float IPlotInteractionHost.MinInteractionXRange => MinInteractionXRange;
         float IPlotInteractionHost.MaxInteractionXRange => MaxInteractionXRange;
 
+        protected bool requestHold = false;
         void IPlotInteractionHost.BeginInteraction()
         {
+            requestHold = true;
             _hasInteractionXRange = true;
+        }
+        void IPlotInteractionHost.EndInteraction()
+        {
+            requestHold = false;
         }
 
         void IPlotInteractionHost.SetInteractionX(float left, float width)

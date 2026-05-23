@@ -15,7 +15,7 @@ const std::array<PayloadInfo, 3> s_payloads = {{
   {XCMD_SetDebugFlags::ID, sizeof(XCMD_SetDebugFlags)}
 }};
 
-void CUSB::do_read() {
+void CUSB::doRead() {
   uint32_t nAvailable = Serial.available();
   if (nAvailable == 0) return;
 
@@ -74,7 +74,7 @@ void CUSB::do_read() {
 
       case XCMD_SetState::ID:  { XCMD_SetState cmd; std::memcpy(&cmd, pRead, packetSize);
 
-        LED.writeState(cmd.state);
+        Head.setStateForDebug(cmd.state);
 
         USB.writeDebugState(cmd.state);
         break;

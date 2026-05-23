@@ -250,9 +250,9 @@ namespace PsycSerial
 
     public value struct CDebugData
     {
-        uint32_t StartTick;
+        int32_t StartTick;
 		int32_t Sample;
-        uint32_t EndTick;
+        int32_t EndTick;
 	};
 
     public ref class DebugPacket : IPacket, IDisposable

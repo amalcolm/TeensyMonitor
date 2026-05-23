@@ -8,7 +8,7 @@ namespace PsycSerial
 {
     void Config::ParseHandshakeResponse(String^ response)
     {
-        array<String^>^ parts = response->TrimStart('<')->Split(':');
+        array<String^>^ parts = response->TrimStart('<')->Split("::", StringSplitOptions::RemoveEmptyEntries);
         Type^ t = Config::typeid;
 
         for each(String ^ part in parts)

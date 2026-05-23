@@ -55,19 +55,18 @@ class CHead {
    ~CHead();
    
     void begin();
-    void setSequence( std::vector<StateType> data );
     void setSequence( std::initializer_list<struct SequenceItem> il2d );
 
     inline StateType getState() { return m_State; }
+    inline void setStateForDebug(StateType state) { m_sequence[0] = state; }
     StateType setNextState();
     void clear();
 
-    std::vector<StateType>& getSequence();
-    uint8_t getSequenceNumber() const { return m_sequencePosition; }
+    std::vector<StateType>& getSequence() { return m_sequence; }
+    uint8_t getSequencePosition() const { return m_sequencePosition; }
 
     void waitForReady() const;
 
-  private:
     StateType   m_State;
   
     std::vector<StateType> m_sequence;

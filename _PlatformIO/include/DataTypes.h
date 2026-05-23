@@ -69,9 +69,9 @@ struct BlockType {
 
 
 struct TimedSample {
-  uint32_t startTick;
-  int      sample;
-  uint32_t endTick;
+  int32_t startTick;
+  int32_t sample;
+  int32_t endTick;
 };
 
 struct DebugType {

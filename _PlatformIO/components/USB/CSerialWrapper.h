@@ -32,7 +32,7 @@ class CSerialWrapper {
 
     void printf(const char *pFMT, ...);
     
-    void write(int      number);
+    void write(int32_t  number);
     void write(uint8_t  byte  );
     void write(uint16_t data  );
     void write(uint32_t data  );

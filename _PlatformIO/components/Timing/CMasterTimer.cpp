@@ -12,6 +12,7 @@ uint32_t A2D_OFFSET_TICKS = CTimerBase::microsecondsToTicks(1);
 CMasterTimer::CMasterTimer() : CTimer() { }
  
 void CMasterTimer::syncAndChangeState() { 
+  if (state.passed()) {} // if we've passed the next state, sync to the following period marker
   uint32_t now = state.wait();
 
   Head.resetAt(now + HEAD_DELAY_TICKS);

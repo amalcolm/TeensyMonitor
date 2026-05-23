@@ -89,9 +89,9 @@ struct CTelemetryPacket
 
 struct CDebugData
 {
-    uint32_t startTick{};
+    int32_t  startTick{};
     int32_t  sample{};
-    uint32_t endTick{};
+    int32_t  endTick{};
 };
 
 struct CDebugPacket

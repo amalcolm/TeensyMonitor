@@ -31,7 +31,7 @@ public:
     inline static constexpr char DEVICE_VERSION[]  = "0.1.5+" BUILD_STR;  // this is a #define from the build system
     inline static constexpr char DEVICE_NAME[]     = "fNIRS (Teensy 4.1)";
     inline static           char HOST_VERSION[16]  = "[unknown]";
-
+    inline static           char DEBUG_MODE[16]    = "OFF";
 
     inline static CommandFlags commandFlags{}; // bitfield for various command options, set in USB XCMD headers
     inline static bool    hasCommandFlag(CommandFlags flag) { return (_u(commandFlags) &  _u(flag)) != 0; }

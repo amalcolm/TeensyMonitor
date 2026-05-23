@@ -8,22 +8,18 @@
         float MaxInteractionXRange { get; }
 
         void BeginInteraction();
+        void EndInteraction();
         void SetInteractionX(float left, float width);
     }
 
-    internal sealed class PlotInteractionHandler
+    internal sealed class PlotInteractionHandler(IPlotInteractionHost host)
     {
         private const float ZoomFactor = 1.15f;
 
-        private readonly IPlotInteractionHost _host;
+        private readonly IPlotInteractionHost _host = host;
         private Control? _control;
         private bool _isDragging;
         private float _heldWorldX;
-
-        public PlotInteractionHandler(IPlotInteractionHost host)
-        {
-            _host = host;
-        }
 
         public void Attach(Control control)
         {
@@ -129,6 +125,8 @@
 
             if (_control != null)
                 _control.Capture = false;
+
+            _host.EndInteraction();
         }
 
         private float ScreenToWorldX(int mouseX)

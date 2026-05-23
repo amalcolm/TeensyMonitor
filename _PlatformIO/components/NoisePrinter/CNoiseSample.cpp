@@ -14,9 +14,9 @@ void FillBufferWithNoise(TimedSample* buffer, size_t size, double period) {
   noiseTimer.reset();
   bool wait = period > 0.0;
   for (size_t i = 0; i < size; i++) {
-    buffer[i].startTick = noiseTimer.getTicks();
+    buffer[i].startTick = noiseTimer.getTicksSinceReset();
     buffer[i].sample = analogRead(A0);
-    buffer[i].endTick = noiseTimer.getTicks();
+    buffer[i].endTick = noiseTimer.getTicksSinceReset();
 
     if (wait) noiseTimer.wait();
   }
@@ -30,6 +30,7 @@ C32bitTimer& getTimer(double period) {
   
   for (auto& [p, timer] : s_timers) if (p == period) return timer;
 
-  s_timers.emplace_back(period, C32bitTimer::From_S(period));
+  C32bitTimer timer = C32bitTimer::From_S(period).setPeriodic(true);
+  s_timers.emplace_back(period, timer);
   return s_timers.back().second;
 }

@@ -50,7 +50,7 @@ struct HWforState {
       Timer.addEvent(EventKind::HW_UPDATE_START);
 
       _update();
-      
+
       if (CFG::hasCommandFlag(CommandFlags::RunDebugUpdate)) 
         flags.dbg();  // defined in _DBG.cpp
       

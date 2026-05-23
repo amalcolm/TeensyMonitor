@@ -2,10 +2,16 @@
 #include "SPI.h"
 
 struct Hardware {
-  inline static SPISettings SPIsettings{4800000, MSBFIRST, SPI_MODE1};
+  public:
+    inline static SPISettings SPIsettings{4800000, MSBFIRST, SPI_MODE1};
 
-  static void begin();
+    static void begin();
 
-  static bool canUpdate();
-  static void update();
+    static bool canUpdate();
+    static void update();
+
+
+  private:
+    static bool debugLayerOverride();
+    inline static bool firstCallInCycle = true;
 };

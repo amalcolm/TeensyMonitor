@@ -32,6 +32,7 @@ namespace TeensyMonitor.Caldera
             _statePoster = CreateStatePoster();
 
             SP.DataReceived += SP_DataReceived;
+            SP.ConnectionChanged += SP_ConnectionChanged;
         }
 
         private bool _needsRefresh = true;
@@ -56,7 +57,20 @@ namespace TeensyMonitor.Caldera
                     break;
             }
         }
-
+        
+        protected void SP_ConnectionChanged(ConnectionState state)
+        {
+            switch (state)
+            {
+                case ConnectionState.HandshakeSuccessful:
+                    _ready = true;
+                    _needsRefresh = true;
+                    break;
+                case ConnectionState.Disconnected:
+                    _ready = false;
+                    break;
+            }
+        }
         private bool _disposed;
         private bool _ready;
         private readonly BufferedPoster<WipersChangedMessage> _wipersPoster;

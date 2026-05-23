@@ -529,10 +529,10 @@ namespace
         {
             CDebugData& dd = dp.data[i];
 
-            readU32(payload + offset, dd.startTick); offset += sizeof(uint32_t);
-            readI32(payload + offset, dd.sample    ); offset += sizeof(int32_t);
+            readI32(payload + offset, dd.startTick); offset += sizeof(int32_t);
+            readI32(payload + offset, dd.sample   ); offset += sizeof(int32_t);
 			// ignore reserved field, not transmitted
-            readU32(payload + offset, dd.endTick   ); offset += sizeof(uint32_t);
+            readI32(payload + offset, dd.endTick  ); offset += sizeof(int32_t);
         }
         consumed = need;
         out.debug = dp;

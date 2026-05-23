@@ -5,25 +5,25 @@
 #include "CTelemetry.h"
 
 
-void CUSB::do_write() {
+void CUSB::doWrite() {
   // Write data based on current mode
   switch (getMode())
   {
-    case CSerialWrapper::ModeType::RAWDATA:   do_write_Data();  break;
-    case CSerialWrapper::ModeType::BLOCKDATA: do_write_Block(); break;
-    case CSerialWrapper::ModeType::TEXT:      do_write_Text();  break;
+    case CSerialWrapper::ModeType::RAWDATA:   doWriteData();  break;
+    case CSerialWrapper::ModeType::BLOCKDATA: doWriteBlock(); break;
+    case CSerialWrapper::ModeType::TEXT:      doWriteText();  break;
     default: break;
   }
 
   // Always write (and clear) any buffered telemetry
-  do_write_Telemetry();
+  doWriteTelemetry();
 
-  do_write_Debug();
+  doWriteDebug();
 
 }
 
 // Sends all buffered DataType items over USB
-void CUSB::do_write_Data() {
+void CUSB::doWriteData() {
   while (m_dataBuffer.isEmpty() == false) {//  if (firstOut == 0) firstOut = m_buffer[readIndex].timestamp;
 
     DataType* pData = m_dataBuffer.read();
@@ -40,7 +40,7 @@ void CUSB::do_write_Data() {
 
 
 // Sends the buffered BlockType over USB
-void CUSB::do_write_Block() {
+void CUSB::doWriteBlock() {
   if (m_pBlock == NULL) return;
   
   if (m_handshakeComplete)
@@ -54,7 +54,7 @@ void CUSB::do_write_Block() {
 
 
 // if in TEXT mode, output the debugSerial of block
-void CUSB::do_write_Text() {
+void CUSB::doWriteText() {
   if (m_pBlock == NULL) return;
     m_pBlock->debugSerial();
 
@@ -63,7 +63,7 @@ void CUSB::do_write_Text() {
 
 
 // Sends all buffered Telemetry items over USB
-void CUSB::do_write_Telemetry() {
+void CUSB::doWriteTelemetry() {
 
   while (m_telemetryBuffer.isEmpty() == false) {
       CTelemetry** telemetry = m_telemetryBuffer.read();
@@ -83,7 +83,7 @@ DebugType* CUSB::getDebugBuffer() { if (m_debugOutputWaiting) return nullptr;
   return m_pDebugToFill;
 }
 
-void CUSB::do_write_Debug() {
+void CUSB::doWriteDebug() {
   if (m_debugOutputWaiting == false) return;
 
   noInterrupts();

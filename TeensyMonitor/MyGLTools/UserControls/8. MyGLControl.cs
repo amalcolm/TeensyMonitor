@@ -323,6 +323,35 @@ namespace TeensyMonitor.MyGLTools.UserControls
         }
 
 
+        protected void RunOnUiThread(MethodInvoker action)
+        {
+            if (IsDisposed) return;
+
+            if (InvokeRequired)
+            {
+                if (IsHandleCreated == false) return;
+                Invoke(action);
+                return;
+            }
+
+            action();
+        }
+
+        protected T? RunOnUiThread<T>(Func<T> action)
+        {
+            if (IsDisposed) return default;
+
+            if (InvokeRequired)
+            {
+                if (IsHandleCreated == false) return default;
+                return (T?)Invoke(action);
+            }
+
+            return action();
+        }
+
+
+
 
         protected void ShowDesignView()
         {

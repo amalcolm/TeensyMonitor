@@ -9,6 +9,7 @@ protected:
   // allow const methods to update these markers
   mutable uint32_t _lastMarker = 0;  
   mutable uint32_t _nextMarker = 0;
+  mutable uint32_t _resetMarker = 0;
 
   C32bitTimer();
 
@@ -23,7 +24,8 @@ public:
 
   inline uint32_t getLastMarker() const { return _lastMarker; }
   inline uint32_t getNextMarker() const { return _nextMarker; }
-  inline uint32_t getTicks() const { return ARM_DWT_CYCCNT - _lastMarker; }
+  inline  int32_t getTicks() const { return static_cast<int32_t>(ARM_DWT_CYCCNT - _lastMarker); }
+  inline  int32_t getTicksSinceReset() const { return static_cast<int32_t>(ARM_DWT_CYCCNT - _resetMarker); }
 
   inline double      getSeconds() const { return getTicks() * CTimerBase::getSecondsPerTick();      }
   inline double getMilliseconds() const { return getTicks() * CTimerBase::getMillisecondsPerTick(); }
@@ -95,6 +97,7 @@ public:
   inline uint32_t reset() const {
     _lastMarker = ARM_DWT_CYCCNT;
     _nextMarker = _lastMarker + _period;
+    _resetMarker = _lastMarker;
     return _lastMarker;
   }
 
