@@ -8,7 +8,7 @@ static const     double fineT  = 1.0 - pow(0.50, 1.0 / fineSamples);  // gentler
 
 void HWforState::_measureSignal() {
   readCheck(); if (phase != Phase::MEASURE) return; // check if signal is lost before attempting to measure
-
+/*
 //  if (measureTimer.waiting()) return;
 
   uint16_t v = sensor2.read();
@@ -27,15 +27,13 @@ void HWforState::_measureSignal() {
   }
 
   float vFinal = sensor2.filter(fineSamples);
-  A2D.storeNewData();
 
   mid.offsetLevel(-direction);
   delayMicroseconds(50);
 
-  Timer.sampleReady = true;
-  if (measureTimer.passed())
-    USB.printf("Measured difference: %.2f\n", vFinal);
+  USB.printf("Measured difference: %.2f\n", vFinal);
+*/
 
-
+  phase = Phase::FOLLOW;
 
 }

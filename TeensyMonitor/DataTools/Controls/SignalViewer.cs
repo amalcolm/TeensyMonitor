@@ -1,12 +1,13 @@
 ﻿using PsycSerial;
-using System.Windows.Forms;
+using System.Globalization;
+using System.Text;
 using TeensyMonitor.MyGLTools.Fonts;
 using TeensyMonitor.MyGLTools.Helpers;
 using TeensyMonitor.MyGLTools.UserControls;
 
 namespace TeensyMonitor.DataTools.Controls
 {
-    public partial class NoiseViewer : MyInteractivePlotterBase
+    public partial class SignalViewer : MyInteractivePlotterBase
     {
         private const int MAX_SAMPLES = 4096;
         private const int VERTICES_PER_SAMPLE = 6;
@@ -21,6 +22,9 @@ namespace TeensyMonitor.DataTools.Controls
         private const float NoiseRangeRightMargin = 8.0f;
         private const float NoiseRangeTopMargin = 22.0f;
         private const float NoiseRangeLabelGap = 4.0f;
+        private const string NoiseSampleFileName = "TeensyMonitor_NoiseSample.csv";
+
+        private static readonly CultureInfo CsvCulture = CultureInfo.InvariantCulture;
 
         private static TeensySerial SP => Program.serialPort ?? throw new InvalidOperationException("Serial port is not initialized.");
 
@@ -32,17 +36,24 @@ namespace TeensyMonitor.DataTools.Controls
         private TextBlock? _noiseRangeValueLabel;
         private TextBlock[] _noiseRangeBlocks = [];
         private float _noiseRange = 0.0f;
+        private DataPacket? _latestHardware;
+        private NoiseSnapshot _latestNoise = NoiseSnapshot.Empty;
 
-        public NoiseViewer()
+        public SignalViewer()
         {
+            InitializeComponent();
+
+            cmStrip.Closed += cmStrip_Closed;
+
             BackColor = Color.MistyRose;
             Setup(initAction: Init, shutdownAction: Shutdown);
             SP.DataReceived += SP_DataReceived;
 
-            AxesOptions = new() {
-                AxesVisible    = true,
-                GridVisible    = false,
-                LabelPadding   = 70.0f,
+            AxesOptions = new()
+            {
+                AxesVisible = true,
+                GridVisible = false,
+                LabelPadding = 70.0f,
                 XAxisUnitScale = XAxisUnitScale,
                 XAxisLabelClipRightPadding = XAxisUnitClipPadding
             };
@@ -52,7 +63,15 @@ namespace TeensyMonitor.DataTools.Controls
         static readonly float ticksToSeconds = 1.0f / 600_000_000f;
         private void SP_DataReceived(IPacket packet)
         {
-            if (IsRunning == false || packet is not DebugPacket dbg) return; if (dbg.Count <= 0) return;
+            if (IsRunning == false) return;
+
+            if (packet is BlockPacket blockPacket)
+            {
+                StoreHardwareSnapshot(blockPacket);
+                return;
+            }
+
+            if (packet is not DebugPacket dbg) return; if (dbg.Count <= 0) return;
 
             if (base.requestHold) return;
 
@@ -63,6 +82,7 @@ namespace TeensyMonitor.DataTools.Controls
                 total += dbg.Data[i].Sample;
 
             float mean = (float)(total / max);
+            List<NoiseSampleSnapshot> samples = new(max);
 
             float minY = float.MaxValue, maxY = float.MinValue;
             float lastX = 0.0f;
@@ -73,18 +93,19 @@ namespace TeensyMonitor.DataTools.Controls
                 if (float.IsFinite(y) == false) continue;
 
                 float x1 = dbg.Data[i].StartTick * ticksToSeconds;
-                float x2 = dbg.Data[i].EndTick   * ticksToSeconds;
+                float x2 = dbg.Data[i].EndTick * ticksToSeconds;
+                samples.Add(new NoiseSampleSnapshot(x1, x2, dbg.Data[i].Sample));
 
                 float y1 = MathF.Min(mean, y);
                 float y2 = MathF.Max(mean, y);
 
-                vertices[verts].Position.X = x1;  vertices[verts].Position.Y = y1;  verts++;
-                vertices[verts].Position.X = x2;  vertices[verts].Position.Y = y1;  verts++;
-                vertices[verts].Position.X = x2;  vertices[verts].Position.Y = y2;  verts++;
+                vertices[verts].Position.X = x1; vertices[verts].Position.Y = y1; verts++;
+                vertices[verts].Position.X = x2; vertices[verts].Position.Y = y1; verts++;
+                vertices[verts].Position.X = x2; vertices[verts].Position.Y = y2; verts++;
 
-                vertices[verts].Position.X = x1;  vertices[verts].Position.Y = y1;  verts++;
-                vertices[verts].Position.X = x2;  vertices[verts].Position.Y = y2;  verts++;
-                vertices[verts].Position.X = x1;  vertices[verts].Position.Y = y2;  verts++;
+                vertices[verts].Position.X = x1; vertices[verts].Position.Y = y1; verts++;
+                vertices[verts].Position.X = x2; vertices[verts].Position.Y = y2; verts++;
+                vertices[verts].Position.X = x1; vertices[verts].Position.Y = y2; verts++;
 
                 lastX = x2;
 
@@ -105,8 +126,23 @@ namespace TeensyMonitor.DataTools.Controls
             lock (_lock)
             {
                 _noiseRange = noiseRange;
+                _latestNoise = new NoiseSnapshot(dbg.TimeStamp, dbg.State, _latestHardware, samples);
                 _vertexBuffer.Set(ref vertices, vertexCount);
                 SetAutomaticViewPort(new RectangleF(0.0f, topY, lastX, height));
+            }
+        }
+
+        private void StoreHardwareSnapshot(BlockPacket blockPacket)
+        {
+            if (base.requestHold || blockPacket.Count <= 0) return;
+
+            for (int i = blockPacket.Count - 1; i >= 0; i--)
+            {
+                DataPacket dataPacket = blockPacket.BlockData[i];
+
+                lock (_lock)
+                    _latestHardware.CopyFrom(dataPacket);
+                return;
             }
         }
 
@@ -145,6 +181,8 @@ namespace TeensyMonitor.DataTools.Controls
         protected override void Shutdown()
         {
             _ready = false;
+            cmStrip.Closed -= cmStrip_Closed;
+
             Program.serialPort!.DataReceived -= SP_DataReceived;
             _xAxisUnitLabel?.Dispose();
             _noiseRangeLabel?.Dispose();
@@ -246,5 +284,155 @@ namespace TeensyMonitor.DataTools.Controls
 
             return Math.Max(minHeight, Math.Max(lowerHeight, upperHeight));
         }
+
+        private void miExport_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                NoiseSnapshot snapshot;
+                lock (_lock)
+                    snapshot = _latestNoise;
+
+                string path = GetNoiseSamplePath();
+                WriteNoiseSampleCsv(path, snapshot);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    this,
+                    $"Could not write {NoiseSampleFileName}.\r\n\r\n{ex.Message}",
+                    "Signal Viewer",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+       
+        private void cmStrip_Closed(object? sender, ToolStripDropDownClosedEventArgs e)
+        {
+            base.requestHold = false;
+        }
+
+        private static string GetNoiseSamplePath()
+        {
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+
+            if (string.IsNullOrWhiteSpace(desktop))
+                desktop = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Desktop");
+
+            return Path.Combine(desktop, NoiseSampleFileName);
+        }
+
+        private static void WriteNoiseSampleCsv(string path, NoiseSnapshot snapshot)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path) ?? ".");
+
+            using StreamWriter writer = new(path, append: false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            writer.WriteLine("index,time_s,start_s,end_s,raw_value,debug_timestamp_s,debug_state,debug_state_value,hardware_timestamp_s,state_time_s,hardware_state,top,bot,mid,offset,gain,sequence,raw_sensor1,raw_sensor2,sensor1,sensor2");
+
+            HardwareSnapshot? hardware = snapshot.Hardware;
+            for (int i = 0; i < snapshot.Samples.Count; i++)
+            {
+                NoiseSampleSnapshot sample = snapshot.Samples[i];
+                float time = (sample.StartSeconds + sample.EndSeconds) * 0.5f;
+
+                writer.Write(i.ToString(CsvCulture));
+                WriteCsvValue(writer, time);
+                WriteCsvValue(writer, sample.StartSeconds);
+                WriteCsvValue(writer, sample.EndSeconds);
+                WriteCsvValue(writer, sample.RawValue);
+                WriteCsvValue(writer, snapshot.DebugTimestamp);
+                WriteCsvValue(writer, snapshot.DebugState.ToString());
+                WriteCsvValue(writer, Convert.ToUInt32(snapshot.DebugState, CsvCulture));
+
+                if (hardware.HasValue)
+                    WriteHardwareCsvValues(writer, hardware.Value);
+                else
+                    WriteEmptyCsvValues(writer, count: 13);
+
+                writer.WriteLine();
+            }
+        }
+
+        private static void WriteHardwareCsvValues(StreamWriter writer, HardwareSnapshot hardware)
+        {
+            WriteCsvValue(writer, hardware.TimeStamp);
+            WriteCsvValue(writer, hardware.StateTime);
+            WriteCsvValue(writer, hardware.State.ToString());
+            WriteCsvValue(writer, hardware.Top);
+            WriteCsvValue(writer, hardware.Bot);
+            WriteCsvValue(writer, hardware.Mid);
+            WriteCsvValue(writer, hardware.Offset);
+            WriteCsvValue(writer, hardware.Gain);
+            WriteCsvValue(writer, hardware.SequenceNumber);
+            WriteCsvValue(writer, hardware.RawSensor1);
+            WriteCsvValue(writer, hardware.RawSensor2);
+            WriteCsvValue(writer, hardware.Sensor1);
+            WriteCsvValue(writer, hardware.Sensor2);
+        }
+
+        private static void WriteCsvValue(StreamWriter writer, string value)
+        {
+            writer.Write(',');
+            writer.Write('"');
+            writer.Write(value.Replace("\"", "\"\""));
+            writer.Write('"');
+        }
+
+        private static void WriteCsvValue(StreamWriter writer, double value)
+        {
+            writer.Write(',');
+            writer.Write(value.ToString("G17", CsvCulture));
+        }
+
+        private static void WriteCsvValue(StreamWriter writer, float value)
+        {
+            writer.Write(',');
+            writer.Write(value.ToString("G9", CsvCulture));
+        }
+
+        private static void WriteCsvValue(StreamWriter writer, int value)
+        {
+            writer.Write(',');
+            writer.Write(value.ToString(CsvCulture));
+        }
+
+        private static void WriteCsvValue(StreamWriter writer, uint value)
+        {
+            writer.Write(',');
+            writer.Write(value.ToString(CsvCulture));
+        }
+
+        private static void WriteEmptyCsvValues(StreamWriter writer, int count)
+        {
+            for (int i = 0; i < count; i++)
+                writer.Write(',');
+        }
+
+        private sealed record NoiseSnapshot(
+            double DebugTimestamp,
+            HeadState DebugState,
+            HardwareSnapshot? Hardware,
+            List<NoiseSampleSnapshot> Samples)
+        {
+            public static NoiseSnapshot Empty { get; } = new(0.0, HeadState.None, null, []);
+        }
+
+        private readonly record struct NoiseSampleSnapshot(float StartSeconds, float EndSeconds, int RawValue);
+
+        private readonly record struct HardwareSnapshot(
+            double TimeStamp,
+            double StateTime,
+            HeadState State,
+            int Top,
+            int Bot,
+            int Mid,
+            int Offset,
+            int Gain,
+            int SequenceNumber,
+            int RawSensor1,
+            int RawSensor2,
+            float Sensor1,
+            float Sensor2);
     }
 }

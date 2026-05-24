@@ -28,9 +28,7 @@ int16_t HWforState::readCheck() {
 
   uint16_t s2 = sensor2.read();
   if (sensor2.inZone == false) {
-    gain.setLevel(8);
-    delayMicroseconds(10);
-    sensor1.read();
+    flags.reset();
     phase = Phase::SEARCH;
   }
   return static_cast<int16_t>(s2);
@@ -46,7 +44,7 @@ void HWforState::centre(CSensor& sensor, CDigiPot& pot) {
   int16_t v;
 
   if (useSensor2) {
-    v = readCheck(); if (phase != currentPhase) return; // check if signal is lost before attempting to zoom
+    v = readCheck(); if (phase != currentPhase) return;  // check if signal is lost before attempting to zoom
   } else {
     v = sensor.read();
   }
@@ -62,7 +60,7 @@ void HWforState::centre(CSensor& sensor, CDigiPot& pot) {
     delayMicroseconds(5); 
 
     if (useSensor2) {
-      v = readCheck(); if (phase != currentPhase) return; // check if signal is lost after each adjustment
+      v = readCheck(); if (phase != currentPhase) return;  // check if signal is lost after each adjustment
     } else {
       v = sensor.read();
     }

@@ -88,25 +88,10 @@ namespace TeensyMonitor.MyGLTools.UserControls
 
             GLThread = new(MyGL);
 
-            this.Resize += (s,e) => GLThread?.Enqueue(GL_Resize);
-            MyGL.MouseDown += (s, e) =>
-            {
-                Scheduler.IsPaused = true;
-                if (e.Button == MouseButtons.Right)
-                {
-                    XCMD_SetWipers xCMD = new()
-                    {
-                        top = 1,
-                        bot = 2,
-                        mid = 3,
-                        offset = 4,
-                        gain = 5
-                    };
-                    Program.serialPort?.Write(xCMD);
-                }
-            };
+            this.Resize += (s, e) => GLThread?.Enqueue(GL_Resize);
 
-            MyGL.MouseUp += (s,e) => Scheduler.IsPaused = false;
+            MyGL.MouseDown += (s, e) => Scheduler.IsPaused = true ;
+            MyGL.MouseUp   += (s, e) => Scheduler.IsPaused = false;
 
             GLThread.RenderAction = RenderMethod;
 

@@ -99,6 +99,8 @@ namespace TeensyMonitor.MyGLTools.Helpers
 
         private static readonly WipersChangedMessage     lastWipersChangeSent   = new();
         private static readonly VoltagesChangedMessage lastVoltagesChangeSent   = new();
+        private static readonly WipersChangedMessage     pendingWipersChange    = new();
+        private static readonly VoltagesChangedMessage pendingVoltagesChange    = new();
         private static int  forceNextWipersPost;
 
         private static readonly double PostIntervalMs = 50.0;
@@ -132,8 +134,10 @@ namespace TeensyMonitor.MyGLTools.Helpers
                 return;
             }
             
-            WipersChangedMessage     wipersChange = activeChart.  LastWipersChange;
-            VoltagesChangedMessage voltagesChange = activeChart.LastVoltagesChange;
+            activeChart.CopyLatestCalderaMessages(pendingWipersChange, pendingVoltagesChange);
+
+            WipersChangedMessage     wipersChange = pendingWipersChange;
+            VoltagesChangedMessage voltagesChange = pendingVoltagesChange;
 
             if (wipersChange != null && (forceWipers || wipersChange.IsValid))
                 if (forceWipers || !wipersChange.Equals(lastWipersChangeSent))

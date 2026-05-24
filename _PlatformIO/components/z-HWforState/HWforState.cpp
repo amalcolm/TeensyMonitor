@@ -2,12 +2,16 @@
 #include "CMasterTimer.h"
 
 constexpr int GAIN_WINDOW_SIZE = 300;
-constexpr int SAMPLES_IN_LONGREAD = 50;
+constexpr int SAMPLES_IN_SENSOR1_LONGREAD = 20;
+constexpr int SAMPLES_IN_SENSOR2_LONGREAD = 50;
+
+const double SENSOR1_FILTER_T = 0.01;
+const double SENSOR2_FILTER_T = 0.002;
 
 HWforState::HWforState(StateType state) : state(state) {
   static std::tuple<int, int> knownGaps[] = { {2, 107}, {4, 70}, {8, 40}, {12, 28}, {16, 22}, {24, 17} };
 
-  for (const auto& [gap, midStep] : knownGaps) 
+  for (const auto& [gap, midStep] : knownGaps)
     if (gap == GAP_TOPBOT) MID_STEP = midStep;
 
   if (MID_STEP >= CDigiPot::POT_MIDPOINT) ERROR("MID_STEP is too large");
@@ -15,35 +19,32 @@ HWforState::HWforState(StateType state) : state(state) {
   phase = Phase::SEARCH;
 }
 
- 
-void HWforState::_update() {
 
-  sensor1.resetFilter(); // does read and sets lastV=lastSensorValue;
+void HWforState::_update() {
 
   if (flags.holdWipers) { _readSensor2(); return; }
 
   if (sensor1.inZone == false) phase = Phase::SEARCH;
 
-  switch (phase) {
-    case Phase::SEARCH :    _findSignal(); break;
-    case Phase::ZOOM   :    _zoomSignal(); break;
-    case Phase::MEASURE: _measureSignal(); break;
-    case Phase::FOLLOW :  _followSignal(); break;
-    default: break;
-  }
+  if (phase == Phase::SEARCH )    _findSignal();
+  if (phase == Phase::ZOOM   )    _zoomSignal();
+  if (phase == Phase::MEASURE) _measureSignal();
+  if (phase == Phase::FOLLOW )  _followSignal();
 
   _readSensor2();
-  
+
 }
 
 
 void HWforState::_readSensor2() {  if (Timer.sampleReady) return;
-  
+
   if (Timer.getStateTime() > 0.001) {
-    sensor2.filter(SAMPLES_IN_LONGREAD, 0.002);
+    sensor1.filter(SAMPLES_IN_SENSOR1_LONGREAD, SENSOR1_FILTER_T);
+    sensor2.filter(SAMPLES_IN_SENSOR2_LONGREAD, SENSOR2_FILTER_T);
     Timer.sampleReady = true;
     A2D.storeNewData();
   } else {
+    sensor1.filter(1, 0.01); // priming filter with early reads
     sensor2.filter(1, 0.01);
   }
 }
@@ -52,7 +53,7 @@ void HWforState::_readSensor2() {  if (Timer.sampleReady) return;
 void HWforState::begin() {
   top    .invert();
   bot    .invert();
-  sensor1.invert(); 
+  sensor1.invert();
   gain   .invert();
   offset .invert();
 
@@ -65,7 +66,7 @@ void HWforState::begin() {
 
   sensor1.begin();
   sensor2.begin();
-  
+
   flags.begun = true;
 }
 

@@ -1,5 +1,4 @@
-﻿using System.Drawing;
-using TeensyMonitor.MyGLTools.Helpers;
+﻿using TeensyMonitor.MyGLTools.Helpers;
 
 namespace TeensyMonitor.MyGLTools.UserControls
 {
@@ -7,7 +6,7 @@ namespace TeensyMonitor.MyGLTools.UserControls
     {
         private readonly PlotAxesRenderer _axes = new();
 
-        public PlotAxesRenderer._Options AxesOptions { get => _axes.Options; }
+        public PlotAxesRenderer._Options AxesOptions { get => _axes.Options; set => _axes.Options = value; }
 
         protected override void Init()
         {
@@ -58,11 +57,12 @@ namespace TeensyMonitor.MyGLTools.UserControls
         {
             if (AxesOptions.LabelPadding <= 0.0f) return false;
 
-            int x = Math.Clamp((int)MathF.Ceiling(AxesOptions.LabelPadding), 0, GLClientSize.Width);
-            int width = GLClientSize.Width - x;
+            int x1 = Math.Clamp((int)MathF.Ceiling(AxesOptions.LabelPadding), 0, GLClientSize.Width);
+            int x2 = Math.Clamp((int)MathF.Ceiling(AxesOptions.XAxisLabelClipRightPadding), 0, GLClientSize.Width);
+            int width = GLClientSize.Width - x1 - x2;
             if (width <= 0 || GLClientSize.Height <= 0) return false;
 
-            base.BeginPlotClip(new Rectangle(x, 0, width, GLClientSize.Height));
+            base.BeginPlotClip(new Rectangle(x1, 0, width, GLClientSize.Height));
             return true;
         }
     }

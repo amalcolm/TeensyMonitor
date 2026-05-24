@@ -33,7 +33,7 @@ struct ChipSelectPins {
 
 struct SensorPins {
   static constexpr int Sensor1 = PIN_A1;
-  static constexpr int Final   = PIN_A0;
+  static constexpr int Sensor2 = PIN_A0;
 };
 
 struct ButtonPins {

@@ -29,6 +29,7 @@ struct HWforState {
       bool inZone = false;
       
       void dbg();
+      void reset() { holdWipers = false; wipersChanged = true; zoomLevel = -1; inZone = false; }
     } flags;
 
 
@@ -40,7 +41,7 @@ struct HWforState {
     CDigiPot       gain{CS.gain};
 
     CSensor        sensor1{SP.Sensor1};
-    CSensor        sensor2{SP.Final};
+    CSensor        sensor2{SP.Sensor2};
     
     void begin(); // ensure hardware is configured
 

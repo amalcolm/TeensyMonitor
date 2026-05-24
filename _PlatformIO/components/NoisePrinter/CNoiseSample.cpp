@@ -5,23 +5,40 @@
 
 C32bitTimer& getTimer(double period);
 
-void FillBufferWithNoise(TimedSample* buffer, size_t size, double period) {
+int quickNoiseTest(int numSamples, int sensorPin) {
+ 
+  analogReadAveraging(0); // disable averaging for pure noise sample
+  int min = analogRead(sensorPin);
+  int max = min;
+
+  for (int i = 1; i < numSamples; i++) {
+    int sample = analogRead(sensorPin);
+
+    if (sample < min) min = sample;
+    if (sample > max) max = sample;
+  }
+  analogReadAveraging(4); // restore default averaging
+
+  return max - min;
+}
+
+void FillBufferWithNoise(TimedSample* buffer, size_t size, int sensorPin, double period) {
   C32bitTimer& noiseTimer = getTimer(period);
 
-//  analogReadResolution(10);
-//  analogReadAveraging(0);
+  if (period < 0.0) 
+    analogReadAveraging(0);
  
   noiseTimer.reset();
   bool wait = period > 0.0;
   for (size_t i = 0; i < size; i++) {
     buffer[i].startTick = noiseTimer.getTicksSinceReset();
-    buffer[i].sample = analogRead(A0);
+    buffer[i].sample = analogRead(sensorPin);
     buffer[i].endTick = noiseTimer.getTicksSinceReset();
 
     if (wait) noiseTimer.wait();
   }
 
-//  analogReadAveraging(4); // restore default averaging
+  analogReadAveraging(4); // restore default averaging
 }
 
 

@@ -119,6 +119,23 @@ namespace PsycSerial
                 default:                    return Double::NaN;
 			}
         }
+
+        void CopyFrom(DataPacket^ other) {
+            State = other->State;
+            TimeStamp = other->TimeStamp;
+            StateTime = other->StateTime;
+            HardwareState = other->HardwareState;
+            SensorState = other->SensorState;
+            Sensor1 = other->Sensor1;
+            Sensor2 = other->Sensor2;
+
+			Channel = nullptr;
+            if (other->Channel == nullptr) return;
+
+            if (Channel == nullptr || Channel->Length != other->Channel->Length)
+                Channel = gcnew array<unsigned int>(other->Channel->Length);
+            Array::Copy(other->Channel, Channel, other->Channel->Length);
+		}
     
     protected:
 		DataPacket();

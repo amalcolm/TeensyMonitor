@@ -53,15 +53,15 @@ namespace TeensyMonitor.MyGLTools.UserControls
         static readonly string[] dataFieldsToPlot = [
 //            "Top"   , "Bot" , "Mid",
 //            "Offset", "Gain",
-              "RawSensor1",
-              "RawSensor2",
+              "RawSensor1", // "RawSensor1",
+              "RawSensor2", // "RawSensor2",
             ];
 
         static readonly string[] dataFieldsForLabels = [
               "Top"   , "Bot" , "Mid",
               "Offset", "Gain",
-              "RawSensor1",
-              "RawSensor2"
+              "RawSensor1", // "Sensor1",
+              "RawSensor2", // "Sensor2",
             ];
 
         private readonly float _labelLineSpacing = 35f;
@@ -70,6 +70,20 @@ namespace TeensyMonitor.MyGLTools.UserControls
 
         public WipersChangedMessage   LastWipersChange   { get; private set; } = new();
         public VoltagesChangedMessage LastVoltagesChange { get; private set; } = new();
+
+        public void CopyLatestCalderaMessages(
+            WipersChangedMessage wipersChange,
+            VoltagesChangedMessage voltagesChange)
+        {
+            ArgumentNullException.ThrowIfNull(wipersChange);
+            ArgumentNullException.ThrowIfNull(voltagesChange);
+
+            lock (_lock)
+            {
+                wipersChange.CopyFrom(LastWipersChange);
+                voltagesChange.CopyFrom(LastVoltagesChange);
+            }
+        }
 
         public MyChart()
         {

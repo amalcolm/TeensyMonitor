@@ -1,15 +1,9 @@
 #include "HWforState.h"
-#include "CMAsterTimer.h"
-#include <algorithm>
+#include "CNoiseSample.h"
 #include "CUSB.h"
-
-struct Zoomflags { StateType state;
-   int test = -1;
-  };
-struct Zoomflags& getZoomflags(StateType state);
+#include <algorithm>
 
 void HWforState::_zoomSignal() { 
-///  auto& [_, test] = getZoomflags(state);
 
    if (flags.zoomLevel == -1) {
     flags.zoomLevel = 15;
@@ -19,31 +13,31 @@ void HWforState::_zoomSignal() {
     delayMicroseconds(10);
 
   
-    centreMid(sensor1); if (phase != Phase::ZOOM) return; 
-    centreOffset(sensor2); if (phase != Phase::ZOOM) return;
+    centreMid(sensor1); if (phase != Phase::ZOOM) goto exit;
+    centreOffset(sensor2); if (phase != Phase::ZOOM) goto exit;
     // starting point with stability, 
   }
 
-  flags.zoomLevel = 100;
+
+  flags.zoomLevel += 32;
   gain.setLevel(flags.zoomLevel);
   delayMicroseconds(10);
+  
+  if (quickNoiseTest(40, sensor1.getPin()) > 20) {
+    gain.setLevel(flags.zoomLevel-32);
+    delayMicroseconds(10);
+    phase = Phase::MEASURE;
+  }
+  else
+  if (gain.getLevel() == CDigiPot::POT_MAX) phase = Phase::MEASURE;
 
+  centreMid(sensor1); if (phase != Phase::ZOOM) goto exit;
+  centreOffset(sensor2); if (phase != Phase::ZOOM) goto exit;
 
-  phase = Phase::FOLLOW;
-}
+  if (phase == Phase::ZOOM) return;
 
-
-
-
-
-// Zoomflags management
-#include <deque>
-
-std::deque<Zoomflags> s_zoomFlags;
-
-Zoomflags& getZoomflags(StateType state) {
-  for (auto& flags : s_zoomFlags) if (flags.state == state) return flags;
-
-  s_zoomFlags.push_back({state});
-  return s_zoomFlags.back();
+exit:
+  flags.reset();
+  phase = Phase::MEASURE;
+  
 }

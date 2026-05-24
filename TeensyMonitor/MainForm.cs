@@ -69,7 +69,7 @@ namespace TeensyMonitor
 
         readonly MyPool<Dictionary<string, double>> parsedPool = new();
 
-        private void SP_DataReceived(IPacket packet)
+        private void SP_DataReceived(PsycSerial.IPacket packet)
         {
             if (IsHandleCreated == false) return;
 

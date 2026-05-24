@@ -1,11 +1,9 @@
-﻿using System.Drawing;
-using TeensyMonitor.MyGLTools.Helpers;
+﻿using TeensyMonitor.MyGLTools.Helpers;
 
 namespace TeensyMonitor.MyGLTools.UserControls
 {
-    public abstract class MyPlotterBaseWithAxes : MyPlotterBase
+    public partial class MyPlotterBaseWithAxes : MyPlotterBase
     {
-
         private readonly PlotAxesRenderer _axes = new();
 
         public PlotAxesRenderer._Options AxesOptions { get => _axes.Options; set => _axes.Options = value; }
@@ -67,5 +65,7 @@ namespace TeensyMonitor.MyGLTools.UserControls
             base.BeginPlotClip(new Rectangle(x1, 0, width, GLClientSize.Height));
             return true;
         }
+
+        protected override void DrawPlots() { }
     }
 }

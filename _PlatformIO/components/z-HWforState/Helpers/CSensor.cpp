@@ -77,7 +77,7 @@ double getT(int samples) {
 
 float CSensor::filter(int numSamples, double t) {
 
-  if (HW->flags.wipersChanged) { _lastV = -1; HW->flags.wipersChanged = false; }
+//  if (HW->flags.wipersChanged) { _lastV = -1; HW->flags.wipersChanged = false; }
 
   if (numSamples == 0 && t <= 0) {
     _lastV = -1.0;

@@ -2,7 +2,7 @@
 
 namespace TeensyMonitor.MyGLTools.UserControls
 {
-    public abstract class MyInteractivePlotterBase : MyPlotterBaseWithAxes, IPlotInteractionHost
+    public class MyInteractivePlotterBase : MyPlotterBaseWithAxes, IPlotInteractionHost
     {
         private readonly PlotInteractionHandler _interaction;
         private bool _hasInteractionXRange;

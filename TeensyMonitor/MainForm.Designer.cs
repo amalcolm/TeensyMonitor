@@ -37,7 +37,7 @@
             dbg = new TeensyMonitor.MyGLTools.UserControls.MyDebugPane();
             pTelemetryPane = new Panel();
             TelemetryPane = new TeensyMonitor.MyGLTools.UserControls.MyTelemetryPane();
-            noiseViewer = new TeensyMonitor.DataTools.Controls.NoiseViewer();
+            signalViewer = new TeensyMonitor.DataTools.Controls.SignalViewer();
             pHeader.SuspendLayout();
             pDebugPane.SuspendLayout();
             pTelemetryPane.SuspendLayout();
@@ -133,15 +133,15 @@
             TelemetryPane.Size = new Size(329, 1264);
             TelemetryPane.TabIndex = 8;
             // 
-            // noiseViewer
+            // signalViewer
             // 
-            noiseViewer.AutoClear = true;
-            noiseViewer.BorderStyle = BorderStyle.FixedSingle;
-            noiseViewer.Dock = DockStyle.Bottom;
-            noiseViewer.Location = new Point(0, 996);
-            noiseViewer.Name = "noiseViewer";
-            noiseViewer.Size = new Size(1060, 316);
-            noiseViewer.TabIndex = 13;
+            signalViewer.AutoClear = true;
+            signalViewer.BorderStyle = BorderStyle.FixedSingle;
+            signalViewer.Dock = DockStyle.Bottom;
+            signalViewer.Location = new Point(0, 996);
+            signalViewer.Name = "noiseViewer";
+            signalViewer.Size = new Size(1060, 316);
+            signalViewer.TabIndex = 13;
             // 
             // MainForm
             // 
@@ -149,7 +149,7 @@
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(1395, 1620);
             Controls.Add(multiChart);
-            Controls.Add(noiseViewer);
+            Controls.Add(signalViewer);
             Controls.Add(pTelemetryPane);
             Controls.Add(pDebugPane);
             Controls.Add(pHeader);
@@ -174,6 +174,6 @@
         private MyGLTools.UserControls.MyDebugPane dbg;
         private Panel pTelemetryPane;
         private MyGLTools.UserControls.MyTelemetryPane TelemetryPane;
-        private DataTools.Controls.NoiseViewer noiseViewer;
+        private DataTools.Controls.SignalViewer signalViewer;
     }
 }

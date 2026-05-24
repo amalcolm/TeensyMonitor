@@ -98,7 +98,7 @@ namespace TeensyMonitor.Caldera
                 return 4;
 
             Span<char> buffer = stackalloc char[32];
-            value.TryFormat(buffer, out var length, "R", CultureInfo.InvariantCulture);
+            value.TryFormat(buffer, out var length, "G9", CultureInfo.InvariantCulture);
             return length;
         }
 
@@ -122,7 +122,7 @@ namespace TeensyMonitor.Caldera
                 return;
             }
 
-            value.TryFormat(span, out var length, "R", CultureInfo.InvariantCulture);
+            value.TryFormat(span, out var length, "G9", CultureInfo.InvariantCulture);
             span = span[length..];
         }
     }

@@ -10,7 +10,7 @@ const STACKED_SWEEP_POINT_COUNT = Math.floor((MID_SWEEP_END - MID_SWEEP_START) /
 const SWEEP_SETTLE_MS = 100;
 const SWEEP_SAMPLE_INTERVAL_MS = 50;
 const SWEEP_FILTER_SAMPLE_COUNT = 10;
-const SWEEP_FILTER_T = 1 / SWEEP_FILTER_SAMPLE_COUNT;
+const RANGE_TEST_SAMPLE_COUNT = 3;
 const GAIN_SWEEP_WIPERS = Object.freeze([0, 1, 2, 4, 8, 16, 32]);
 
 export class Sweep {
@@ -33,6 +33,7 @@ export class Sweep {
   }) {
     this.button = button;
     this.circuitScene = circuitScene;
+    this.discardedFirstSample = false;
     this.freezeVoltages = freezeVoltages;
     this.freezeWipers = freezeWipers;
     this.getHardwareWiperRevision = getHardwareWiperRevision;
@@ -91,11 +92,11 @@ export class Sweep {
     const captureResult = this.captureFilterSample();
 
     if (captureResult === "settling") {
-      this.scheduleStep(SWEEP_SETTLE_MS);
+      this.scheduleStep(this.getSettleDelay());
       return;
     }
 
-    if (!captureResult || this.sampleCount < SWEEP_FILTER_SAMPLE_COUNT) {
+    if (!captureResult || this.sampleCount < this.getRequiredSampleCount()) {
       this.scheduleStep(SWEEP_SAMPLE_INTERVAL_MS);
       return;
     }
@@ -105,7 +106,6 @@ export class Sweep {
       return;
     }
 
-    this.addFilteredSample();
     this.advanceSweep();
   }
 
@@ -188,13 +188,14 @@ export class Sweep {
 
   beginCurrentPoint() {
     this.filteredVoltages = null;
+    this.discardedFirstSample = false;
     this.sampleVoltageBounds = null;
     this.sampleCount = 0;
     this.targetWipers = null;
     this.wiperAcknowledged = !this.requireWiperAck;
     this.applyCurrentWipers();
     this.updateStatus(this.getPointStatus());
-    this.scheduleStep(this.wiperAcknowledged ? SWEEP_SETTLE_MS : SWEEP_SAMPLE_INTERVAL_MS);
+    this.scheduleStep(this.wiperAcknowledged ? this.getSettleDelay() : SWEEP_SAMPLE_INTERVAL_MS);
   }
 
   scheduleStep(delayMs) {
@@ -216,11 +217,24 @@ export class Sweep {
 
     const voltages = this.readVoltages();
 
-    this.sampleVoltageBounds = trackVoltageBounds(this.sampleVoltageBounds, voltages);
-    this.filteredVoltages = filterVoltages(this.filteredVoltages, voltages);
+    if (!this.discardedFirstSample) {
+      this.discardedFirstSample = true;
+      this.updateStatus(`${this.getPointStatus()} skipping first sample`);
+      return false;
+    }
+
     this.sampleCount += 1;
+    this.sampleVoltageBounds = trackVoltageBounds(this.sampleVoltageBounds, voltages);
+    this.filteredVoltages = filterVoltages(this.filteredVoltages, voltages, this.sampleCount);
+
+    if (this.mode !== "range-test") {
+      this.addSample(voltages);
+    }
+
+    const requiredSampleCount = this.getRequiredSampleCount();
+
     this.updateStatus(
-      `${this.getPointStatus()} sample ${this.sampleCount}/${SWEEP_FILTER_SAMPLE_COUNT}`,
+      `${this.getPointStatus()} sample ${this.sampleCount}/${requiredSampleCount}`,
     );
     return true;
   }
@@ -233,11 +247,13 @@ export class Sweep {
     };
   }
 
-  addFilteredSample() {
+  addSample(sensorVoltages) {
     this.onSample?.({
       circuitScene: this.circuitScene,
       model: this.model,
-      sensorVoltages: this.filteredVoltages ? { ...this.filteredVoltages } : null,
+      sampleCount: this.getRequiredSampleCount(),
+      sampleIndex: this.sampleCount,
+      sensorVoltages: sensorVoltages ? { ...sensorVoltages } : null,
       source: this.getSampleSource(),
       ...this.getSampleContext(),
     });
@@ -329,6 +345,18 @@ export class Sweep {
     return {
       ledState: this.getHardwareLedState(),
     };
+  }
+
+  getRequiredSampleCount() {
+    return this.mode === "range-test"
+      ? RANGE_TEST_SAMPLE_COUNT
+      : SWEEP_FILTER_SAMPLE_COUNT;
+  }
+
+  getSettleDelay() {
+    return this.mode === "range-test"
+      ? SWEEP_SAMPLE_INTERVAL_MS
+      : SWEEP_SETTLE_MS;
   }
 
   getHardwareLedState() {
@@ -608,10 +636,10 @@ export class Test1Sweep extends Sweep {
   }
 }
 
-function filterVoltages(oldVoltages, newVoltages) {
+function filterVoltages(oldVoltages, newVoltages, sampleCount) {
   return {
-    sensor1: filterVoltage(oldVoltages?.sensor1, newVoltages?.sensor1),
-    sensor2: filterVoltage(oldVoltages?.sensor2, newVoltages?.sensor2),
+    sensor1: filterVoltage(oldVoltages?.sensor1, newVoltages?.sensor1, sampleCount),
+    sensor2: filterVoltage(oldVoltages?.sensor2, newVoltages?.sensor2, sampleCount),
   };
 }
 
@@ -650,7 +678,7 @@ function areWipersEqual(actual, expected) {
   return Object.entries(expected).every(([id, value]) => Number(actual[id]) === Number(value));
 }
 
-function filterVoltage(oldValue, newValue) {
+function filterVoltage(oldValue, newValue, sampleCount) {
   const newVoltage = getKnownVoltage(newValue);
 
   if (!Number.isFinite(newVoltage)) {
@@ -663,7 +691,10 @@ function filterVoltage(oldValue, newValue) {
     return newVoltage;
   }
 
-  return (1 - SWEEP_FILTER_T) * oldVoltage + SWEEP_FILTER_T * newVoltage;
+  const count = Math.max(1, Number(sampleCount) || 1);
+  const t = 1 / count;
+
+  return (1 - t) * oldVoltage + t * newVoltage;
 }
 
 function getKnownVoltage(value) {

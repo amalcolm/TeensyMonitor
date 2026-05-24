@@ -20,6 +20,8 @@ export class AnalysisDataset {
     leds = null,
     ledState = null,
     model,
+    sampleCount = null,
+    sampleIndex = null,
     sensorVoltages = null,
     source = "manual",
     test = null,
@@ -45,6 +47,8 @@ export class AnalysisDataset {
       ledLabel,
       leds: normaliseLedMap(leds),
       ledState: getKnownState(ledState),
+      sampleCount: getKnownCount(sampleCount),
+      sampleIndex: getKnownCount(sampleIndex),
       source,
       timestamp: Date.now(),
       test,
@@ -135,6 +139,14 @@ function getKnownState(value) {
 
   return Number.isFinite(state) && state >= 0
     ? Math.trunc(state) >>> 0
+    : null;
+}
+
+function getKnownCount(value) {
+  const count = Number(value);
+
+  return Number.isFinite(count) && count > 0
+    ? Math.trunc(count)
     : null;
 }
 

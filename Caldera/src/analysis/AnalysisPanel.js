@@ -262,6 +262,7 @@ export class AnalysisPanel {
     }
 
     const predictionArrows = getPredictionArrowAnnotations(predictedSamples);
+    const useSampleOrderColors = shouldColorBySampleOrder(plottableSamples);
     const traces = [
       {
         customdata: plottableSamples.map((sample) => [
@@ -272,6 +273,7 @@ export class AnalysisPanel {
           sample.wipers.gain,
           formatHoverVoltage(sample.sensorPredicted.sensor2),
           formatHoverVoltage(sample.residuals.sensor2),
+          formatSampleIndex(sample),
         ]),
         hovertemplate: [
           "Sensor1 %{x:.4f} V",
@@ -281,15 +283,11 @@ export class AnalysisPanel {
           "mid %{customdata[2]}",
           "offset %{customdata[3]}",
           "gain %{customdata[4]}",
+          "sample %{customdata[7]}",
           "<extra></extra>",
         ].join("<br>"),
         marker: {
-          color: plottableSamples.map((sample) => sample.wipers.mid),
-          colorscale: [
-            [0, "#35c2ff"],
-            [0.5, "#7ee787"],
-            [1, "#ffcf5a"],
-          ],
+          ...getMarkerColorSettings(plottableSamples, useSampleOrderColors),
           line: { color: "rgba(255, 255, 255, 0.72)", width: 0.8 },
           opacity: 0.86,
           size: 3,
@@ -348,6 +346,48 @@ function getPaddedRange(values) {
   const padding = Math.max((max - min) * 0.08, 0.025);
 
   return [min - padding, max + padding];
+}
+
+function shouldColorBySampleOrder(samples) {
+  return samples.length > 0
+    && samples.every((sample) => sample.source === "mid-sweep")
+    && samples.some((sample) => Number.isFinite(sample.sampleIndex));
+}
+
+function getMarkerColorSettings(samples, useSampleOrderColors) {
+  if (!useSampleOrderColors) {
+    return {
+      color: samples.map((sample) => sample.wipers.mid),
+      colorscale: [
+        [0, "#35c2ff"],
+        [0.5, "#7ee787"],
+        [1, "#ffcf5a"],
+      ],
+    };
+  }
+
+  const sampleCounts = samples
+    .map((sample) => sample.sampleCount)
+    .filter(Number.isFinite);
+  const maxSampleCount = Math.max(1, ...sampleCounts);
+
+  return {
+    cmax: maxSampleCount,
+    cmin: 1,
+    color: samples.map((sample) => sample.sampleIndex ?? 1),
+    colorbar: {
+      len: 0.64,
+      outlinewidth: 0,
+      thickness: 10,
+      title: { side: "right", text: "sample" },
+    },
+    colorscale: [
+      [0, "#35c2ff"],
+      [0.5, "#7ee787"],
+      [1, "#ffcf5a"],
+    ],
+    showscale: true,
+  };
 }
 
 function getLinearFit(samples) {
@@ -699,6 +739,16 @@ function formatGainWiper(value) {
 
 function formatHoverVoltage(value) {
   return Number.isFinite(value) ? `${value.toFixed(4)} V` : "---";
+}
+
+function formatSampleIndex(sample) {
+  if (!Number.isFinite(sample?.sampleIndex)) {
+    return "-";
+  }
+
+  return Number.isFinite(sample.sampleCount)
+    ? `${sample.sampleIndex}/${sample.sampleCount}`
+    : String(sample.sampleIndex);
 }
 
 function formatWiper(value) {

@@ -166,6 +166,7 @@ namespace TeensyMonitor.MyGLTools.Helpers
                     float y = (selector == null) ? (float)(packet.BlockData[i].Channel[0] * Config.C0to1024) 
                                                  : (float)(packet.BlockData[i].get(selector.Value)         );
 
+                    if (y == 0.0f) y = -999.0f;
                     if (i == start && transparent) AddUnderLock(x, y, 0.0f, MyColour.Transparent);
 
                     AddUnderLock(x, y, 0.0f, color);

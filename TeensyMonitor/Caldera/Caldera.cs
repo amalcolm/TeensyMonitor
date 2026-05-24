@@ -37,7 +37,7 @@ namespace TeensyMonitor.Caldera
 
         private bool _needsRefresh = true;
         private int _lastState = -1;
-        private void SP_DataReceived(IPacket packet)
+        private void SP_DataReceived(PsycSerial.IPacket packet)
         {
             if (IsRunning == false) return;
 
@@ -54,6 +54,16 @@ namespace TeensyMonitor.Caldera
                 case DebugPacket debugPacket:
                     if (_lastState < 0 || (int)debugPacket.State != _lastState)
                       PostStateChange((int)debugPacket.State, force: true);
+                    break;
+            }
+        }
+
+        internal void HandlePacket(IPacket packet)
+        {
+            switch (packet)
+            {
+                case NoisePacket noisePacket:
+                    // Handle noise packet if needed
                     break;
             }
         }
